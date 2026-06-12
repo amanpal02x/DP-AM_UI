@@ -199,7 +199,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select Station / Location</option>
+          <option value="">Select {field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}</option>
           {stations.map((station: any) => <option key={station.code} value={station.code}>{station.name} ({station.code})</option>)}
         </select>
       </div>
@@ -261,6 +261,58 @@ function DailyPositionFieldInput({
       </div>
     );
   }
+
+  if (field.name === "balanceTemporaryJoints") {
+    const total = Number(values.temporaryJointsCount || 0);
+    const rectified = Number(values.rectifiedJoints || 0);
+    const balance = Math.max(0, total - rectified);
+    return (
+      <div className="dp-field">
+        <label>{field.label}</label>
+        <input readOnly value={balance} />
+      </div>
+    );
+  }
+
+  if (field.name === "balanceWalkieTalkies") {
+    const total = Number(values.toBeTestedCount || 0);
+    const tested = Number(values.testedCount || 0);
+    const balance = Math.max(0, total - tested);
+    return (
+      <div className="dp-field">
+        <label>{field.label}</label>
+        <input readOnly value={balance} />
+      </div>
+    );
+  }
+
+  if (field.name === "pendingRepair") {
+    const opening = Number(values.openingDefective || 0);
+    const received = Number(values.receivedFromUser || 0);
+    const returned = Number(values.returnedToUser || 0);
+    const condemned = Number(values.setsCondemned || 0);
+    const balance = opening + received - returned - condemned;
+    return (
+      <div className="dp-field">
+        <label>{field.label}</label>
+        <input readOnly value={balance} />
+      </div>
+    );
+  }
+
+  if (field.name === "netBalanceCaseOnDate") {
+    const lastDate = Number(values.caseBalanceLastDate || 0);
+    const received = Number(values.caseReceivedOnDate || 0);
+    const complied = Number(values.caseCompliedOnDate || 0);
+    const balance = lastDate + received - complied;
+    return (
+      <div className="dp-field">
+        <label>{field.label}</label>
+        <input readOnly value={balance} />
+      </div>
+    );
+  }
+
 
   if (field.name === "durationText") {
     return (
@@ -336,8 +388,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         maintenanceType: "Divisional Maintenance"
       }));
       setMaintenanceType("Divisional");
+    } else if (selectedForm?.category === "Exchange") {
+      setValues(prev => ({
+        ...prev,
+        exchangeName: selectedForm.name.endsWith("Exchange") ? selectedForm.name : `${selectedForm.name} Exchange`
+      }));
     }
-  }, [selectedForm?.name]);
+  }, [selectedForm?.name, selectedForm?.category]);
 
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
@@ -403,6 +460,34 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (name === "failureTime" || name === "rectificationTime") {
         next.durationText = calcDurationText(next.failureTime, next.rectificationTime);
       }
+
+      if (name === "temporaryJointsCount" || name === "rectifiedJoints") {
+        const total = Number(next.temporaryJointsCount || 0);
+        const rectified = Number(next.rectifiedJoints || 0);
+        next.balanceTemporaryJoints = Math.max(0, total - rectified);
+      }
+
+      if (name === "toBeTestedCount" || name === "testedCount") {
+        const total = Number(next.toBeTestedCount || 0);
+        const tested = Number(next.testedCount || 0);
+        next.balanceWalkieTalkies = Math.max(0, total - tested);
+      }
+
+      if (name === "openingDefective" || name === "receivedFromUser" || name === "returnedToUser" || name === "setsCondemned") {
+        const opening = Number(next.openingDefective || 0);
+        const received = Number(next.receivedFromUser || 0);
+        const returned = Number(next.returnedToUser || 0);
+        const condemned = Number(next.setsCondemned || 0);
+        next.pendingRepair = opening + received - returned - condemned;
+      }
+
+      if (name === "caseBalanceLastDate" || name === "caseReceivedOnDate" || name === "caseCompliedOnDate") {
+        const lastDate = Number(next.caseBalanceLastDate || 0);
+        const received = Number(next.caseReceivedOnDate || 0);
+        const complied = Number(next.caseCompliedOnDate || 0);
+        next.netBalanceCaseOnDate = lastDate + received - complied;
+      }
+
       return next;
     });
   };
@@ -480,6 +565,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     if (selectedForm?.name === "Railnet / Internet") {
       setValues({ failureTime: toLocalDateTimeValue(), maintenanceType: "Divisional Maintenance" });
       setMaintenanceType("Divisional");
+    } else if (selectedForm?.category === "Exchange") {
+      setValues({
+        failureTime: toLocalDateTimeValue(),
+        exchangeName: selectedForm.name.endsWith("Exchange") ? selectedForm.name : `${selectedForm.name} Exchange`
+      });
     } else {
       setValues({ failureTime: toLocalDateTimeValue() });
     }
@@ -711,34 +801,45 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <table className="data-table dp-recent-table">
                   <thead>
                     <tr>
-                      <th>Time</th>
-                      <th>Action</th>
-                      <th>Status</th>
-                      <th>Station / Section</th>
-                      <th>Linked Asset</th>
-                      <th>Remarks</th>
-                      <th style={{ textAlign: "right" }}>Actions</th>
+                      {activeFields.map(field => (
+                        <th key={field.name}>{field.label}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {currentFormRecords.map((record: any) => (
-                      <tr key={record.id}>
-                        <td>{new Date(record.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                        <td>{record.formData?.actionType || (record.status === "OPERATIONAL" ? "OK" : "FAULT")}</td>
-                        <td><span className={`pill status-${String(record.status || "").toLowerCase()}`}>{record.status}</span></td>
-                        <td>{record.stationCode || record.stationName || record.section || "-"}</td>
-                        <td>{recordAssetLabel(record, metadata)}</td>
-                        <td>{record.remarks || record.reason || "-"}</td>
-                        <td style={{ textAlign: "right" }}>
-                          <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
-                            <Eye size={14} /> View Details
-                          </button>
-                        </td>
+                      <tr
+                        key={record.id}
+                        onClick={() => startEdit(record)}
+                        style={{ cursor: "pointer" }}
+                        title="Click to edit record"
+                        className="dp-recent-row"
+                      >
+                        {activeFields.map(field => {
+                          let val = record.formData?.[field.name];
+                          if (val === undefined) {
+                            if (field.name === "majorSection") val = record.majorSection;
+                            else if (field.name === "section") val = record.section;
+                            else if (field.name === "stationCode") val = record.stationCode || record.stationName;
+                            else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
+                            else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
+                            else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
+                            else if (field.name === "durationText") val = record.durationText;
+                            else if (field.name === "reason") val = record.reason;
+                            else if (field.name === "remarks") val = record.remarks;
+                          }
+                          if (field.type === "datetime-local" && val) {
+                            try {
+                              val = new Date(val).toLocaleString();
+                            } catch (e) {}
+                          }
+                          return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
+                        })}
                       </tr>
                     ))}
                     {currentFormRecords.length === 0 && (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
+                        <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
                       </tr>
                     )}
                   </tbody>
