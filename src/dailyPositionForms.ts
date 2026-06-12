@@ -43,7 +43,7 @@ const requiredDocketField: DailyPositionField = {
 const timingFields: DailyPositionField[] = [
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true },
   { name: "rectificationTime", label: "Rectification Date & Time", type: "datetime-local" },
-  { name: "durationText", label: "Duration", type: "text", readonly: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true },
 ];
 
 const reasonRemarkFields: DailyPositionField[] = [
@@ -112,8 +112,30 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     fields: [
       requiredDocketField,
       ...hierarchyFields,
-      { name: "videoPhoneLocation", label: "Video Phone Location", type: "text", required: true },
-      { name: "phoneStatus", label: "Phone Status", type: "select", required: true, options: ["Working", "Not Working", "Degraded"] },
+      {
+        name: "videoPhoneLocation",
+        label: "Video Phone in Chamber of PHOD",
+        type: "select",
+        required: true,
+        options: [
+          "PCSTE",
+          "PCE",
+          "PCEE",
+          "PCCM",
+          "PCME",
+          "PCOM",
+          "PCPO",
+          "PCMM",
+          "PCMD",
+          "PFA",
+          "DCCM",
+          "PCSO",
+          "PCSC",
+          "Other"
+        ]
+      },
+      { name: "videoClarity", label: "Video Clarity", type: "select", required: true, options: ["Excellent", "Good", "Satisfactory", "Poor", "No Video"] },
+      { name: "audioClarity", label: "Audio Clarity", type: "select", required: true, options: ["Excellent", "Good", "Satisfactory", "Poor", "No Audio"] },
       ...timingFields,
       ...reasonRemarkFields,
     ],

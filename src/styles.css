@@ -213,11 +213,18 @@ textarea {
 }
 
 .page-title {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px 0 20px;
+  padding: 22px 24px 20px 24px;
+  margin: 0 -24px 20px -24px;
+  background: rgba(247, 250, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 
 .title-division {
@@ -1916,11 +1923,17 @@ textarea {
 
 /* Tabular Pages Layout Restructure */
 .tabular-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
-  padding: 22px 0 20px;
+  padding: 22px 24px 20px 24px;
+  margin: 0 -24px 20px -24px;
+  background: rgba(247, 250, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 
 .header-title-section h2 {

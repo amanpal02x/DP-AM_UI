@@ -114,7 +114,7 @@ const humanizeFieldName = (key: string) => {
     majorSection: "Major Section",
     failureTime: "Failure Time",
     rectificationTime: "Rectification Time",
-    durationText: "Duration",
+    durationText: "Duration of Failure",
   };
   if (labels[key]) return labels[key];
   return key
@@ -335,6 +335,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         next.assetId = "";
       }
       if (name === "stationCode") next.assetId = "";
+      
+      if (name === "failureTime" || name === "rectificationTime") {
+        next.durationText = calcDurationText(next.failureTime, next.rectificationTime);
+      }
       return next;
     });
   };
@@ -388,10 +392,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       setSelectedCategory(form.category);
       setSelectedFormName(form.name);
     }
+    const failureTime = formatDateTimeInput(record.failureTime);
+    const rectificationTime = formatDateTimeInput(record.rectificationTime);
     setValues({
       ...(record.formData || {}),
-      failureTime: formatDateTimeInput(record.failureTime),
-      rectificationTime: formatDateTimeInput(record.rectificationTime),
+      failureTime,
+      rectificationTime,
+      durationText: calcDurationText(failureTime, rectificationTime),
       majorSection: record.majorSection || record.formData?.majorSection || "",
       section: record.section || record.formData?.section || "",
       stationCode: record.stationCode || record.formData?.stationCode || "",
@@ -661,7 +668,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : "-"],
                   ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : "-"],
-                  ["Duration", detailsRecord.durationText || "-"],
+                  ["Duration of Failure", detailsRecord.durationText || "-"],
                   ["Reason", detailsRecord.reason || "-"],
                   ["Remarks", detailsRecord.remarks || "-"],
                 ].map(([label, value]) => (
