@@ -705,7 +705,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         }}
                       >
                         <span>{form.name}</span>
-                        <em>{form.badge}</em>
                       </button>
                     ))}
                     {visibleForms.length === 0 && <p>No circuit found.</p>}
