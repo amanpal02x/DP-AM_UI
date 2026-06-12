@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Edit, Eye, Send } from "lucide-react";
@@ -9,6 +9,8 @@ import {
   DAILY_POSITION_FORMS,
   DailyPositionField,
   DailyPositionFormDefinition,
+  RAILNET_DIVISIONAL_FIELDS,
+  RAILNET_HQ_FIELDS,
 } from "./dailyPositionForms";
 
 type DailyPositionViewProps = {
@@ -216,6 +218,50 @@ function DailyPositionFieldInput({
     );
   }
 
+  if (field.name === "attachFile") {
+    return (
+      <div className="dp-field">
+        <label>{field.label}{field.required && <span>*</span>}</label>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+          <input
+            type="file"
+            id="file-upload"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setValue(field.name, file.name);
+              }
+            }}
+          />
+          <label
+            htmlFor="file-upload"
+            className="export-button"
+            style={{
+              cursor: "pointer",
+              background: "#f8fafc",
+              color: "#334155",
+              borderColor: "#cbd5e1",
+              margin: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              fontSize: "13px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px"
+            }}
+          >
+            Choose File
+          </label>
+          <span style={{ fontSize: "13px", color: "var(--muted)" }}>
+            {value || "No file attached"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   if (field.name === "durationText") {
     return (
       <div className="dp-field">
@@ -266,6 +312,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [circuitSearch, setCircuitSearch] = useState("");
+  const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
 
   const forms = DAILY_POSITION_FORMS.filter(form => form.category === selectedCategory);
   const visibleForms = forms.filter(form =>
@@ -274,6 +321,23 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const selectedForm = useMemo(() => {
     return forms.find(form => form.name === selectedFormName) || forms[0];
   }, [forms, selectedFormName]);
+
+  const activeFields = useMemo(() => {
+    if (selectedForm?.name === "Railnet / Internet") {
+      return maintenanceType === "Divisional" ? RAILNET_DIVISIONAL_FIELDS : RAILNET_HQ_FIELDS;
+    }
+    return selectedForm?.fields || [];
+  }, [selectedForm, maintenanceType]);
+
+  useEffect(() => {
+    if (selectedForm?.name === "Railnet / Internet") {
+      setValues(prev => ({
+        ...prev,
+        maintenanceType: "Divisional Maintenance"
+      }));
+      setMaintenanceType("Divisional");
+    }
+  }, [selectedForm?.name]);
 
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
@@ -392,6 +456,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       setSelectedCategory(form.category);
       setSelectedFormName(form.name);
     }
+    if (record.formType === "Railnet / Internet") {
+      setMaintenanceType(record.formData?.maintenanceType === "HQ Maintenance" ? "HQ" : "Divisional");
+    }
     const failureTime = formatDateTimeInput(record.failureTime);
     const rectificationTime = formatDateTimeInput(record.rectificationTime);
     setValues({
@@ -410,7 +477,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const resetForm = () => {
-    setValues({ failureTime: toLocalDateTimeValue() });
+    if (selectedForm?.name === "Railnet / Internet") {
+      setValues({ failureTime: toLocalDateTimeValue(), maintenanceType: "Divisional Maintenance" });
+      setMaintenanceType("Divisional");
+    } else {
+      setValues({ failureTime: toLocalDateTimeValue() });
+    }
     setEditingRecordId(null);
   };
 
@@ -554,13 +626,57 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           </aside>
 
           <main className="dp-form-shell secr-form-shell">
-            <div className="dp-form-intro">
-              <h3>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
-              <p>{selectedForm.description}</p>
+            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "14px", marginBottom: "20px" }}>
+              <div>
+                <h3 style={{ margin: 0 }}>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
+                <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
+              </div>
+              {selectedForm.name === "Railnet / Internet" && (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="export-button"
+                    style={{
+                      background: maintenanceType === "Divisional" ? "var(--blue-soft)" : "transparent",
+                      color: maintenanceType === "Divisional" ? "var(--blue)" : "var(--muted)",
+                      borderColor: maintenanceType === "Divisional" ? "var(--blue)" : "var(--line)",
+                      fontWeight: 700,
+                      padding: "6px 14px",
+                      borderRadius: "6px",
+                      fontSize: "13px"
+                    }}
+                    onClick={() => {
+                      setMaintenanceType("Divisional");
+                      setValue("maintenanceType", "Divisional Maintenance");
+                    }}
+                  >
+                    Divisional Maintenance
+                  </button>
+                  <button
+                    type="button"
+                    className="export-button"
+                    style={{
+                      background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
+                      color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
+                      borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
+                      fontWeight: 700,
+                      padding: "6px 14px",
+                      borderRadius: "6px",
+                      fontSize: "13px"
+                    }}
+                    onClick={() => {
+                      setMaintenanceType("HQ");
+                      setValue("maintenanceType", "HQ Maintenance");
+                    }}
+                  >
+                    HQ Maintenance
+                  </button>
+                </div>
+              )}
             </div>
 
             <form className="dp-form-grid" onSubmit={handleSubmit}>
-              {selectedForm.fields.map(field => (
+              {activeFields.map(field => (
                 <DailyPositionFieldInput
                   key={field.name}
                   field={field}

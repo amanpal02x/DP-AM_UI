@@ -70,6 +70,39 @@ const exchangeFields: DailyPositionField[] = [
   ...reasonRemarkFields,
 ];
 
+export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
+  docketField,
+  ...hierarchyFields,
+  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
+  { name: "lastTestingTime", label: "Last Testing Time", type: "datetime-local", required: true },
+  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"] },
+  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details" },
+  { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
+  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
+  { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
+  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true },
+  { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true },
+  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"] },
+  { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
+];
+
+export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
+  docketField,
+  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
+  { name: "lastTestingTime", label: "Last Testing Time", type: "datetime-local", required: true },
+  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"] },
+  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details" },
+  { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
+  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
+  { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
+  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true },
+  { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true },
+  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"] },
+  { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
+];
+
 export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
   {
     category: "Communication & Voice Circuits",
@@ -148,21 +181,14 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Conference circuit for Chief Freight Transportation Manager operations.",
     fields: standardFaultFields,
   },
+
   {
     category: "Network & Internet",
     name: "Railnet / Internet",
     badge: "NET",
     systemCode: "SECR/TEL/NET-08",
     description: "SECR Railway Intranet and official broadband gateways.",
-    fields: [
-      docketField,
-      { name: "maintenanceType", label: "Maintenance Type", type: "select", required: true, options: ["Divisional Maintenance", "HQ Maintenance"] },
-      { name: "gatewayStatus", label: "Gateway Status", type: "select", required: true, options: ["ONLINE", "DEGRADED", "OFFLINE"] },
-      { name: "linkSpeed", label: "Link Speed", type: "text", placeholder: "e.g. 500 / 500 Mbps" },
-      { name: "latencyToHq", label: "Latency to HQ", type: "text" },
-      ...timingFields,
-      ...reasonRemarkFields,
-    ],
+    fields: RAILNET_DIVISIONAL_FIELDS,
   },
   {
     category: "Network & Internet",
@@ -171,7 +197,9 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/WIFI-09",
     description: "Public Wi-Fi access points at stations (RailWire).",
     fields: [
-      ...hierarchyFields,
+      { name: "majorSection", label: "Major Section", type: "select", required: true },
+      { name: "section", label: "Section", type: "select", required: true },
+      { name: "assetId", label: "Linked Asset", type: "select" },
       { name: "faultyAccessPointLocation", label: "Location of Faulty Access Point", type: "text", required: true },
       ...timingFields,
       ...reasonRemarkFields,
