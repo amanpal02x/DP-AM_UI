@@ -175,7 +175,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select Major Section</option>
+          <option value="">{field.placeholder || "Select Major Section"}</option>
           {majorSections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
         </select>
       </div>
@@ -187,7 +187,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly || !values.majorSection} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select Section</option>
+          <option value="">{field.placeholder || "Select Section"}</option>
           {sections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
         </select>
       </div>
@@ -199,7 +199,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select {field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}</option>
+          <option value="">{field.placeholder || `Select ${field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}`}</option>
           {stations.map((station: any) => <option key={station.code} value={station.code}>{station.name} ({station.code})</option>)}
         </select>
       </div>
@@ -211,7 +211,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">No linked asset</option>
+          <option value="">{field.placeholder || "No linked asset"}</option>
           {assets.map((asset: any) => <option key={asset.id} value={asset.id}>{assetLabel(asset)}</option>)}
         </select>
       </div>
@@ -336,7 +336,7 @@ function DailyPositionFieldInput({
       <label>{field.label}{field.required && <span>*</span>}</label>
       {field.type === "select" ? (
         <select {...commonProps}>
-          <option value="">Select {field.label}</option>
+          <option value="">{field.placeholder || `Select ${field.label}`}</option>
           {(field.options || []).map((option: string) => (
             <option key={option} value={option}>{option}</option>
           ))}
