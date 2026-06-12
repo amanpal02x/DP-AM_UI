@@ -276,6 +276,7 @@ const normalizeDivision = (div: any): string => {
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
 import DailyPositionView from "./DailyPositionView";
+import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./dailyPositionForms";
 import type {
   ActivityItem,
   AlertItem,
@@ -345,9 +346,17 @@ type AppState = {
   setSidebarOpen: (sidebarOpen: boolean) => void;
   setAssetStatusFilter: (status: string) => void;
   logout: () => void;
+  dpSelectedCategory: string;
+  dpSelectedFormName: string;
+  dpOpenCategory: string;
+  dpCircuitSearch: string;
+  setDpSelectedCategory: (category: string) => void;
+  setDpSelectedFormName: (formName: string) => void;
+  setDpOpenCategory: (category: string) => void;
+  setDpCircuitSearch: (search: string) => void;
 };
 
-const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set) => ({
   activeNav: "Dashboard",
   role: getCachedUser() ? getCachedUser().role : "VIEWER",
   division: getCachedUser() ? (getCachedUser().division || "Raipur") : "Raipur",
@@ -371,7 +380,15 @@ const useAppStore = create<AppState>((set) => ({
     setAuthToken(null);
     setCachedUser(null);
     set({ token: null, user: null, role: "VIEWER", activeNav: "Dashboard", assetStatusFilter: "" });
-  }
+  },
+  dpSelectedCategory: "Communication & Voice Circuits",
+  dpSelectedFormName: "Control & ICMS Position",
+  dpOpenCategory: "Communication & Voice Circuits",
+  dpCircuitSearch: "",
+  setDpSelectedCategory: (dpSelectedCategory) => set({ dpSelectedCategory }),
+  setDpSelectedFormName: (dpSelectedFormName) => set({ dpSelectedFormName }),
+  setDpOpenCategory: (dpOpenCategory) => set({ dpOpenCategory }),
+  setDpCircuitSearch: (dpCircuitSearch) => set({ dpCircuitSearch }),
 }));
 
 const toneIcons = {
@@ -1022,7 +1039,7 @@ function App() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
-        {activeNav === "Dashboard" || activeNav === "GIS Mapping" ? <PageHeader activeNav={activeNav} /> : null}
+        {activeNav === "GIS Mapping" ? <PageHeader activeNav={activeNav} /> : null}
         {activeNav === "Dashboard" ? (
           <DashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
         ) : activeNav === "GIS Mapping" ? (
@@ -1257,11 +1274,121 @@ function EditProfileModal({
   );
 }
 
+function SidebarDailyPositionAccordion() {
+  const {
+    dpSelectedCategory,
+    dpSelectedFormName,
+    dpOpenCategory,
+    dpCircuitSearch,
+    setDpSelectedCategory,
+    setDpSelectedFormName,
+    setDpOpenCategory,
+    setDpCircuitSearch
+  } = useAppStore();
+
+  return (
+    <div className="dp-circuit-accordion" style={{ paddingLeft: "8px", margin: "4px 0 12px 0", display: "grid", gap: "6px" }}>
+      {DAILY_POSITION_CATEGORIES.map(category => {
+        const isOpen = category === dpOpenCategory;
+        const forms = DAILY_POSITION_FORMS.filter(form => form.category === category);
+        const visibleForms = forms.filter(form =>
+          `${form.name} ${form.badge} ${form.systemCode}`.toLowerCase().includes(dpCircuitSearch.toLowerCase())
+        );
+
+        return (
+          <div key={category} className={`dp-circuit-group ${isOpen ? "open" : ""}`} style={{ border: "1px solid var(--line)", borderRadius: "6px", overflow: "hidden", background: "#ffffff" }}>
+            <button
+              className="dp-circuit-heading"
+              type="button"
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                background: isOpen ? "var(--blue-soft)" : "transparent",
+                color: isOpen ? "var(--blue)" : "var(--navy)",
+                fontWeight: 700,
+                fontSize: "12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left"
+              }}
+              onClick={() => {
+                if (isOpen) {
+                  setDpOpenCategory("");
+                  return;
+                }
+                setDpOpenCategory(category);
+                setDpSelectedCategory(category);
+                setDpSelectedFormName("");
+                setDpCircuitSearch("");
+              }}
+            >
+              <span style={{ fontSize: "11px" }}>{category}</span>
+              <strong>{isOpen ? "v" : ">"}</strong>
+            </button>
+            {isOpen && (
+              <div className="dp-circuit-list" style={{ padding: "6px", display: "grid", gap: "4px", background: "#f8fafc", borderTop: "1px solid var(--line)" }}>
+                <input
+                  value={dpCircuitSearch}
+                  onChange={event => setDpCircuitSearch(event.target.value)}
+                  placeholder="Search circuit..."
+                  style={{
+                    width: "100%",
+                    padding: "6px 8px",
+                    fontSize: "11px",
+                    border: "1px solid var(--line)",
+                    borderRadius: "4px",
+                    marginBottom: "4px",
+                    outline: "none"
+                  }}
+                />
+                {visibleForms.map(form => {
+                  const isActive = form.name === dpSelectedFormName || (!dpSelectedFormName && form.name === forms[0].name);
+                  return (
+                    <button
+                      key={form.name}
+                      type="button"
+                      style={{
+                        width: "100%",
+                        padding: "6px 8px",
+                        borderRadius: "4px",
+                        border: "none",
+                        background: isActive ? "var(--blue)" : "transparent",
+                        color: isActive ? "#ffffff" : "var(--navy)",
+                        fontSize: "11px",
+                        fontWeight: isActive ? 700 : 500,
+                        textAlign: "left",
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                      onClick={() => {
+                        setDpSelectedFormName(form.name);
+                      }}
+                    >
+                      <span>{form.name}</span>
+                    </button>
+                  );
+                })}
+                {visibleForms.length === 0 && <p style={{ fontSize: "11px", color: "var(--muted)", margin: "4px 0", textAlign: "center" }}>No circuit found.</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Sidebar Component
 function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   const { activeNav, role, sidebarOpen, setActiveNav, logout, user } = useAppStore();
   const visibleNav = navItems.filter((item) => item.roles.includes(role));
   const [showProfileCard, setShowProfileCard] = useState(false);
+  const [dpDropdownOpen, setDpDropdownOpen] = useState(true);
 
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
@@ -1275,17 +1402,32 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 
       <nav className="nav-list" aria-label="Primary">
         {visibleNav.map((item) => (
-          <button
-            className={`nav-item ${item.label === activeNav ? "active" : ""}`}
-            key={item.label}
-            onClick={() => setActiveNav(item.label)}
-            type="button"
-          >
-            <item.icon size={20} />
-            <span>{item.label}</span>
-            {item.badge ? <b>{item.badge}</b> : null}
-            {item.expandable ? <ChevronDown className="nav-caret" size={16} /> : null}
-          </button>
+          <Fragment key={item.label}>
+            <button
+              className={`nav-item ${item.label === activeNav ? "active" : ""}`}
+              onClick={() => {
+                if (item.label === "Daily Position") {
+                  if (activeNav === "Daily Position") {
+                    setDpDropdownOpen(!dpDropdownOpen);
+                  } else {
+                    setActiveNav(item.label);
+                    setDpDropdownOpen(true);
+                  }
+                } else {
+                  setActiveNav(item.label);
+                }
+              }}
+              type="button"
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+              {item.badge ? <b>{item.badge}</b> : null}
+              {item.expandable ? <ChevronDown className="nav-caret" size={16} /> : null}
+            </button>
+            {item.label === "Daily Position" && activeNav === "Daily Position" && dpDropdownOpen && (
+              <SidebarDailyPositionAccordion />
+            )}
+          </Fragment>
         ))}
       </nav>
 
