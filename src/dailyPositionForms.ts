@@ -273,7 +273,8 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/CUT-13",
     description: "Real-time track monitoring of optical fiber and copper quad media cuts.",
     fields: [
-      { name: "cfmsNo", label: "CFMS No", type: "text", placeholder: "Enter CFMS No (optional)" },
+      { name: "cpmsEntry", label: "CPMS No.", type: "select", required: true, options: ["YES", "NO"], placeholder: "Select CPMS Entry" },
+      { name: "cpmsNo", label: "CPMS No. Value", type: "text", placeholder: "Enter CPMS No." },
       { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", required: true, placeholder: "Select Section" },
       { name: "sectionYard", label: "Section/Yard", type: "select", required: true, options: ["Yard", "Block Section", "Station", "Other"], placeholder: "Select Section/Yard" },

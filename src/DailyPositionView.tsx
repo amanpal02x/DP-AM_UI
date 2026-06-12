@@ -381,6 +381,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     return selectedForm?.fields || [];
   }, [selectedForm, maintenanceType]);
 
+  const visibleActiveFields = useMemo(() => {
+    return activeFields.filter(field => {
+      if (field.name === "cpmsNo") {
+        return values.cpmsEntry === "YES";
+      }
+      return true;
+    });
+  }, [activeFields, values.cpmsEntry]);
+
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
       setValues(prev => ({
@@ -486,6 +495,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         const received = Number(next.caseReceivedOnDate || 0);
         const complied = Number(next.caseCompliedOnDate || 0);
         next.netBalanceCaseOnDate = lastDate + received - complied;
+      }
+
+      if (name === "cpmsEntry" && nextValue !== "YES") {
+        next.cpmsNo = "";
       }
 
       return next;
@@ -765,7 +778,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </div>
 
             <form className="dp-form-grid" onSubmit={handleSubmit}>
-              {activeFields.map(field => (
+              {visibleActiveFields.map(field => (
                 <DailyPositionFieldInput
                   key={field.name}
                   field={field}
