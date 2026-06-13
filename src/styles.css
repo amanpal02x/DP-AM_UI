@@ -2485,7 +2485,13 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 6px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding: 12px 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  z-index: 10;
 }
 
 .dp-form-actions .export-button {
