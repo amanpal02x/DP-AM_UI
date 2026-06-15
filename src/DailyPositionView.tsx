@@ -743,19 +743,79 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               )}
             </div>
 
-            <form className="dp-form-grid" onSubmit={handleSubmit}>
-              {visibleActiveFields.map(field => (
-                <DailyPositionFieldInput
-                  key={field.name}
-                  field={field}
-                  value={field.name === "durationText" ? calcDurationText(values.failureTime, values.rectificationTime) : values[field.name]}
-                  values={values}
-                  setValue={setValue}
-                  metadata={metadata}
-                  selectedDivision={selectedDivision}
-                  readOnly={false}
-                />
-              ))}
+            <form onSubmit={handleSubmit}>
+              <div className="dp-form-scrollable-container">
+                <div className="dp-form-grid">
+                  {visibleActiveFields.map(field => (
+                    <DailyPositionFieldInput
+                      key={field.name}
+                      field={field}
+                      value={field.name === "durationText" ? calcDurationText(values.failureTime, values.rectificationTime) : values[field.name]}
+                      values={values}
+                      setValue={setValue}
+                      metadata={metadata}
+                      selectedDivision={selectedDivision}
+                      readOnly={false}
+                    />
+                  ))}
+                </div>
+
+                <section className="dp-recent-form-records">
+                  <div className="dp-recent-header">
+                    <h3>Recent Submitted Records</h3>
+                    <span>{selectedForm.name}</span>
+                  </div>
+                  <div className="table-scroll-container">
+                    <table className="data-table dp-recent-table">
+                      <thead>
+                        <tr>
+                          {activeFields.map(field => (
+                            <th key={field.name}>{field.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentFormRecords.map((record: any) => (
+                          <tr
+                            key={record.id}
+                            onClick={() => startEdit(record)}
+                            style={{ cursor: "pointer" }}
+                            title="Click to edit record"
+                            className="dp-recent-row"
+                          >
+                            {activeFields.map(field => {
+                              let val = record.formData?.[field.name];
+                              if (val === undefined) {
+                                if (field.name === "majorSection") val = record.majorSection;
+                                else if (field.name === "section") val = record.section;
+                                else if (field.name === "stationCode") val = record.stationCode || record.stationName;
+                                else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
+                                else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
+                                else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
+                                else if (field.name === "durationText") val = record.durationText;
+                                else if (field.name === "reason") val = record.reason;
+                                else if (field.name === "remarks") val = record.remarks;
+                              }
+                              if (field.type === "datetime-local" && val) {
+                                try {
+                                  val = new Date(val).toLocaleString();
+                                } catch (e) {}
+                              }
+                              return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
+                            })}
+                          </tr>
+                        ))}
+                        {currentFormRecords.length === 0 && (
+                          <tr>
+                            <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+
               <div className="dp-form-actions">
                 <button className="export-button" type="button" onClick={resetForm}>Reset</button>
                 {!editingRecordId && (
@@ -770,60 +830,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </button>
               </div>
             </form>
-            <section className="dp-recent-form-records">
-              <div className="dp-recent-header">
-                <h3>Recent Submitted Records</h3>
-                <span>{selectedForm.name}</span>
-              </div>
-              <div className="table-scroll-container">
-                <table className="data-table dp-recent-table">
-                  <thead>
-                    <tr>
-                      {activeFields.map(field => (
-                        <th key={field.name}>{field.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentFormRecords.map((record: any) => (
-                      <tr
-                        key={record.id}
-                        onClick={() => startEdit(record)}
-                        style={{ cursor: "pointer" }}
-                        title="Click to edit record"
-                        className="dp-recent-row"
-                      >
-                        {activeFields.map(field => {
-                          let val = record.formData?.[field.name];
-                          if (val === undefined) {
-                            if (field.name === "majorSection") val = record.majorSection;
-                            else if (field.name === "section") val = record.section;
-                            else if (field.name === "stationCode") val = record.stationCode || record.stationName;
-                            else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
-                            else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
-                            else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
-                            else if (field.name === "durationText") val = record.durationText;
-                            else if (field.name === "reason") val = record.reason;
-                            else if (field.name === "remarks") val = record.remarks;
-                          }
-                          if (field.type === "datetime-local" && val) {
-                            try {
-                              val = new Date(val).toLocaleString();
-                            } catch (e) {}
-                          }
-                          return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
-                        })}
-                      </tr>
-                    ))}
-                    {currentFormRecords.length === 0 && (
-                      <tr>
-                        <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
           </main>
         </section>
       )}
