@@ -694,7 +694,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       {canFill && viewMode === "form" && (
         <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
-            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "14px", marginBottom: "20px" }}>
+            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
               <div>
                 <h3 style={{ margin: 0 }}>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
                 <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
