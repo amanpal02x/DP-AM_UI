@@ -332,9 +332,24 @@ function DailyPositionFieldInput({
     placeholder: field.placeholder,
   };
 
+  const maxProps: Record<string, string> = {};
+  if (field.type === "date") {
+    maxProps.max = toDateValue(new Date());
+  } else if (field.type === "datetime-local") {
+    maxProps.max = toLocalDateTimeValue(new Date());
+  }
+
   return (
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
-      <label>{field.label}{field.required && <span>*</span>}</label>
+      <label>
+        {field.label}
+        {field.type === "datetime-local" && (
+          <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
+            (Date, Hours & Min)
+          </span>
+        )}
+        {field.required && <span>*</span>}
+      </label>
       {field.type === "select" ? (
         <select {...commonProps}>
           <option value="">{field.placeholder || `Select ${field.label}`}</option>
@@ -345,7 +360,14 @@ function DailyPositionFieldInput({
       ) : field.type === "textarea" ? (
         <textarea {...commonProps} />
       ) : (
-        <input type={field.type} {...commonProps} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <input type={field.type} {...maxProps} {...commonProps} />
+          {field.type === "datetime-local" && (
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "500", paddingLeft: "4px" }}>
+              Time Picker: Left column = Hours (00-23), Right column = Minutes (00-59)
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -548,6 +570,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!canFill || !selectedForm) return;
+
+    // Client-side validation to block future dates & times
+    const now = new Date();
+    const nowLocalStr = toLocalDateTimeValue(now);
+    const todayLocalStr = toDateValue(now);
+
+    for (const field of activeFields) {
+      const val = values[field.name];
+      if (!val) continue;
+
+      if (field.type === "datetime-local") {
+        if (val > nowLocalStr) {
+          showToast(`Future date & time is not allowed for "${field.label}".`);
+          return;
+        }
+      } else if (field.type === "date") {
+        if (val > todayLocalStr) {
+          showToast(`Future date is not allowed for "${field.label}".`);
+          return;
+        }
+      }
+    }
+
     if (editingRecordId) {
       updateRecord.mutate({ id: editingRecordId, body: buildPayload("FAULT") });
       return;
