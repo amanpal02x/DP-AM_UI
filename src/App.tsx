@@ -803,7 +803,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
               </span>
             )}
           </div>
-          <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 6 }}>
+          <div style={{ maxHeight: 200, overflowY: "auto", overflowX: "auto", border: "1px solid var(--line)", borderRadius: 6 }}>
             <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", textAlign: "left" }}>
               <thead style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
                 <tr>
@@ -3507,15 +3507,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--navy) 0%, #1e294b 100%)",
-          color: "#fff",
-          padding: "24px 28px",
-          position: "relative",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div className="modal-header">
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", color: "var(--blue)" }}>
               Telecom Asset Card
@@ -3545,7 +3537,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
         </div>
 
         {/* Modal Scrollable Body */}
-        <div style={{ padding: 28, overflowY: "auto", display: "grid", gap: 24 }}>
+        <div className="modal-body">
           {/* Main Info Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center", background: "#f8fafd", padding: 12, borderRadius: 10, border: "1px solid #edf2f9" }}>
@@ -3678,13 +3670,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
         </div>
 
         {/* Modal Footer */}
-        <div style={{
-          background: "#f8fafd",
-          padding: "16px 28px",
-          borderTop: "1px solid var(--line)",
-          display: "flex",
-          justifyContent: "flex-end"
-        }}>
+        <div className="modal-footer">
           <button 
             onClick={close}
             className="export-button"
@@ -3759,15 +3745,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--navy) 0%, #1e294b 100%)",
-          color: "#fff",
-          padding: "24px 28px",
-          position: "relative",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div className="modal-header">
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", color: "var(--blue)" }}>
               User Account Card
@@ -3797,7 +3775,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
         </div>
 
         {/* Modal Scrollable Body */}
-        <div style={{ padding: 28, overflowY: "auto", display: "grid", gap: 20 }}>
+        <div className="modal-body" style={{ gap: 20 }}>
           {/* Main profile visual */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid var(--line)", paddingBottom: 20 }}>
             <div style={{
@@ -3853,13 +3831,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
         </div>
 
         {/* Modal Footer */}
-        <div style={{
-          background: "#f8fafd",
-          padding: "16px 28px",
-          borderTop: "1px solid var(--line)",
-          display: "flex",
-          justifyContent: "flex-end"
-        }}>
+        <div className="modal-footer">
           <button 
             onClick={close}
             className="export-button"
@@ -3962,15 +3934,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--navy) 0%, #1e294b 100%)",
-          color: "#fff",
-          padding: "24px 28px",
-          position: "relative",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div className="modal-header">
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", color: "var(--blue)" }}>
               Station Master Card
@@ -4000,7 +3964,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
         </div>
 
         {/* Modal Scrollable Body */}
-        <div style={{ padding: 28, overflowY: "auto", display: "grid", gap: 24 }}>
+        <div className="modal-body">
           {/* Main Info Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
             {/* Division */}
@@ -4120,13 +4084,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
         </div>
 
         {/* Modal Footer */}
-        <div style={{
-          background: "#f8fafd",
-          padding: "16px 28px",
-          borderTop: "1px solid var(--line)",
-          display: "flex",
-          justifyContent: "flex-end"
-        }}>
+        <div className="modal-footer">
           <button 
             onClick={close}
             className="export-button"
@@ -4926,7 +4884,7 @@ function ActionPanel({
             <strong style={{ display: "block", marginBottom: 8 }}>Specifications Parameters:</strong>
             <div style={{ display: "grid", gap: 10 }}>
               {assetSpecFields.map((field, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div key={idx} className="spec-parameter-row">
                   <input
                     required
                     style={{ flex: 1, minWidth: 0 }}
@@ -5329,7 +5287,7 @@ function ActionPanel({
               <strong style={{ display: "block", marginBottom: 8 }}>Specifications Parameters:</strong>
               <div style={{ display: "grid", gap: 10 }}>
                 {assetSpecFields.map((field, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div key={idx} className="spec-parameter-row">
                     <input
                       required
                       style={{ flex: 1, minWidth: 0 }}
