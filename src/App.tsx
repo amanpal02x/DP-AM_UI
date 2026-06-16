@@ -1393,10 +1393,12 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
       <div className="brand">
-        <div className="railway-mark">IR</div>
+        <div className="telecom-mark">
+          <RadioTower size={24} />
+        </div>
         <div>
           <h1>SECR</h1>
-          <p>Telecom Asset Management</p>
+          <p>Telecom Daily Position & Asset Management</p>
         </div>
       </div>
 

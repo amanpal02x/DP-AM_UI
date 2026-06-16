@@ -90,6 +90,9 @@ textarea {
   display: grid;
   width: 56px;
   height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  flex-shrink: 0;
   place-items: center;
   border: 4px solid #fff;
   border-radius: 50%;
@@ -98,6 +101,21 @@ textarea {
   font-size: 15px;
   font-weight: 900;
   box-shadow: 0 8px 20px rgba(233, 35, 34, 0.2);
+}
+
+.telecom-mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue) 0%, #1d4ed8 100%);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
 }
 
 .brand h1 {
