@@ -3824,6 +3824,31 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
             </p>
           </div>
 
+          {/* Commissioned Under Section */}
+          <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 16 }}>
+            <small style={{ display: "block", fontSize: 11, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Commissioned Under</small>
+            <div style={{ marginTop: 8, display: "grid", gap: 10 }}>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--navy)" }}>ABSS: </strong>
+                <span style={{ fontSize: 13, color: "var(--navy)", fontWeight: 550 }}>
+                  {station.commissionedAbss && station.commissionedAbss.length > 0
+                    ? station.commissionedAbss.map((k: string) => TELECOM_ASSET_CHECKS.find(c => c.key === k)?.label || k).join(", ")
+                    : "None"
+                  }
+                </span>
+              </div>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--navy)" }}>Divisional Work: </strong>
+                <span style={{ fontSize: 13, color: "var(--navy)", fontWeight: 550 }}>
+                  {station.commissionedDivisional && station.commissionedDivisional.length > 0
+                    ? station.commissionedDivisional.map((k: string) => TELECOM_ASSET_CHECKS.find(c => c.key === k)?.label || k).join(", ")
+                    : "None"
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Capabilities Grid Checklist */}
           <div>
             <h4 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 800, color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -4116,6 +4141,8 @@ function ActionPanel({
     hasCoachGuidanceDisplay: false, hasTrainIndicationBoard: false,
     hasDigitalDisplayHeritage: false, hasAtAGlanceBoard: false, hasCctvDe: false
   });
+  const [commissionedAbss, setCommissionedAbss] = useState<string[]>([]);
+  const [commissionedDivisional, setCommissionedDivisional] = useState<string[]>([]);
 
   const [gateNumber, setGateNumber] = useState("");
   const [gateName, setGateName] = useState("");
@@ -4179,6 +4206,8 @@ function ActionPanel({
         hasCoachGuidanceDisplay: false, hasTrainIndicationBoard: false,
         hasDigitalDisplayHeritage: false, hasAtAGlanceBoard: false, hasCctvDe: false
       });
+      setCommissionedAbss([]);
+      setCommissionedDivisional([]);
     }
 
     if (title === "Add Asset" || title === "Create Asset") {
@@ -4250,6 +4279,8 @@ function ActionPanel({
             checks[key] = !!s[key];
           });
           setStationChecks(checks);
+          setCommissionedAbss(s.commissionedAbss || []);
+          setCommissionedDivisional(s.commissionedDivisional || []);
         }
       } else if (title === "Edit Asset") {
         const a = queries.assetsQuery.data?.data.find((asset: any) => asset.id === itemId);
@@ -4355,13 +4386,16 @@ function ActionPanel({
       });
 
     } else if (title.startsWith("Add Station") || title.startsWith("Create Station")) {
+      const activeKeys = Object.keys(stationChecks).filter(k => stationChecks[k]);
       createStation.mutate({
         name: stationName,
         code: stationCode,
         division: stationDivision,
         category: stationCategory,
         state: stationState,
-        ...stationChecks
+        ...stationChecks,
+        commissionedAbss: commissionedAbss.filter(k => activeKeys.includes(k)),
+        commissionedDivisional: commissionedDivisional.filter(k => activeKeys.includes(k))
       });
     } else if (title.startsWith("Add LC Gate") || title.startsWith("Create LC Gate")) {
       createLcGate.mutate({
@@ -4399,6 +4433,7 @@ function ActionPanel({
         division: isSuper ? undefined : (currentRole === "SUPER_ADMIN" ? addDivision : userDiv)
       });
     } else if (title.startsWith("Edit Station")) {
+      const activeKeys = Object.keys(stationChecks).filter(k => stationChecks[k]);
       updateStation.mutate({
         code: stationCode,
         body: {
@@ -4406,7 +4441,9 @@ function ActionPanel({
           division: stationDivision,
           category: stationCategory,
           state: stationState,
-          ...stationChecks
+          ...stationChecks,
+          commissionedAbss: commissionedAbss.filter(k => activeKeys.includes(k)),
+          commissionedDivisional: commissionedDivisional.filter(k => activeKeys.includes(k))
         }
       });
     } else if (title.startsWith("Edit Asset")) {
@@ -4764,7 +4801,7 @@ function ActionPanel({
             <input required placeholder="e.g. NSG-2" value={stationCategory} onChange={e => setStationCategory(e.target.value)} />
           </label>
           <div style={{ display: "grid", gap: 10, margin: "10px 0" }}>
-            <strong>Checklist Assets:</strong>
+            <strong>Assets:</strong>
             <div style={{ maxHeight: "200px", overflowY: "auto", padding: "10px", border: "1px solid var(--line)", borderRadius: "6px" }}>
               {Object.keys(stationChecks).map((checkKey) => (
                 <label key={checkKey} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -4777,6 +4814,60 @@ function ActionPanel({
                   {CHECKLIST_LABELS[checkKey] || checkKey}
                 </label>
               ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 10, margin: "15px 0" }}>
+            <strong>Commissioned Under (Optional):</strong>
+            <div style={{ display: "grid", gap: 12, padding: "12px", border: "1px solid var(--line)", borderRadius: "6px", background: "#f8fafd" }}>
+              {Object.keys(stationChecks).filter(key => stationChecks[key]).map((checkKey) => (
+                <div key={checkKey} style={{ display: "grid", gap: 4, paddingBottom: 8, borderBottom: "1px dashed var(--line)" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)" }}>{CHECKLIST_LABELS[checkKey] || checkKey}</span>
+                  <div style={{ display: "flex", gap: 15 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-add-${checkKey}`}
+                        checked={commissionedDivisional.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedDivisional([...commissionedDivisional.filter(k => k !== checkKey), checkKey]);
+                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                        }}
+                      />
+                      Divisional Work
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-add-${checkKey}`}
+                        checked={commissionedAbss.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedAbss([...commissionedAbss.filter(k => k !== checkKey), checkKey]);
+                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                        }}
+                      />
+                      ABSS
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-add-${checkKey}`}
+                        checked={!commissionedDivisional.includes(checkKey) && !commissionedAbss.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                        }}
+                      />
+                      None
+                    </label>
+                  </div>
+                </div>
+              ))}
+              {Object.keys(stationChecks).filter(key => stationChecks[key]).length === 0 && (
+                <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>Select assets from above checklist first.</span>
+              )}
             </div>
           </div>
           <button type="submit" className="export-button">Register Station</button>
@@ -4815,7 +4906,7 @@ function ActionPanel({
             <input required placeholder="e.g. NSG-2" value={stationCategory} onChange={e => setStationCategory(e.target.value)} />
           </label>
           <div style={{ display: "grid", gap: 10, margin: "10px 0" }}>
-            <strong>Checklist Assets:</strong>
+            <strong>Assets:</strong>
             <div style={{ maxHeight: "200px", overflowY: "auto", padding: "10px", border: "1px solid var(--line)", borderRadius: "6px" }}>
               {Object.keys(stationChecks).map((checkKey) => (
                 <label key={checkKey} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -4828,6 +4919,60 @@ function ActionPanel({
                   {CHECKLIST_LABELS[checkKey] || checkKey}
                 </label>
               ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 10, margin: "15px 0" }}>
+            <strong>Commissioned Under (Optional):</strong>
+            <div style={{ display: "grid", gap: 12, padding: "12px", border: "1px solid var(--line)", borderRadius: "6px", background: "#f8fafd" }}>
+              {Object.keys(stationChecks).filter(key => stationChecks[key]).map((checkKey) => (
+                <div key={checkKey} style={{ display: "grid", gap: 4, paddingBottom: 8, borderBottom: "1px dashed var(--line)" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)" }}>{CHECKLIST_LABELS[checkKey] || checkKey}</span>
+                  <div style={{ display: "flex", gap: 15 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-edit-${checkKey}`}
+                        checked={commissionedDivisional.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedDivisional([...commissionedDivisional.filter(k => k !== checkKey), checkKey]);
+                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                        }}
+                      />
+                      Divisional Work
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-edit-${checkKey}`}
+                        checked={commissionedAbss.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedAbss([...commissionedAbss.filter(k => k !== checkKey), checkKey]);
+                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                        }}
+                      />
+                      ABSS
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                      <input
+                        type="radio"
+                        style={{ width: "auto", height: "auto" }}
+                        name={`commission-edit-${checkKey}`}
+                        checked={!commissionedDivisional.includes(checkKey) && !commissionedAbss.includes(checkKey)}
+                        onChange={() => {
+                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                        }}
+                      />
+                      None
+                    </label>
+                  </div>
+                </div>
+              ))}
+              {Object.keys(stationChecks).filter(key => stationChecks[key]).length === 0 && (
+                <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>Select assets from above checklist first.</span>
+              )}
             </div>
           </div>
           <button type="submit" className="export-button">Save Changes</button>
@@ -5347,6 +5492,31 @@ function ActionPanel({
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Commissioned Under Section */}
+          <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 16 }}>
+            <small style={{ display: "block", fontSize: 11, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Commissioned Under</small>
+            <div style={{ marginTop: 8, display: "grid", gap: 10 }}>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--navy)" }}>ABSS: </strong>
+                <span style={{ fontSize: 13, color: "var(--navy)", fontWeight: 550 }}>
+                  {station.commissionedAbss && station.commissionedAbss.length > 0
+                    ? station.commissionedAbss.map((k: string) => TELECOM_ASSET_CHECKS.find(c => c.key === k)?.label || k).join(", ")
+                    : "None"
+                  }
+                </span>
+              </div>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--navy)" }}>Divisional Work: </strong>
+                <span style={{ fontSize: 13, color: "var(--navy)", fontWeight: 550 }}>
+                  {station.commissionedDivisional && station.commissionedDivisional.length > 0
+                    ? station.commissionedDivisional.map((k: string) => TELECOM_ASSET_CHECKS.find(c => c.key === k)?.label || k).join(", ")
+                    : "None"
+                  }
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Capabilities checklist */}
