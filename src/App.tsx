@@ -275,8 +275,8 @@ const normalizeDivision = (div: any): string => {
 
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
-import DailyPositionView from "./DailyPositionView";
-import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./dailyPositionForms";
+import DailyPositionView from "./components/DailyPosition/DailyPositionView";
+import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./components/DailyPosition/dailyPositionForms";
 import type {
   ActivityItem,
   AlertItem,
