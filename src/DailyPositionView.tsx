@@ -12,6 +12,7 @@ import {
   RAILNET_DIVISIONAL_FIELDS,
   RAILNET_HQ_FIELDS,
 } from "./dailyPositionForms";
+import { useAppStore } from "./App";
 
 type DailyPositionViewProps = {
   role: UserRole;
@@ -175,7 +176,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select Major Section</option>
+          <option value="">{field.placeholder || "Select Major Section"}</option>
           {majorSections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
         </select>
       </div>
@@ -187,7 +188,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly || !values.majorSection} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select Section</option>
+          <option value="">{field.placeholder || "Select Section"}</option>
           {sections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
         </select>
       </div>
@@ -199,7 +200,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">Select {field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}</option>
+          <option value="">{field.placeholder || `Select ${field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}`}</option>
           {stations.map((station: any) => <option key={station.code} value={station.code}>{station.name} ({station.code})</option>)}
         </select>
       </div>
@@ -211,7 +212,7 @@ function DailyPositionFieldInput({
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">No linked asset</option>
+          <option value="">{field.placeholder || "No linked asset"}</option>
           {assets.map((asset: any) => <option key={asset.id} value={asset.id}>{assetLabel(asset)}</option>)}
         </select>
       </div>
@@ -331,12 +332,27 @@ function DailyPositionFieldInput({
     placeholder: field.placeholder,
   };
 
+  const maxProps: Record<string, string> = {};
+  if (field.type === "date") {
+    maxProps.max = toDateValue(new Date());
+  } else if (field.type === "datetime-local") {
+    maxProps.max = toLocalDateTimeValue(new Date());
+  }
+
   return (
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
-      <label>{field.label}{field.required && <span>*</span>}</label>
+      <label>
+        {field.label}
+        {field.type === "datetime-local" && (
+          <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
+            (Date, Hours & Min)
+          </span>
+        )}
+        {field.required && <span>*</span>}
+      </label>
       {field.type === "select" ? (
         <select {...commonProps}>
-          <option value="">Select {field.label}</option>
+          <option value="">{field.placeholder || `Select ${field.label}`}</option>
           {(field.options || []).map((option: string) => (
             <option key={option} value={option}>{option}</option>
           ))}
@@ -344,7 +360,14 @@ function DailyPositionFieldInput({
       ) : field.type === "textarea" ? (
         <textarea {...commonProps} />
       ) : (
-        <input type={field.type} {...commonProps} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <input type={field.type} {...maxProps} {...commonProps} />
+          {field.type === "datetime-local" && (
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "500", paddingLeft: "4px" }}>
+              Time Picker: Left column = Hours (00-23), Right column = Minutes (00-59)
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -355,15 +378,22 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const canFill = role === "TESTROOM";
   const viewMode = mode || (canFill ? "form" : "history");
   const canChooseDivision = role === "SUPER_ADMIN";
-  const [selectedCategory, setSelectedCategory] = useState(DAILY_POSITION_CATEGORIES[0]);
-  const [selectedFormName, setSelectedFormName] = useState("");
-  const [openCategory, setOpenCategory] = useState(DAILY_POSITION_CATEGORIES[0]);
+  const {
+    dpSelectedCategory: selectedCategory,
+    dpSelectedFormName: selectedFormName,
+    dpOpenCategory: openCategory,
+    dpCircuitSearch: circuitSearch,
+    setDpSelectedCategory: setSelectedCategory,
+    setDpSelectedFormName: setSelectedFormName,
+    setDpOpenCategory: setOpenCategory,
+    setDpCircuitSearch: setCircuitSearch
+  } = useAppStore();
+
   const [selectedDivision, setSelectedDivision] = useState(role === "SUPER_ADMIN" ? "" : (division || ""));
   const [selectedDate, setSelectedDate] = useState(toDateValue());
   const [values, setValues] = useState<Record<string, any>>({ failureTime: toLocalDateTimeValue() });
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
-  const [circuitSearch, setCircuitSearch] = useState("");
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
 
   const forms = DAILY_POSITION_FORMS.filter(form => form.category === selectedCategory);
@@ -381,6 +411,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     return selectedForm?.fields || [];
   }, [selectedForm, maintenanceType]);
 
+  const visibleActiveFields = useMemo(() => {
+    return activeFields.filter(field => {
+      if (field.name === "cpmsNo") {
+        return values.cpmsEntry === "YES";
+      }
+      return true;
+    });
+  }, [activeFields, values.cpmsEntry]);
+
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
       setValues(prev => ({
@@ -395,6 +434,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }));
     }
   }, [selectedForm?.name, selectedForm?.category]);
+
+  useEffect(() => {
+    resetForm();
+  }, [selectedFormName]);
 
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
@@ -488,6 +531,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         next.netBalanceCaseOnDate = lastDate + received - complied;
       }
 
+      if (name === "cpmsEntry" && nextValue !== "YES") {
+        next.cpmsNo = "";
+      }
+
       return next;
     });
   };
@@ -523,6 +570,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!canFill || !selectedForm) return;
+
+    // Client-side validation to block future dates & times
+    const now = new Date();
+    const nowLocalStr = toLocalDateTimeValue(now);
+    const todayLocalStr = toDateValue(now);
+
+    for (const field of activeFields) {
+      const val = values[field.name];
+      if (!val) continue;
+
+      if (field.type === "datetime-local") {
+        if (val > nowLocalStr) {
+          showToast(`Future date & time is not allowed for "${field.label}".`);
+          return;
+        }
+      } else if (field.type === "date") {
+        if (val > todayLocalStr) {
+          showToast(`Future date is not allowed for "${field.label}".`);
+          return;
+        }
+      }
+    }
+
     if (editingRecordId) {
       updateRecord.mutate({ id: editingRecordId, body: buildPayload("FAULT") });
       return;
@@ -667,56 +737,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       </section>
 
       {canFill && viewMode === "form" && (
-        <section className="dp-workspace">
-          <aside className="dp-category-rail dp-circuit-accordion">
-            {DAILY_POSITION_CATEGORIES.map(category => {
-              const isOpen = category === openCategory;
-              return (
-              <div key={category} className={`dp-circuit-group ${isOpen ? "open" : ""}`}>
-                <button
-                  className="dp-circuit-heading"
-                  type="button"
-                  onClick={() => {
-                    if (isOpen) {
-                      setOpenCategory("");
-                      return;
-                    }
-                    setOpenCategory(category);
-                    setSelectedCategory(category);
-                    setSelectedFormName("");
-                    setCircuitSearch("");
-                    resetForm();
-                  }}
-                >
-                  <span>{category}</span>
-                  <strong>{isOpen ? "v" : ">"}</strong>
-                </button>
-                {isOpen && (
-                  <div className="dp-circuit-list">
-                    <input value={circuitSearch} onChange={event => setCircuitSearch(event.target.value)} placeholder="Search circuit..." />
-                    {visibleForms.map(form => (
-                      <button
-                        key={form.name}
-                        type="button"
-                        className={form.name === selectedForm.name ? "active" : ""}
-                        onClick={() => {
-                          setSelectedFormName(form.name);
-                          resetForm();
-                        }}
-                      >
-                        <span>{form.name}</span>
-                        <em>{form.badge}</em>
-                      </button>
-                    ))}
-                    {visibleForms.length === 0 && <p>No circuit found.</p>}
-                  </div>
-                )}
-              </div>
-            )})}
-          </aside>
-
+        <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
-            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "14px", marginBottom: "20px" }}>
+            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
               <div>
                 <h3 style={{ margin: 0 }}>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
                 <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
@@ -765,19 +788,79 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               )}
             </div>
 
-            <form className="dp-form-grid" onSubmit={handleSubmit}>
-              {activeFields.map(field => (
-                <DailyPositionFieldInput
-                  key={field.name}
-                  field={field}
-                  value={field.name === "durationText" ? calcDurationText(values.failureTime, values.rectificationTime) : values[field.name]}
-                  values={values}
-                  setValue={setValue}
-                  metadata={metadata}
-                  selectedDivision={selectedDivision}
-                  readOnly={false}
-                />
-              ))}
+            <form onSubmit={handleSubmit}>
+              <div className="dp-form-scrollable-container">
+                <div className="dp-form-grid">
+                  {visibleActiveFields.map(field => (
+                    <DailyPositionFieldInput
+                      key={field.name}
+                      field={field}
+                      value={field.name === "durationText" ? calcDurationText(values.failureTime, values.rectificationTime) : values[field.name]}
+                      values={values}
+                      setValue={setValue}
+                      metadata={metadata}
+                      selectedDivision={selectedDivision}
+                      readOnly={false}
+                    />
+                  ))}
+                </div>
+
+                <section className="dp-recent-form-records">
+                  <div className="dp-recent-header">
+                    <h3>Recent Submitted Records</h3>
+                    <span>{selectedForm.name}</span>
+                  </div>
+                  <div className="table-scroll-container">
+                    <table className="data-table dp-recent-table">
+                      <thead>
+                        <tr>
+                          {activeFields.map(field => (
+                            <th key={field.name}>{field.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentFormRecords.map((record: any) => (
+                          <tr
+                            key={record.id}
+                            onClick={() => startEdit(record)}
+                            style={{ cursor: "pointer" }}
+                            title="Click to edit record"
+                            className="dp-recent-row"
+                          >
+                            {activeFields.map(field => {
+                              let val = record.formData?.[field.name];
+                              if (val === undefined) {
+                                if (field.name === "majorSection") val = record.majorSection;
+                                else if (field.name === "section") val = record.section;
+                                else if (field.name === "stationCode") val = record.stationCode || record.stationName;
+                                else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
+                                else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
+                                else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
+                                else if (field.name === "durationText") val = record.durationText;
+                                else if (field.name === "reason") val = record.reason;
+                                else if (field.name === "remarks") val = record.remarks;
+                              }
+                              if (field.type === "datetime-local" && val) {
+                                try {
+                                  val = new Date(val).toLocaleString();
+                                } catch (e) {}
+                              }
+                              return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
+                            })}
+                          </tr>
+                        ))}
+                        {currentFormRecords.length === 0 && (
+                          <tr>
+                            <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+
               <div className="dp-form-actions">
                 <button className="export-button" type="button" onClick={resetForm}>Reset</button>
                 {!editingRecordId && (
@@ -792,60 +875,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </button>
               </div>
             </form>
-            <section className="dp-recent-form-records">
-              <div className="dp-recent-header">
-                <h3>Recent Submitted Records</h3>
-                <span>{selectedForm.name}</span>
-              </div>
-              <div className="table-scroll-container">
-                <table className="data-table dp-recent-table">
-                  <thead>
-                    <tr>
-                      {activeFields.map(field => (
-                        <th key={field.name}>{field.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentFormRecords.map((record: any) => (
-                      <tr
-                        key={record.id}
-                        onClick={() => startEdit(record)}
-                        style={{ cursor: "pointer" }}
-                        title="Click to edit record"
-                        className="dp-recent-row"
-                      >
-                        {activeFields.map(field => {
-                          let val = record.formData?.[field.name];
-                          if (val === undefined) {
-                            if (field.name === "majorSection") val = record.majorSection;
-                            else if (field.name === "section") val = record.section;
-                            else if (field.name === "stationCode") val = record.stationCode || record.stationName;
-                            else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
-                            else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
-                            else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
-                            else if (field.name === "durationText") val = record.durationText;
-                            else if (field.name === "reason") val = record.reason;
-                            else if (field.name === "remarks") val = record.remarks;
-                          }
-                          if (field.type === "datetime-local" && val) {
-                            try {
-                              val = new Date(val).toLocaleString();
-                            } catch (e) {}
-                          }
-                          return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
-                        })}
-                      </tr>
-                    ))}
-                    {currentFormRecords.length === 0 && (
-                      <tr>
-                        <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
           </main>
         </section>
       )}
