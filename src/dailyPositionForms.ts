@@ -25,7 +25,6 @@ const hierarchyFields: DailyPositionField[] = [
   { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
   { name: "section", label: "Section", type: "select", required: true, placeholder: "Select Section" },
   { name: "stationCode", label: "Station / Location", type: "select", required: true, placeholder: "Select Station / Location" },
-  { name: "assetId", label: "Linked Asset", type: "select", placeholder: "Select Linked Asset" },
 ];
 
 const docketField: DailyPositionField = {
@@ -246,7 +245,6 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     fields: [
       { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", required: true, placeholder: "Select Section" },
-      { name: "assetId", label: "Linked Asset", type: "select", placeholder: "Select Linked Asset" },
       { name: "faultyAccessPointLocation", label: "Location of Faulty Access Point", type: "text", required: true, placeholder: "Enter location of faulty access point" },
       ...timingFields,
       ...reasonRemarkFields,

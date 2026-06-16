@@ -739,57 +739,57 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       {canFill && viewMode === "form" && (
         <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
-            <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
-              <div>
-                <h3 style={{ margin: 0 }}>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
-                <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
-              </div>
-              {selectedForm.name === "Railnet / Internet" && (
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
-                    className="export-button"
-                    style={{
-                      background: maintenanceType === "Divisional" ? "var(--blue-soft)" : "transparent",
-                      color: maintenanceType === "Divisional" ? "var(--blue)" : "var(--muted)",
-                      borderColor: maintenanceType === "Divisional" ? "var(--blue)" : "var(--line)",
-                      fontWeight: 700,
-                      padding: "6px 14px",
-                      borderRadius: "6px",
-                      fontSize: "13px"
-                    }}
-                    onClick={() => {
-                      setMaintenanceType("Divisional");
-                      setValue("maintenanceType", "Divisional Maintenance");
-                    }}
-                  >
-                    Divisional Maintenance
-                  </button>
-                  <button
-                    type="button"
-                    className="export-button"
-                    style={{
-                      background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
-                      color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
-                      borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
-                      fontWeight: 700,
-                      padding: "6px 14px",
-                      borderRadius: "6px",
-                      fontSize: "13px"
-                    }}
-                    onClick={() => {
-                      setMaintenanceType("HQ");
-                      setValue("maintenanceType", "HQ Maintenance");
-                    }}
-                  >
-                    HQ Maintenance
-                  </button>
-                </div>
-              )}
-            </div>
-
             <form onSubmit={handleSubmit}>
               <div className="dp-form-scrollable-container">
+                <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>{editingRecordId ? `Edit ${selectedForm.name}` : selectedForm.name}</h3>
+                    <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
+                  </div>
+                  {selectedForm.name === "Railnet / Internet" && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        type="button"
+                        className="export-button"
+                        style={{
+                          background: maintenanceType === "Divisional" ? "var(--blue-soft)" : "transparent",
+                          color: maintenanceType === "Divisional" ? "var(--blue)" : "var(--muted)",
+                          borderColor: maintenanceType === "Divisional" ? "var(--blue)" : "var(--line)",
+                          fontWeight: 700,
+                          padding: "6px 14px",
+                          borderRadius: "6px",
+                          fontSize: "13px"
+                        }}
+                        onClick={() => {
+                          setMaintenanceType("Divisional");
+                          setValue("maintenanceType", "Divisional Maintenance");
+                        }}
+                      >
+                        Divisional Maintenance
+                      </button>
+                      <button
+                        type="button"
+                        className="export-button"
+                        style={{
+                          background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
+                          color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
+                          borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
+                          fontWeight: 700,
+                          padding: "6px 14px",
+                          borderRadius: "6px",
+                          fontSize: "13px"
+                        }}
+                        onClick={() => {
+                          setMaintenanceType("HQ");
+                          setValue("maintenanceType", "HQ Maintenance");
+                        }}
+                      >
+                        HQ Maintenance
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="dp-form-grid">
                   {visibleActiveFields.map(field => (
                     <DailyPositionFieldInput

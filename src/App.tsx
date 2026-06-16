@@ -1609,17 +1609,15 @@ function DashboardView({
   };
 
   return (
-    <>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20, paddingRight: 4 }}>
       <section className="kpi-grid">
-        {data.kpis.map((kpi, index) => (
+        {data.kpis.filter(kpi => kpi.id !== "health").map((kpi, index) => (
           <KpiCard key={kpi.id} kpi={kpi} index={index} />
         ))}
       </section>
  
       <section className="dashboard-grid">
         <ChartPanel title="Assets by Category" total={data.bottomStats[1].value} metrics={data.categories} openPanel={() => useAppStore.getState().setActiveNav("Assets")} />
-        <MapPanel openPanel={openPanel} compact queries={queries} />
-        <StatusPanel statuses={data.statuses} />
       </section>
  
       <section className="operations-grid">
@@ -1633,8 +1631,7 @@ function DashboardView({
           <BottomStatCard key={stat.id} stat={stat} openPanel={() => handleBottomStatClick(stat.label)} />
         ))}
       </section>
-
-    </>
+    </div>
   );
 }
  
@@ -2485,6 +2482,21 @@ function ModuleView({
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null); // "stationCode::CATEGORY"
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Click outside handler for station dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (expandedStationCode && !target.closest('.telecom-assets-dropdown-popover') && !target.closest('.action-btn')) {
+        setExpandedStationCode(null);
+        setExpandedCategoryKey(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [expandedStationCode]);
+
   // Clear filters when switching activeNav
   useEffect(() => {
     setFilterDivision("");
@@ -2659,7 +2671,7 @@ function ModuleView({
                         </td>
                         <td>{s.state || "-"}</td>
                         <td>{s.category}</td>
-                        <td>
+                        <td className="telecom-assets-dropdown-cell">
                           <button 
                             className="action-btn text-blue"
                             style={{
@@ -2676,6 +2688,194 @@ function ModuleView({
                           >
                             {isExpanded ? "Hide Telecom Assets" : "View Telecom Assets"}
                           </button>
+
+                          {isExpanded && (
+                            <div className="telecom-assets-dropdown-popover">
+                              <div className="telecom-assets-dropdown-body">
+                                {(() => {
+                                  const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
+                                  
+                                  const activeTelecomAssets = TELECOM_ASSET_CHECKS.filter(cap => !!s[cap.key]);
+                                  const telecomAssetsToShow = activeTelecomAssets.length > 0
+                                    ? activeTelecomAssets
+                                    : Array.from(new Set(stationAssets.map((asset: any) => getTelecomAssetName(asset)))).map(label => ({ key: label, label }));
+
+                                  if (telecomAssetsToShow.length === 0) {
+                                    return (
+                                      <div style={{ padding: "16px 20px", border: "1px dashed var(--line)", borderRadius: "10px", textAlign: "center", color: "var(--muted)", background: "#fff" }}>
+                                        No active Telecom Assets ticked or registered for this station.
+                                      </div>
+                                    );
+                                  }
+
+                                  const assetsByCategory = telecomAssetsToShow.reduce((acc: Record<string, any[]>, cap: any) => {
+                                    acc[cap.label] = stationAssets.filter((asset: any) => isTelecomAssetMatch(getTelecomAssetName(asset), cap.label));
+                                    return acc;
+                                  }, {});
+
+                                  const catColor: Record<string, { bg: string; border: string; accent: string }> = {
+                                    "CCTV":     { bg: "#eaf2ff", border: "#b3d1ff", accent: "#0b6dff" },
+                                    "IPIS":     { bg: "#edf9f0", border: "#a3ddb8", accent: "#0db76b" },
+                                    "OFC":      { bg: "#fff7e6", border: "#ffd08a", accent: "#d97300" },
+                                    "WIFI":     { bg: "#f3eeff", border: "#c9b3ff", accent: "#7c3aed" },
+                                    "PA SYSTEM":{ bg: "#fff0f0", border: "#ffb3b3", accent: "#ef4444" },
+                                    "OTHERS":   { bg: "#f0f4ff", border: "#c5cfe8", accent: "#4b5e8b" },
+                                  };
+                                  const getColor = (cat: string) => catColor[cat] || catColor["OTHERS"];
+
+                                  return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                      {/* Category Cards Row */}
+                                      <div style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                                        gap: 8,
+                                        alignItems: "stretch"
+                                      }}>
+                                        {telecomAssetsToShow.map((cap: any) => {
+                                          const categoryName = cap.label;
+                                          const assets = assetsByCategory[categoryName] || [];
+                                          const key = `${s.code}::${categoryName}`;
+                                          const isOpen = expandedCategoryKey === key;
+                                          const anyOpen = expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`);
+                                          const col = getColor(categoryName);
+                                          if (anyOpen && !isOpen) return null;
+                                          return (
+                                            <button
+                                              key={categoryName}
+                                              onClick={() => setExpandedCategoryKey(isOpen ? null : key)}
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                gap: 8,
+                                                minHeight: 36,
+                                                width: "100%",
+                                                padding: "6px 10px",
+                                                background: isOpen ? col.accent : col.bg,
+                                                border: isOpen ? `1px solid ${col.accent}` : `1px solid ${col.border}`,
+                                                borderRadius: 8,
+                                                cursor: "pointer",
+                                                transition: "all 0.2s ease",
+                                                boxShadow: isOpen ? `0 4px 14px ${col.accent}33` : "none",
+                                              }}
+                                            >
+                                              <span style={{
+                                                fontSize: 12,
+                                                fontWeight: 800,
+                                                color: isOpen ? "#fff" : col.accent,
+                                                textTransform: "uppercase",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                minWidth: 0,
+                                              }}>
+                                                {categoryName}
+                                              </span>
+                                              {assets.length > 0 && (
+                                                <span style={{
+                                                  minWidth: 20,
+                                                  height: 18,
+                                                  display: "inline-grid",
+                                                  placeItems: "center",
+                                                  flexShrink: 0,
+                                                  fontSize: 10,
+                                                  fontWeight: 800,
+                                                  background: isOpen ? "rgba(255,255,255,0.24)" : "#fff",
+                                                  color: isOpen ? "#fff" : col.accent,
+                                                  border: isOpen ? "1px solid rgba(255,255,255,0.28)" : `1px solid ${col.border}`,
+                                                  borderRadius: 999,
+                                                  padding: "0 5px",
+                                                }}>
+                                                  {assets.length}
+                                                </span>
+                                              )}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Expanded Asset Rows */}
+                                      {expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`) && (() => {
+                                        const openCat = expandedCategoryKey.split("::")[1];
+                                        const openAssets: any[] = assetsByCategory[openCat] || [];
+                                        const col = getColor(openCat);
+                                        return (
+                                          <div style={{
+                                            border: `1.5px solid ${col.border}`,
+                                            borderRadius: 10,
+                                            overflow: "hidden",
+                                            background: "#fff",
+                                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                          }}>
+                                            <div style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "space-between",
+                                              padding: "8px 12px",
+                                              background: col.bg,
+                                              borderBottom: `1.5px solid ${col.border}`,
+                                            }}>
+                                              <span style={{ fontSize: 12, fontWeight: 800, color: col.accent, textTransform: "uppercase" }}>
+                                                {openCat} Details
+                                              </span>
+                                              <button
+                                                onClick={() => setExpandedCategoryKey(null)}
+                                                style={{ background: "none", border: "none", cursor: "pointer", color: col.accent, fontSize: 16, lineHeight: 1 }}
+                                              >✕</button>
+                                            </div>
+
+                                            <div style={{ display: "grid", gap: 0, maxHeight: 180, overflowY: "auto" }}>
+                                              {openAssets.length === 0 && (
+                                                <div style={{ padding: "10px 12px", color: "var(--muted)", fontSize: 12 }}>
+                                                  No details registered.
+                                                </div>
+                                              )}
+                                              {openAssets.map((asset: any, idx: number) => (
+                                                <div
+                                                  key={asset.id}
+                                                  style={{
+                                                    display: "flex",
+                                                    justifyContent: "space-between",
+                                                    alignItems: "center",
+                                                    padding: "8px 12px",
+                                                    borderBottom: idx < openAssets.length - 1 ? `1px solid ${col.border}33` : "none",
+                                                    background: "#fff",
+                                                    cursor: "pointer",
+                                                  }}
+                                                  onClick={() => openPanel("Asset Details", asset.id)}
+                                                >
+                                                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                                    <span style={{ fontSize: 11, fontWeight: 800, color: col.accent }}>{idx + 1}.</span>
+                                                    <div style={{ minWidth: 0 }}>
+                                                      <strong style={{ display: "block", fontSize: 12.5, color: "var(--navy)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {asset.assetMode === ASSET_MODE_HAS_EQUIPMENT ? asset.equipmentName : openCat}
+                                                      </strong>
+                                                      <small style={{ display: "block", color: "var(--muted)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {asset.make || "-"} / {asset.model || "-"}
+                                                      </small>
+                                                    </div>
+                                                  </div>
+                                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                                    <span
+                                                      className={`pill ${asset.status.toLowerCase()}`}
+                                                      style={{ fontSize: 9.5, padding: "1px 5px", fontWeight: 700 }}
+                                                    >
+                                                      {asset.status}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <button 
@@ -2688,228 +2888,6 @@ function ModuleView({
                           <button className="action-btn text-red" onClick={() => deleteStation.mutate(s.code)}>Delete</button>
                         </td>
                       </tr>
-                      {isExpanded && (
-                        <tr style={{ background: "#f8fafd" }}>
-                          <td colSpan={8} style={{ padding: "20px 28px", borderTop: "none" }}>
-                            {(() => {
-                              const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
-                              
-                              const activeTelecomAssets = TELECOM_ASSET_CHECKS.filter(cap => !!s[cap.key]);
-                              const telecomAssetsToShow = activeTelecomAssets.length > 0
-                                ? activeTelecomAssets
-                                : Array.from(new Set(stationAssets.map((asset: any) => getTelecomAssetName(asset)))).map(label => ({ key: label, label }));
-
-                              if (telecomAssetsToShow.length === 0) {
-                                return (
-                                  <div style={{ padding: "16px 20px", border: "1px dashed var(--line)", borderRadius: "10px", textAlign: "center", color: "var(--muted)", background: "#fff" }}>
-                                    No active Telecom Assets ticked or registered for this station.
-                                  </div>
-                                );
-                              }
-
-                              const assetsByCategory = telecomAssetsToShow.reduce((acc: Record<string, any[]>, cap: any) => {
-                                acc[cap.label] = stationAssets.filter((asset: any) => isTelecomAssetMatch(getTelecomAssetName(asset), cap.label));
-                                return acc;
-                              }, {});
-
-                              // Category icon map
-                              const catIcon: Record<string, string> = {
-                                "CCTV": "📷",
-                                "IPIS": "📺",
-                                "OFC": "🔌",
-                                "WIFI": "📶",
-                                "PA SYSTEM": "🔊",
-                                "OTHERS": "📦",
-                              };
-                              const catColor: Record<string, { bg: string; border: string; accent: string }> = {
-                                "CCTV":     { bg: "#eaf2ff", border: "#b3d1ff", accent: "#0b6dff" },
-                                "IPIS":     { bg: "#edf9f0", border: "#a3ddb8", accent: "#0db76b" },
-                                "OFC":      { bg: "#fff7e6", border: "#ffd08a", accent: "#d97300" },
-                                "WIFI":     { bg: "#f3eeff", border: "#c9b3ff", accent: "#7c3aed" },
-                                "PA SYSTEM":{ bg: "#fff0f0", border: "#ffb3b3", accent: "#ef4444" },
-                                "OTHERS":   { bg: "#f0f4ff", border: "#c5cfe8", accent: "#4b5e8b" },
-                              };
-                              const getColor = (cat: string) => catColor[cat] || catColor["OTHERS"];
-
-                              return (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-                                  {/* ── Category Cards Row ── */}
-                                  <div style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                                    gap: 10,
-                                    alignItems: "stretch"
-                                  }}>
-                                    {telecomAssetsToShow.map((cap: any) => {
-                                      const categoryName = cap.label;
-                                      const assets = assetsByCategory[categoryName] || [];
-                                      const key = `${s.code}::${categoryName}`;
-                                      const isOpen = expandedCategoryKey === key;
-                                      const anyOpen = expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`);
-                                      const col = getColor(categoryName);
-                                      // Hide other cards when one is selected
-                                      if (anyOpen && !isOpen) return null;
-                                      return (
-                                        <button
-                                          key={categoryName}
-                                          onClick={() => setExpandedCategoryKey(isOpen ? null : key)}
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            gap: 10,
-                                            minHeight: 42,
-                                            width: "100%",
-                                            padding: "9px 12px",
-                                            background: isOpen ? col.accent : col.bg,
-                                            border: isOpen ? `1px solid ${col.accent}` : `1px solid ${col.border}`,
-                                            borderRadius: 8,
-                                            cursor: "pointer",
-                                            transition: "all 0.2s ease",
-                                            boxShadow: isOpen ? `0 4px 14px ${col.accent}33` : "none",
-                                          }}
-                                        >
-                                          <span style={{
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            letterSpacing: "0.4px",
-                                            color: isOpen ? "#fff" : col.accent,
-                                            textTransform: "uppercase",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                            minWidth: 0,
-                                          }}>
-                                            {categoryName}
-                                          </span>
-                                          {assets.length > 0 && (
-                                            <span style={{
-                                              minWidth: 24,
-                                              height: 22,
-                                              display: "inline-grid",
-                                              placeItems: "center",
-                                              flexShrink: 0,
-                                              fontSize: 11,
-                                              fontWeight: 800,
-                                              background: isOpen ? "rgba(255,255,255,0.24)" : "#fff",
-                                              color: isOpen ? "#fff" : col.accent,
-                                              border: isOpen ? "1px solid rgba(255,255,255,0.28)" : `1px solid ${col.border}`,
-                                              borderRadius: 999,
-                                              padding: "0 7px",
-                                            }}>
-                                              {assets.length}
-                                            </span>
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  {/* ── Expanded Asset Rows (for the open category) ── */}
-                                  {expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`) && (() => {
-                                    const openCat = expandedCategoryKey.split("::")[1];
-                                    const openAssets: any[] = assetsByCategory[openCat] || [];
-                                    const col = getColor(openCat);
-                                    return (
-                                      <div style={{
-                                        border: `1.5px solid ${col.border}`,
-                                        borderRadius: 12,
-                                        overflow: "hidden",
-                                        background: "#fff",
-                                        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-                                        animation: "fadeSlideIn 0.2s ease",
-                                      }}>
-                                        {/* subheader */}
-                                        <div style={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "space-between",
-                                          padding: "10px 16px",
-                                          background: col.bg,
-                                          borderBottom: `1.5px solid ${col.border}`,
-                                        }}>
-                                          <span style={{ fontSize: 13, fontWeight: 800, color: col.accent, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                                            {openCat} - Telecom Asset Details
-                                          </span>
-                                          <button
-                                            onClick={() => setExpandedCategoryKey(null)}
-                                            style={{ background: "none", border: "none", cursor: "pointer", color: col.accent, fontSize: 18, lineHeight: 1, padding: "0 4px" }}
-                                          >✕</button>
-                                        </div>
-
-                                        {/* asset rows */}
-                                        <div style={{ display: "grid", gap: 0 }}>
-                                          {openAssets.length === 0 && (
-                                            <div style={{ padding: "14px 16px", color: "var(--muted)", fontSize: 13 }}>
-                                              This Telecom Asset is ticked for the station, but no details are registered yet.
-                                            </div>
-                                          )}
-                                          {openAssets.map((asset: any, idx: number) => (
-                                            <div
-                                              key={asset.id}
-                                              style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                padding: "11px 16px",
-                                                borderBottom: idx < openAssets.length - 1 ? `1px solid ${col.border}55` : "none",
-                                                background: "#fff",
-                                                transition: "background 0.15s ease",
-                                                cursor: "pointer",
-                                              }}
-                                              onMouseEnter={(e) => { e.currentTarget.style.background = col.bg; }}
-                                              onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
-                                              onClick={() => openPanel("Asset Details", asset.id)}
-                                            >
-                                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.accent, flexShrink: 0 }} />
-                                                <span style={{ fontSize: 12, fontWeight: 800, color: col.accent }}>{idx + 1}.</span>
-                                                <div>
-                                                  <strong style={{ fontSize: 14, color: "var(--navy)", fontWeight: 700 }}>
-                                                    {asset.assetMode === ASSET_MODE_HAS_EQUIPMENT ? asset.equipmentName : openCat}
-                                                  </strong>
-                                                  <small style={{ display: "block", color: "var(--muted)", fontSize: 11 }}>
-                                                    {asset.make || "-"} / {asset.model || "-"}
-                                                  </small>
-                                                </div>
-                                                {asset.rdsoSpec && (
-                                                  <span style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 500 }}>
-                                                    RDSO: {asset.rdsoSpec}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                <span
-                                                  className={`pill ${asset.status.toLowerCase()}`}
-                                                  style={{ fontSize: 11, padding: "2px 8px", fontWeight: 700 }}
-                                                >
-                                                  {asset.status}
-                                                </span>
-                                                <button
-                                                  className="action-btn text-blue"
-                                                  style={{ fontSize: 13, fontWeight: 700, textDecoration: "none", border: "none", padding: 0 }}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openPanel("Asset Details", asset.id);
-                                                  }}
-                                                >
-                                                  View Details
-                                                </button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-
-                                </div>
-                              );
-                            })()}
-                          </td>
-                        </tr>
-                      )}
                     </Fragment>
                   );
                 })}
