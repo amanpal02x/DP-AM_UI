@@ -52,6 +52,18 @@ const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
 const statusFromForm = (form: DailyPositionFormDefinition, values: Record<string, any>) => {
   if (form.statusMode === "log") return "OPERATIONAL";
   if (form.statusMode === "maintenance") {
+    if (values.balanceTemporaryJoints !== undefined) {
+      return Number(values.balanceTemporaryJoints) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+    }
+    if (values.balanceInsulationFaults !== undefined) {
+      return Number(values.balanceInsulationFaults) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+    }
+    if (values.balanceWalkieTalkies !== undefined) {
+      return Number(values.balanceWalkieTalkies) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+    }
+    if (values.pendingRepair !== undefined) {
+      return Number(values.pendingRepair) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+    }
     const pending = Number(values.temporaryJointsCount || values.totalInsulationFaults || values.defectiveSets || 0);
     const done = Number(values.rectifiedJoints || values.rectifiedFaults || values.repairedSets || 0);
     return pending > done ? "UNDER_MAINTENANCE" : "OPERATIONAL";

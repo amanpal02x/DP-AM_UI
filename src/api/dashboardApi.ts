@@ -56,20 +56,20 @@ export async function getDashboardSummary(division = "Raipur"): Promise<Dashboar
       series: [24, 25, 31, 28, 34, 32, 33, 27, 30, 26, 28, maintenanceCount]
     },
     {
-      id: "faulty",
-      label: "Faulty Assets",
-      value: faultyCount.toString(),
-      detail: `${totalAssets > 0 ? ((faultyCount / totalAssets) * 100).toFixed(1) : 0}% of total assets`,
+      id: "activeFaults",
+      label: "Active Faults",
+      value: (stats.summary.activeFaultsCount || 0).toString(),
+      detail: "Pending faults",
       tone: "red",
-      series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, faultyCount]
+      series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, stats.summary.activeFaultsCount || 0]
     },
     {
-      id: "health",
-      label: "Operational Health",
-      value: `${healthPercent}%`,
-      detail: "Division reliability score",
-      tone: "purple",
-      series: [77, 78, 77, 79, 81, 80, 81, 82, 80, 83, 85, Math.round(parseFloat(healthPercent))]
+      id: "reportedToday",
+      label: "Reported Today",
+      value: (stats.summary.todaySubmissionsCount || 0).toString(),
+      detail: "Daily Position entries",
+      tone: "teal",
+      series: [10, 12, 14, 13, 15, 17, 16, 18, 19, 21, 20, stats.summary.todaySubmissionsCount || 0]
     }
   ];
 
@@ -169,8 +169,8 @@ export async function getDashboardSummary(division = "Raipur"): Promise<Dashboar
   const bottomStats: BottomStat[] = [
     { id: "s1", label: "Stations", value: stats.summary.stationsCount.toString(), detail: "Active Stations", tone: "blue" },
     { id: "s2", label: "LC Gates", value: stats.summary.gatesCount.toString(), detail: "Total LC Gates", tone: "green" },
-    { id: "s3", label: "OFC Route (KM)", value: "1,248", detail: "Total Route", tone: "amber" },
-    { id: "s6", label: "AMC Coverage", value: "86.7%", detail: "Assets Under AMC", tone: "teal" }
+    { id: "s3", label: "ABSS Stations", value: (stats.commissioningSummary?.abssStationsCount || 0).toString(), detail: "Commissioned Stations", tone: "purple" },
+    { id: "s4", label: "Divisional Stations", value: (stats.commissioningSummary?.divisionalStationsCount || 0).toString(), detail: "Commissioned Stations", tone: "amber" }
   ];
 
   const userProfile = await api.auth.getProfile().catch(() => ({ data: null }));
@@ -197,6 +197,7 @@ export async function getDashboardSummary(division = "Raipur"): Promise<Dashboar
     maintenance,
     activity,
     alerts,
-    bottomStats
+    bottomStats,
+    commissioningSummary: stats.commissioningSummary
   };
 }

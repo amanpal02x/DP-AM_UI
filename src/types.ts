@@ -81,6 +81,15 @@ export interface BottomStat {
   tone: KpiMetric["tone"];
 }
 
+export interface CommissioningSummary {
+  abssStationsCount: number;
+  divisionalStationsCount: number;
+  abssOnly: number;
+  divisionalOnly: number;
+  bothSchemes: number;
+  unspecified: number;
+}
+
 export interface DashboardSummary {
   division: string;
   dateRange: string;
@@ -99,4 +108,6 @@ export interface DashboardSummary {
   activity: ActivityItem[];
   alerts: AlertItem[];
   bottomStats: BottomStat[];
+  commissioningSummary?: CommissioningSummary;
+  dailyPositionStatus?: Array<{ status: string; count: number }>;
 }

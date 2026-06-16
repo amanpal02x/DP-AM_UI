@@ -275,10 +275,15 @@ textarea {
   color: #fff;
 }
 
-.kpi-grid,
+.kpi-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 20px;
+}
+
 .bottom-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 20px;
 }
 
@@ -361,8 +366,8 @@ textarea {
 }
 
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 20px;
   margin-top: 20px;
 }
@@ -853,7 +858,7 @@ textarea {
 .alert-icon.blue { background: var(--blue); }
 
 .bottom-stats {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   margin-top: 20px;
 }
 
@@ -1390,7 +1395,7 @@ textarea {
   .main { margin-left: 250px; }
 
   .kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useRef } from "react";
+import { useState, useEffect, Fragment, useRef, useMemo } from "react";
 import type { ReactNode } from "react";
 import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -416,11 +416,11 @@ const navItems: Array<{
   expandable?: boolean;
 }> = [
   { label: "Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-  { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER"] },
-  { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER"] },
-  { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER"] },
+  { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+  { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+  { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
   { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
-  { label: "Daily Position History", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM"] },
+  { label: "Daily Position History", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
   { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
   { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
   { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
@@ -1597,27 +1597,89 @@ function DashboardView({
 }) {
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
-    if (label === "Stations") {
+    if (label === "Stations" || label === "ABSS Stations" || label === "Divisional Stations") {
       setActiveNav("Master List");
     } else if (label === "Gates" || label === "LC Gate" || label === "LC Gates") {
       setActiveNav("LC Gate");
-    } else if (label === "OFC Route (KM)") {
-      setActiveNav("GIS Mapping");
+    } else if (label === "Active Faults" || label === "Reported Today") {
+      if (data.user.role === "TESTROOM") {
+        setActiveNav("Daily Position");
+      } else {
+        setActiveNav("Daily Position History");
+      }
     } else {
       setActiveNav(label as any);
     }
   };
 
+  const dailyPositionMetrics = useMemo(() => {
+    const statusColors: Record<string, string> = {
+      FAULTY: "#ef4444", // Red
+      RECTIFIED: "#10b981", // Green
+      UNDER_MAINTENANCE: "#f59e0b", // Amber
+      OPERATIONAL: "#3b82f6", // Blue
+    };
+    const records = data.dailyPositionStatus || [];
+    const total = records.reduce((acc: number, curr: any) => acc + curr.count, 0) || 1;
+    return records.map((item: any) => {
+      const name = item.status.replace(/_/g, " ");
+      const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      return {
+        name: formattedName,
+        value: item.count,
+        percent: `${((item.count / total) * 100).toFixed(1)}%`,
+        color: statusColors[item.status.toUpperCase()] || "#94a3b8"
+      };
+    });
+  }, [data.dailyPositionStatus]);
+
+  const totalDailyPositions = useMemo(() => {
+    return (data.dailyPositionStatus || []).reduce((acc: number, curr: any) => acc + curr.count, 0);
+  }, [data.dailyPositionStatus]);
+
+  const commissioningMetrics = useMemo(() => {
+    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
+    const total = (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
+    const getPercent = (val: number) => total > 0 ? `${((val / total) * 100).toFixed(1)}%` : "0%";
+    return [
+      { name: "ABSS Only", value: summary.abssOnly || 0, percent: getPercent(summary.abssOnly || 0), color: "#3b82f6" },
+      { name: "Divisional Only", value: summary.divisionalOnly || 0, percent: getPercent(summary.divisionalOnly || 0), color: "#10b981" },
+      { name: "Both Schemes", value: summary.bothSchemes || 0, percent: getPercent(summary.bothSchemes || 0), color: "#8b5cf6" }
+    ];
+  }, [data.commissioningSummary]);
+
+  const totalStations = useMemo(() => {
+    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
+    return (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
+  }, [data.commissioningSummary]);
+
   return (
     <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20, paddingRight: 4 }}>
       <section className="kpi-grid">
-        {data.kpis.filter(kpi => kpi.id !== "health").map((kpi, index) => (
+        {data.kpis.map((kpi, index) => (
           <KpiCard key={kpi.id} kpi={kpi} index={index} />
         ))}
       </section>
  
       <section className="dashboard-grid">
-        <ChartPanel title="Assets by Category" total={data.bottomStats[1].value} metrics={data.categories} openPanel={() => useAppStore.getState().setActiveNav("Assets")} />
+        <ChartPanel 
+          title="Assets by Category" 
+          total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"} 
+          metrics={data.categories} 
+          openPanel={() => useAppStore.getState().setActiveNav("Assets")} 
+        />
+        <ChartPanel 
+          title="Daily Position Status" 
+          total={totalDailyPositions.toString()} 
+          metrics={dailyPositionMetrics} 
+          openPanel={() => data.user.role === "TESTROOM" ? useAppStore.getState().setActiveNav("Daily Position") : useAppStore.getState().setActiveNav("Daily Position History")} 
+        />
+        <ChartPanel 
+          title="Station Commissioning Status" 
+          total={totalStations.toString()} 
+          metrics={commissioningMetrics} 
+          openPanel={() => useAppStore.getState().setActiveNav("Master List")} 
+        />
       </section>
  
       <section className="operations-grid">
@@ -1638,7 +1700,7 @@ function DashboardView({
 // KPI Card Component
 function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
   const Icon = toneIcons[kpi.tone];
-  const { setActiveNav, setAssetStatusFilter } = useAppStore();
+  const { setActiveNav, setAssetStatusFilter, role } = useAppStore();
 
   const handleClick = () => {
     if (kpi.label === "Total Assets") {
@@ -1650,11 +1712,18 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
     } else if (kpi.label === "Under Maintenance") {
       setActiveNav("Assets");
       setAssetStatusFilter("UNDER_MAINTENANCE");
-    } else if (kpi.label === "Faulty Assets") {
-      setActiveNav("Assets");
-      setAssetStatusFilter("FAULTY");
-    } else if (kpi.label === "Operational Health") {
-      setActiveNav("Reports & Analytics");
+    } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
+      if (role === "TESTROOM") {
+        setActiveNav("Daily Position");
+      } else {
+        setActiveNav("Daily Position History");
+      }
+    } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today") {
+      if (role === "TESTROOM") {
+        setActiveNav("Daily Position");
+      } else {
+        setActiveNav("Daily Position History");
+      }
     }
   };
  
@@ -2472,7 +2541,7 @@ function ModuleView({
   queries: any;
 }) {
   const queryClient = useQueryClient();
-  const { assetStatusFilter, setAssetStatusFilter } = useAppStore();
+  const { assetStatusFilter, setAssetStatusFilter, role } = useAppStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterState, setFilterState] = useState("");
@@ -2880,12 +2949,23 @@ function ModuleView({
                         <td style={{ textAlign: "right" }}>
                           <button 
                             className="action-btn text-blue" 
-                            onClick={() => openPanel("Edit Station", s.id)}
+                            onClick={() => openPanel("Station Details", s.id)}
                             style={{ marginRight: 8 }}
                           >
-                            Edit
+                            View
                           </button>
-                          <button className="action-btn text-red" onClick={() => deleteStation.mutate(s.code)}>Delete</button>
+                          {canEditStations && (
+                            <>
+                              <button 
+                                className="action-btn text-blue" 
+                                onClick={() => openPanel("Edit Station", s.id)}
+                                style={{ marginRight: 8 }}
+                              >
+                                Edit
+                              </button>
+                              <button className="action-btn text-red" onClick={() => deleteStation.mutate(s.code)}>Delete</button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     </Fragment>
@@ -2950,8 +3030,12 @@ function ModuleView({
                       <td><span className={`pill ${a.status.toLowerCase()}`}>{a.status}</span></td>
                       <td style={{ textAlign: "right" }}>
                         <button className="action-btn text-blue" onClick={() => openPanel("Asset Details", a.id)} style={{ marginRight: 8 }}>View</button>
-                        <button className="action-btn text-blue" onClick={() => openPanel("Edit Asset", a.id)} style={{ marginRight: 8 }}>Edit</button>
-                        <button className="action-btn text-red" onClick={() => deleteAsset.mutate(a.id)}>Delete</button>
+                        {canEditAssets && (
+                          <>
+                            <button className="action-btn text-blue" onClick={() => openPanel("Edit Asset", a.id)} style={{ marginRight: 8 }}>Edit</button>
+                            <button className="action-btn text-red" onClick={() => deleteAsset.mutate(a.id)}>Delete</button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -3010,8 +3094,14 @@ function ModuleView({
                       <td><small>{g.locationName || "-"}</small></td>
                       <td>{g.stationCode || "-"}</td>
                       <td style={{ textAlign: "right" }}>
-                        <button className="action-btn text-blue" onClick={() => openPanel("Edit LC Gate", g.id)} style={{ marginRight: 8 }}>Edit</button>
-                        <button className="action-btn text-red" onClick={() => deleteGate.mutate(g.id)}>Delete</button>
+                        {canEditGates ? (
+                          <>
+                            <button className="action-btn text-blue" onClick={() => openPanel("Edit LC Gate", g.id)} style={{ marginRight: 8 }}>Edit</button>
+                            <button className="action-btn text-red" onClick={() => deleteGate.mutate(g.id)}>Delete</button>
+                          </>
+                        ) : (
+                          <button className="action-btn text-blue" onClick={() => openPanel("Edit LC Gate", g.id)} style={{ marginRight: 8 }}>View</button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -3208,7 +3298,16 @@ function ModuleView({
     }
   };
 
-  const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav);
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
+
+  const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
+    (activeNav === "Master List" && canEditStations) ||
+    (activeNav === "Assets" && canEditAssets) ||
+    (activeNav === "LC Gate" && canEditGates) ||
+    (activeNav === "Users & Roles" && ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || ""))
+  );
 
   const getCreateLabel = (nav: NavKey): string => {
     switch (nav) {
@@ -4076,6 +4175,10 @@ function ActionPanel({
   showToast: (msg: string) => void;
 }) {
   const queryClient = useQueryClient();
+  const { role } = useAppStore();
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
   const stations = queries.stationsQuery?.data?.data || [];
   const uniqueDivisions = Array.from(new Set(stations.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
 
@@ -4998,104 +5101,106 @@ function ActionPanel({
     if (title.startsWith("Edit Station")) {
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
-          <label>
-            Division
-            <select value={stationDivision} onChange={e => setStationDivision(e.target.value)}>
-              {uniqueDivisions.length > 0
-                ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
-                : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
-              }
-            </select>
-          </label>
-          <label>
-            Station Name
-            <input required placeholder="e.g. Durg Junction" value={stationName} onChange={e => setStationName(e.target.value)} />
-          </label>
-          <label>
-            Station Code (Read-Only)
-            <input readOnly value={stationCode} />
-          </label>
-          <label>
-            State
-            <select value={stationState} onChange={e => setStationState(e.target.value)}>
-              {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          <label>
-            Category
-            <input required placeholder="e.g. NSG-2" value={stationCategory} onChange={e => setStationCategory(e.target.value)} />
-          </label>
-          <div style={{ display: "grid", gap: 10, margin: "10px 0" }}>
-            <strong>Assets:</strong>
-            <div style={{ maxHeight: "200px", overflowY: "auto", padding: "10px", border: "1px solid var(--line)", borderRadius: "6px" }}>
-              {Object.keys(stationChecks).map((checkKey) => (
-                <label key={checkKey} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <input
-                    type="checkbox"
-                    style={{ width: "auto", height: "auto" }}
-                    checked={stationChecks[checkKey]}
-                    onChange={e => setStationChecks({ ...stationChecks, [checkKey]: e.target.checked })}
-                  />
-                  {CHECKLIST_LABELS[checkKey] || checkKey}
-                </label>
-              ))}
+          <fieldset disabled={!canEditStations} style={{ border: "none", padding: 0, margin: 0, display: "contents" }}>
+            <label>
+              Division
+              <select value={stationDivision} onChange={e => setStationDivision(e.target.value)}>
+                {uniqueDivisions.length > 0
+                  ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
+                  : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
+                }
+              </select>
+            </label>
+            <label>
+              Station Name
+              <input required placeholder="e.g. Durg Junction" value={stationName} onChange={e => setStationName(e.target.value)} />
+            </label>
+            <label>
+              Station Code (Read-Only)
+              <input readOnly value={stationCode} />
+            </label>
+            <label>
+              State
+              <select value={stationState} onChange={e => setStationState(e.target.value)}>
+                {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label>
+              Category
+              <input required placeholder="e.g. NSG-2" value={stationCategory} onChange={e => setStationCategory(e.target.value)} />
+            </label>
+            <div style={{ display: "grid", gap: 10, margin: "10px 0" }}>
+              <strong>Assets:</strong>
+              <div style={{ maxHeight: "200px", overflowY: "auto", padding: "10px", border: "1px solid var(--line)", borderRadius: "6px" }}>
+                {Object.keys(stationChecks).map((checkKey) => (
+                  <label key={checkKey} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <input
+                      type="checkbox"
+                      style={{ width: "auto", height: "auto" }}
+                      checked={stationChecks[checkKey]}
+                      onChange={e => setStationChecks({ ...stationChecks, [checkKey]: e.target.checked })}
+                    />
+                    {CHECKLIST_LABELS[checkKey] || checkKey}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
-          <div style={{ display: "grid", gap: 10, margin: "15px 0" }}>
-            <strong>Commissioned Under (Optional):</strong>
-            <div style={{ display: "grid", gap: 12, padding: "12px", border: "1px solid var(--line)", borderRadius: "6px", background: "#f8fafd" }}>
-              {Object.keys(stationChecks).filter(key => stationChecks[key]).map((checkKey) => (
-                <div key={checkKey} style={{ display: "grid", gap: 4, paddingBottom: 8, borderBottom: "1px dashed var(--line)" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)" }}>{CHECKLIST_LABELS[checkKey] || checkKey}</span>
-                  <div style={{ display: "flex", gap: 15 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
-                      <input
-                        type="radio"
-                        style={{ width: "auto", height: "auto" }}
-                        name={`commission-edit-${checkKey}`}
-                        checked={commissionedDivisional.includes(checkKey)}
-                        onChange={() => {
-                          setCommissionedDivisional([...commissionedDivisional.filter(k => k !== checkKey), checkKey]);
-                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
-                        }}
-                      />
-                      Divisional Work
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
-                      <input
-                        type="radio"
-                        style={{ width: "auto", height: "auto" }}
-                        name={`commission-edit-${checkKey}`}
-                        checked={commissionedAbss.includes(checkKey)}
-                        onChange={() => {
-                          setCommissionedAbss([...commissionedAbss.filter(k => k !== checkKey), checkKey]);
-                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
-                        }}
-                      />
-                      ABSS
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
-                      <input
-                        type="radio"
-                        style={{ width: "auto", height: "auto" }}
-                        name={`commission-edit-${checkKey}`}
-                        checked={!commissionedDivisional.includes(checkKey) && !commissionedAbss.includes(checkKey)}
-                        onChange={() => {
-                          setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
-                          setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
-                        }}
-                      />
-                      None
-                    </label>
+            <div style={{ display: "grid", gap: 10, margin: "15px 0" }}>
+              <strong>Commissioned Under (Optional):</strong>
+              <div style={{ display: "grid", gap: 12, padding: "12px", border: "1px solid var(--line)", borderRadius: "6px", background: "#f8fafd" }}>
+                {Object.keys(stationChecks).filter(key => stationChecks[key]).map((checkKey) => (
+                  <div key={checkKey} style={{ display: "grid", gap: 4, paddingBottom: 8, borderBottom: "1px dashed var(--line)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)" }}>{CHECKLIST_LABELS[checkKey] || checkKey}</span>
+                    <div style={{ display: "flex", gap: 15 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                        <input
+                          type="radio"
+                          style={{ width: "auto", height: "auto" }}
+                          name={`commission-edit-${checkKey}`}
+                          checked={commissionedDivisional.includes(checkKey)}
+                          onChange={() => {
+                            setCommissionedDivisional([...commissionedDivisional.filter(k => k !== checkKey), checkKey]);
+                            setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                          }}
+                        />
+                        Divisional Work
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                        <input
+                          type="radio"
+                          style={{ width: "auto", height: "auto" }}
+                          name={`commission-edit-${checkKey}`}
+                          checked={commissionedAbss.includes(checkKey)}
+                          onChange={() => {
+                            setCommissionedAbss([...commissionedAbss.filter(k => k !== checkKey), checkKey]);
+                            setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                          }}
+                        />
+                        ABSS
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", fontWeight: 550 }}>
+                        <input
+                          type="radio"
+                          style={{ width: "auto", height: "auto" }}
+                          name={`commission-edit-${checkKey}`}
+                          checked={!commissionedDivisional.includes(checkKey) && !commissionedAbss.includes(checkKey)}
+                          onChange={() => {
+                            setCommissionedDivisional(commissionedDivisional.filter(k => k !== checkKey));
+                            setCommissionedAbss(commissionedAbss.filter(k => k !== checkKey));
+                          }}
+                        />
+                        None
+                      </label>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {Object.keys(stationChecks).filter(key => stationChecks[key]).length === 0 && (
-                <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>Select assets from above checklist first.</span>
-              )}
+                ))}
+                {Object.keys(stationChecks).filter(key => stationChecks[key]).length === 0 && (
+                  <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>Select assets from above checklist first.</span>
+                )}
+              </div>
             </div>
-          </div>
-          <button type="submit" className="export-button">Save Changes</button>
+          </fieldset>
+          {canEditStations && <button type="submit" className="export-button">Save Changes</button>}
         </form>
       );
     }
@@ -5110,180 +5215,182 @@ function ActionPanel({
       const needsMaintenanceDates = assetMaintenanceValidity === "AMC" || assetMaintenanceValidity === "RMC";
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
-          <label>
-            {requiredLabel("Telecom Asset")}
-            <select required value={assetCategory} onChange={e => handleCategoryChange(e.target.value)}>
-              {telecomAssetOptions.map(option => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
-          <label>
-            {requiredLabel("Station Code")} (Read-Only)
-            <input readOnly value={assetStation} />
-          </label>
-          <label>
-            {requiredLabel("Mode")}
-            <select required value={assetMode} onChange={e => {
-              setAssetMode(e.target.value);
-              if (e.target.value === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
-            }}>
-              <option value={ASSET_MODE_STANDALONE}>Standalone</option>
-              <option value={ASSET_MODE_HAS_EQUIPMENT}>Has Equipment</option>
-            </select>
-          </label>
-          {assetMode === ASSET_MODE_HAS_EQUIPMENT && (
+          <fieldset disabled={!canEditAssets} style={{ border: "none", padding: 0, margin: 0, display: "contents" }}>
             <label>
-              {requiredLabel("Equipment Name")}
-              <input required placeholder="e.g. CGB, TIB, Router" value={assetEquipmentName} onChange={e => setAssetEquipmentName(e.target.value)} />
+              {requiredLabel("Telecom Asset")}
+              <select required value={assetCategory} onChange={e => handleCategoryChange(e.target.value)}>
+                {telecomAssetOptions.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
             </label>
-          )}
-          <label>
-            {requiredLabel("Make")}
-            <input required placeholder="e.g. BHEL" value={assetMake} onChange={e => setAssetMake(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Model")}
-            <input required placeholder="e.g. B-IPIS-X2" value={assetModel} onChange={e => setAssetModel(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("RDSO Spec / Version")}
-            <input required placeholder="e.g. RDSO/SPN/TC/108/2019" value={assetRdsoSpec} onChange={e => setAssetRdsoSpec(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Date of Installation")}
-            <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Work Name")}
-            <input required placeholder="e.g. Station telecom upgrade" value={assetWorkName} onChange={e => setAssetWorkName(e.target.value)} />
-          </label>
-          <MultiSelectDropdown
-            label={requiredLabel("Connected With")}
-            options={CONNECTED_WITH_OPTIONS}
-            selected={assetConnectedWith}
-            onChange={setAssetConnectedWith}
-            placeholder="Select connection"
-          />
-          <label>
-            {requiredLabel("Forward Inspection")}
-            <input required placeholder="Forward inspection details" value={assetForwardInspection} onChange={e => setAssetForwardInspection(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Backward Inspection")}
-            <input required placeholder="Backward inspection details" value={assetBackwardInspection} onChange={e => setAssetBackwardInspection(e.target.value)} />
-          </label>
-          <label>
-            Display Board
-            <input placeholder="e.g. DB-01, PF1-A" value={assetDbCount} onChange={e => setAssetDbCount(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Maintenance Validity")}
-            <select required value={assetMaintenanceValidity} onChange={e => {
-              setAssetMaintenanceValidity(e.target.value);
-              if (e.target.value === MAINTENANCE_NOT_AVAILABLE) {
-                setAssetMaintenanceFrom("");
-                setAssetMaintenanceTo("");
-              }
-            }}>
-              {MAINTENANCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-          {needsMaintenanceDates && (
-            <>
+            <label>
+              {requiredLabel("Station Code")} (Read-Only)
+              <input readOnly value={assetStation} />
+            </label>
+            <label>
+              {requiredLabel("Mode")}
+              <select required value={assetMode} onChange={e => {
+                setAssetMode(e.target.value);
+                if (e.target.value === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
+              }}>
+                <option value={ASSET_MODE_STANDALONE}>Standalone</option>
+                <option value={ASSET_MODE_HAS_EQUIPMENT}>Has Equipment</option>
+              </select>
+            </label>
+            {assetMode === ASSET_MODE_HAS_EQUIPMENT && (
               <label>
-                {requiredLabel("Maintenance From")}
-                <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} />
+                {requiredLabel("Equipment Name")}
+                <input required placeholder="e.g. CGB, TIB, Router" value={assetEquipmentName} onChange={e => setAssetEquipmentName(e.target.value)} />
               </label>
-              <label>
-                {requiredLabel("Maintenance To")}
-                <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} />
-              </label>
-            </>
-          )}
-          <label>
-            {requiredLabel("Location")}
-            <input required placeholder="e.g. Platform 1 Server Room" value={assetLocation} onChange={e => setAssetLocation(e.target.value)} />
-          </label>
-          <label>
-            {requiredLabel("Status")}
-            <select required value={assetStatus} onChange={e => setAssetStatus(e.target.value)}>
-              <option value="OPERATIONAL">OPERATIONAL</option>
-              <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
-              <option value="FAULTY">FAULTY</option>
-              <option value="OBSOLETE">OBSOLETE</option>
-            </select>
-          </label>
-          <label>
-            Remarks
-            <textarea placeholder="Operational notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
-          </label>
+            )}
+            <label>
+              {requiredLabel("Make")}
+              <input required placeholder="e.g. BHEL" value={assetMake} onChange={e => setAssetMake(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Model")}
+              <input required placeholder="e.g. B-IPIS-X2" value={assetModel} onChange={e => setAssetModel(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("RDSO Spec / Version")}
+              <input required placeholder="e.g. RDSO/SPN/TC/108/2019" value={assetRdsoSpec} onChange={e => setAssetRdsoSpec(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Date of Installation")}
+              <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Work Name")}
+              <input required placeholder="e.g. Station telecom upgrade" value={assetWorkName} onChange={e => setAssetWorkName(e.target.value)} />
+            </label>
+            <MultiSelectDropdown
+              label={requiredLabel("Connected With")}
+              options={CONNECTED_WITH_OPTIONS}
+              selected={assetConnectedWith}
+              onChange={setAssetConnectedWith}
+              placeholder="Select connection"
+            />
+            <label>
+              {requiredLabel("Forward Inspection")}
+              <input required placeholder="Forward inspection details" value={assetForwardInspection} onChange={e => setAssetForwardInspection(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Backward Inspection")}
+              <input required placeholder="Backward inspection details" value={assetBackwardInspection} onChange={e => setAssetBackwardInspection(e.target.value)} />
+            </label>
+            <label>
+              Display Board
+              <input placeholder="e.g. DB-01, PF1-A" value={assetDbCount} onChange={e => setAssetDbCount(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Maintenance Validity")}
+              <select required value={assetMaintenanceValidity} onChange={e => {
+                setAssetMaintenanceValidity(e.target.value);
+                if (e.target.value === MAINTENANCE_NOT_AVAILABLE) {
+                  setAssetMaintenanceFrom("");
+                  setAssetMaintenanceTo("");
+                }
+              }}>
+                {MAINTENANCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            {needsMaintenanceDates && (
+              <>
+                <label>
+                  {requiredLabel("Maintenance From")}
+                  <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} />
+                </label>
+                <label>
+                  {requiredLabel("Maintenance To")}
+                  <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} />
+                </label>
+              </>
+            )}
+            <label>
+              {requiredLabel("Location")}
+              <input required placeholder="e.g. Platform 1 Server Room" value={assetLocation} onChange={e => setAssetLocation(e.target.value)} />
+            </label>
+            <label>
+              {requiredLabel("Status")}
+              <select required value={assetStatus} onChange={e => setAssetStatus(e.target.value)}>
+                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
+                <option value="FAULTY">FAULTY</option>
+                <option value="OBSOLETE">OBSOLETE</option>
+              </select>
+            </label>
+            <label>
+              Remarks
+              <textarea placeholder="Operational notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
+            </label>
 
-          <div style={{ margin: "15px 0 10px 0" }}>
-            <strong style={{ display: "block", marginBottom: 8 }}>Specifications Parameters:</strong>
-            <div style={{ display: "grid", gap: 10 }}>
-              {assetSpecFields.map((field, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    required
-                    style={{ flex: 1, minWidth: 0 }}
-                    placeholder="Parameter Name (e.g. controllerIp)"
-                    value={field.key}
-                    onChange={e => {
-                      const updated = [...assetSpecFields];
-                      updated[idx].key = e.target.value;
-                      setAssetSpecFields(updated);
-                    }}
-                  />
-                  <input
-                    required
-                    style={{ flex: 1, minWidth: 0 }}
-                    placeholder="Value (e.g. 10.120.45.15)"
-                    value={field.val}
-                    onChange={e => {
-                      const updated = [...assetSpecFields];
-                      updated[idx].val = e.target.value;
-                      setAssetSpecFields(updated);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    style={{ padding: "8px 12px", background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 16 }}
-                    onClick={() => {
-                      const updated = assetSpecFields.filter((_, i) => i !== idx);
-                      setAssetSpecFields(updated);
-                    }}
-                    title="Delete Parameter"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+            <div style={{ margin: "15px 0 10px 0" }}>
+              <strong style={{ display: "block", marginBottom: 8 }}>Specifications Parameters:</strong>
+              <div style={{ display: "grid", gap: 10 }}>
+                {assetSpecFields.map((field, idx) => (
+                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      required
+                      style={{ flex: 1, minWidth: 0 }}
+                      placeholder="Parameter Name (e.g. controllerIp)"
+                      value={field.key}
+                      onChange={e => {
+                        const updated = [...assetSpecFields];
+                        updated[idx].key = e.target.value;
+                        setAssetSpecFields(updated);
+                      }}
+                    />
+                    <input
+                      required
+                      style={{ flex: 1, minWidth: 0 }}
+                      placeholder="Value (e.g. 10.120.45.15)"
+                      value={field.val}
+                      onChange={e => {
+                        const updated = [...assetSpecFields];
+                        updated[idx].val = e.target.value;
+                        setAssetSpecFields(updated);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      style={{ padding: "8px 12px", background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 16 }}
+                      onClick={() => {
+                        const updated = assetSpecFields.filter((_, i) => i !== idx);
+                        setAssetSpecFields(updated);
+                      }}
+                      title="Delete Parameter"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="export-button"
+                style={{
+                  marginTop: 10,
+                  background: "transparent",
+                  color: "var(--blue)",
+                  border: "1px dashed var(--blue)",
+                  padding: "8px 12px",
+                  width: "100%",
+                  cursor: "pointer",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5
+                }}
+                onClick={() => {
+                  setAssetSpecFields([...assetSpecFields, { key: "", val: "" }]);
+                }}
+              >
+                + Add Specification Parameter
+              </button>
             </div>
-            <button
-              type="button"
-              className="export-button"
-              style={{
-                marginTop: 10,
-                background: "transparent",
-                color: "var(--blue)",
-                border: "1px dashed var(--blue)",
-                padding: "8px 12px",
-                width: "100%",
-                cursor: "pointer",
-                borderRadius: "6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5
-              }}
-              onClick={() => {
-                setAssetSpecFields([...assetSpecFields, { key: "", val: "" }]);
-              }}
-            >
-              + Add Specification Parameter
-            </button>
-          </div>
+          </fieldset>
 
-          <button type="submit" className="export-button">Save Changes</button>
+          {canEditAssets && <button type="submit" className="export-button">Save Changes</button>}
         </form>
       );
     }
@@ -5335,39 +5442,41 @@ function ActionPanel({
     if (title.startsWith("Edit LC Gate")) {
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
-          <label>
-            Gate Number (Read-Only)
-            <input readOnly value={gateNumber} />
-          </label>
-          <label>
-            Gate Name
-            <input placeholder="e.g. Kumhari crossing" value={gateName} onChange={e => setGateName(e.target.value)} />
-          </label>
-          <label>
-            Category
-            <select value={gateCategory} onChange={e => setGateCategory(e.target.value)}>
-              <option value="Interlocked">Interlocked</option>
-              <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
-              <option value="Special / Other Gates">Special / Other Gates</option>
-            </select>
-          </label>
-          <label>
-            Section
-            <input placeholder="e.g. Raipur-Durg" value={gateSection} onChange={e => setGateSection(e.target.value)} />
-          </label>
-          <label>
-            Km Location
-            <input placeholder="e.g. Km 824/2" value={gateKm} onChange={e => setGateKm(e.target.value)} />
-          </label>
-          <label>
-            Location Description
-            <input placeholder="e.g. near national highway crossing" value={gateLocName} onChange={e => setGateLocName(e.target.value)} />
-          </label>
-          <label>
-            Station Link (Read-Only)
-            <input readOnly value={gateStation || "No Linking Station"} />
-          </label>
-          <button type="submit" className="export-button">Save Changes</button>
+          <fieldset disabled={!canEditGates} style={{ border: "none", padding: 0, margin: 0, display: "contents" }}>
+            <label>
+              Gate Number (Read-Only)
+              <input readOnly value={gateNumber} />
+            </label>
+            <label>
+              Gate Name
+              <input placeholder="e.g. Kumhari crossing" value={gateName} onChange={e => setGateName(e.target.value)} />
+            </label>
+            <label>
+              Category
+              <select value={gateCategory} onChange={e => setGateCategory(e.target.value)}>
+                <option value="Interlocked">Interlocked</option>
+                <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
+                <option value="Special / Other Gates">Special / Other Gates</option>
+              </select>
+            </label>
+            <label>
+              Section
+              <input placeholder="e.g. Raipur-Durg" value={gateSection} onChange={e => setGateSection(e.target.value)} />
+            </label>
+            <label>
+              Km Location
+              <input placeholder="e.g. Km 824/2" value={gateKm} onChange={e => setGateKm(e.target.value)} />
+            </label>
+            <label>
+              Location Description
+              <input placeholder="e.g. near national highway crossing" value={gateLocName} onChange={e => setGateLocName(e.target.value)} />
+            </label>
+            <label>
+              Station Link (Read-Only)
+              <input readOnly value={gateStation || "No Linking Station"} />
+            </label>
+          </fieldset>
+          {canEditGates && <button type="submit" className="export-button">Save Changes</button>}
         </form>
       );
     }
