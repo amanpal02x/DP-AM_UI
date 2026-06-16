@@ -152,6 +152,212 @@ const displayValue = (value: any) => {
   return String(value);
 };
 
+function SearchableStationDropdown({
+  stations,
+  value,
+  onChange,
+  placeholder,
+  required,
+  readOnly,
+}: {
+  stations: any[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  required?: boolean;
+  readOnly?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const toggleDropdown = () => {
+    if (readOnly) return;
+    if (!isOpen) {
+      setSearchTerm("");
+    }
+    setIsOpen(!isOpen);
+  };
+
+  const selectedStation = value === "Others" ? { code: "Others", name: "Others" } : stations.find((s) => s.code === value);
+
+  const filteredStations = stations.filter((station: any) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (station.name || "").toLowerCase().includes(term) ||
+      (station.code || "").toLowerCase().includes(term)
+    );
+  });
+
+  const term = searchTerm.toLowerCase();
+  if ("others".includes(term)) {
+    filteredStations.push({ code: "Others", name: "Others" });
+  }
+
+  return (
+    <div className="multi-dropdown" ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        className="multi-dropdown-trigger"
+        disabled={readOnly}
+        onClick={toggleDropdown}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          minHeight: "42px",
+          padding: "10px 14px",
+          border: "1px solid #cbd5e1",
+          borderRadius: "8px",
+          background: readOnly ? "#f8fafc" : "#ffffff",
+          color: readOnly ? "#64748b" : "#1e293b",
+          fontSize: "14px",
+          textAlign: "left",
+          cursor: readOnly ? "not-allowed" : "pointer"
+        }}
+      >
+        <span style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          color: value ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+        }}>
+          {selectedStation ? (selectedStation.code === "Others" ? "Others" : `${selectedStation.name} (${selectedStation.code})`) : placeholder}
+        </span>
+        <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+      </button>
+
+      {/* Hidden select for HTML5 native validation */}
+      <select
+        required={required}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        tabIndex={-1}
+        style={{
+          position: "absolute",
+          opacity: 0,
+          pointerEvents: "none",
+          width: "100%",
+          bottom: 0,
+          left: 0,
+          height: 1
+        }}
+      >
+        <option value="">{placeholder}</option>
+        {stations.map((s: any) => (
+          <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+        ))}
+        <option value="Others">Others</option>
+      </select>
+
+      {isOpen && !readOnly && (
+        <div
+          className="multi-dropdown-menu"
+          style={{
+            position: "absolute",
+            zIndex: 100,
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: "4px",
+            maxHeight: "280px",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            background: "#ffffff",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+            padding: "6px"
+          }}
+        >
+          {/* Search Input Box */}
+          <div style={{ padding: "4px 4px 8px 4px" }}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search station..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: "36px",
+                padding: "8px 12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                fontSize: "13px",
+                outline: "none"
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent closing dropdown when clicking input
+            />
+          </div>
+
+          {/* Scrollable list */}
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filteredStations.map((station: any) => {
+              const isSelected = station.code === value;
+              return (
+                <div
+                  key={station.code}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: isSelected ? 600 : 500,
+                    color: isSelected ? "var(--blue)" : "#1e293b",
+                    background: isSelected ? "var(--blue-soft)" : "transparent",
+                    margin: "2px 0",
+                    transition: "background 0.15s, color 0.15s"
+                  }}
+                  onMouseEnter={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = "#f1f5f9";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                  onClick={() => {
+                    onChange(station.code);
+                    setIsOpen(false);
+                  }}
+                >
+                  {station.code === "Others" ? "Others" : `${station.name} (${station.code})`}
+                </div>
+              );
+            })}
+            {filteredStations.length === 0 && (
+              <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                No stations found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DailyPositionFieldInput({
   field,
   value,
@@ -169,6 +375,7 @@ function DailyPositionFieldInput({
   selectedDivision: string;
   readOnly: boolean;
 }) {
+  const wrapperClass = `dp-field ${field.fullWidth ? "full" : ""} ${field.forceNewRow ? "force-new-row" : ""}`;
   const majorSections = metadata?.majorSections || [];
   const selectedMajor = majorSections.find((section: any) => section.name === values.majorSection);
   const sections = selectedMajor?.sections || [];
@@ -209,11 +416,14 @@ function DailyPositionFieldInput({
       "Power Supply"
     ];
 
-    const parts = (value || "").split(/,\s*/).map((p: string) => p.trim()).filter(Boolean);
+    const parts = (value || "").split(/,\s*/).map((p: string) => {
+      if (p.startsWith("Others:")) return p;
+      return p.trim();
+    }).filter(Boolean);
     const selectedOptions = REASON_OPTIONS.filter(opt => parts.includes(opt));
     const hasOthers = parts.some((p: string) => p === "Others" || p.startsWith("Others:"));
     const othersPart = parts.find((p: string) => p.startsWith("Others:"));
-    const othersText = othersPart ? othersPart.replace(/^Others:\s*/, "") : "";
+    const othersText = othersPart ? othersPart.substring("Others:".length).replace(/^\s/, "") : "";
 
     const toggleOption = (opt: string) => {
       if (readOnly) return;
@@ -264,7 +474,7 @@ function DailyPositionFieldInput({
     };
 
     return (
-      <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+      <div className={wrapperClass} ref={dropdownRef} style={{ position: "relative" }}>
         <label>{field.label}{field.required && <span>*</span>}</label>
         <div className="multi-dropdown" style={{ position: "relative" }}>
           <button
@@ -421,7 +631,7 @@ function DailyPositionFieldInput({
 
   if (field.name === "majorSection") {
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
           <option value="">{field.placeholder || "Select Major Section"}</option>
@@ -433,7 +643,7 @@ function DailyPositionFieldInput({
 
   if (field.name === "section") {
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly || !values.majorSection} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
           <option value="">{field.placeholder || "Select Section"}</option>
@@ -444,20 +654,53 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "stationCode") {
+    const hasOthers = value === "Others";
+    const othersText = values.stationCodeOther || "";
+
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}{field.required && <span>*</span>}</label>
-        <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">{field.placeholder || `Select ${field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}`}</option>
-          {stations.map((station: any) => <option key={station.code} value={station.code}>{station.name} ({station.code})</option>)}
-        </select>
+        <SearchableStationDropdown
+          stations={stations}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={field.placeholder || `Select ${field.label.includes("Station") || field.label.includes("TIB") || field.label.includes("Location") ? "Station" : "Station / Location"}`}
+          required={field.required}
+          readOnly={readOnly}
+        />
+
+        {hasOthers && (
+          <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Specify Other Station:</label>
+            <input
+              type="text"
+              autoFocus
+              required={field.required && !readOnly}
+              disabled={readOnly}
+              value={othersText}
+              onChange={e => setValue("stationCodeOther", e.target.value)}
+              placeholder="Type manual station name..."
+              style={{
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly ? "#f8fafc" : "#ffffff",
+                color: readOnly ? "#64748b" : "#1e293b",
+                fontSize: "14px",
+                cursor: readOnly ? "not-allowed" : "text"
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.name === "assetId") {
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}{field.required && <span>*</span>}</label>
         <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
           <option value="">{field.placeholder || "No linked asset"}</option>
@@ -469,7 +712,7 @@ function DailyPositionFieldInput({
 
   if (field.name === "attachFile") {
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}{field.required && <span>*</span>}</label>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
           <input
@@ -516,7 +759,7 @@ function DailyPositionFieldInput({
     const rectified = Number(values.rectifiedJoints || 0);
     const balance = Math.max(0, total - rectified);
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}</label>
         <input readOnly value={balance} />
       </div>
@@ -528,7 +771,7 @@ function DailyPositionFieldInput({
     const tested = Number(values.testedCount || 0);
     const balance = Math.max(0, total - tested);
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}</label>
         <input readOnly value={balance} />
       </div>
@@ -542,7 +785,7 @@ function DailyPositionFieldInput({
     const condemned = Number(values.setsCondemned || 0);
     const balance = opening + received - returned - condemned;
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}</label>
         <input readOnly value={balance} />
       </div>
@@ -555,7 +798,7 @@ function DailyPositionFieldInput({
     const complied = Number(values.caseCompliedOnDate || 0);
     const balance = lastDate + received - complied;
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}</label>
         <input readOnly value={balance} />
       </div>
@@ -565,7 +808,7 @@ function DailyPositionFieldInput({
 
   if (field.name === "durationText") {
     return (
-      <div className="dp-field">
+      <div className={wrapperClass}>
         <label>{field.label}</label>
         <input readOnly placeholder={field.placeholder || "XX hrs XX min"} value={calcDurationText(values.failureTime, values.rectificationTime)} />
       </div>
@@ -588,7 +831,7 @@ function DailyPositionFieldInput({
   }
 
   return (
-    <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
+    <div className={wrapperClass}>
       <label>
         {field.label}
         {field.type === "datetime-local" && (
@@ -768,13 +1011,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (name === "majorSection") {
         next.section = "";
         next.stationCode = "";
+        next.stationCodeOther = "";
         next.assetId = "";
       }
       if (name === "section") {
         next.stationCode = "";
+        next.stationCodeOther = "";
         next.assetId = "";
       }
-      if (name === "stationCode") next.assetId = "";
+      if (name === "stationCode") {
+        if (nextValue !== "Others") {
+          next.stationCodeOther = "";
+        }
+        next.assetId = "";
+      }
       
       if (name === "failureTime" || name === "rectificationTime") {
         next.durationText = calcDurationText(next.failureTime, next.rectificationTime);
@@ -834,7 +1084,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       majorSection: values.majorSection || null,
       section: values.section || null,
       stationCode: values.stationCode || null,
-      stationName: station?.name || null,
+      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : (station?.name || null),
       assetId: values.assetId || null,
       telecomAsset: selectedForm.name,
       status: isOk ? "OPERATIONAL" : statusFromForm(selectedForm, values),
@@ -908,6 +1158,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       majorSection: record.majorSection || record.formData?.majorSection || "",
       section: record.section || record.formData?.section || "",
       stationCode: record.stationCode || record.formData?.stationCode || "",
+      stationCodeOther: record.formData?.stationCodeOther || ((record.stationCode === "Others" || record.formData?.stationCode === "Others") ? record.stationName : "") || "",
       assetId: record.assetId || record.formData?.assetId || "",
       reason: record.reason || record.formData?.reason || "",
       remarks: record.remarks || record.formData?.remarks || "",
@@ -1003,7 +1254,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       <section className="tabular-header dp-page-header">
         <div className="header-title-section">
           <h2>Daily Position</h2>
-          <p>SECR telecom daily position and asset fault workspace</p>
         </div>
         {canChooseDivision && (
           <div className="header-controls-section">
