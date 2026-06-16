@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Edit, Eye, Send } from "lucide-react";
+import { CheckCircle2, Edit, Eye, Search, Send, X } from "lucide-react";
 import { api } from "../../api/apiClient";
 import type { UserRole } from "../../types";
 import {
@@ -641,6 +641,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [shouldNavigateToNext, setShouldNavigateToNext] = useState(false);
 
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDivision, setHistoryDivision] = useState("");
+  const [historyCategory, setHistoryCategory] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("");
+
   const moveToNextForm = () => {
     if (!selectedForm) return;
     const currentIndex = DAILY_POSITION_FORMS.findIndex(f => f.name === selectedForm.name);
@@ -757,6 +762,30 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     const value = aliases.find(alias => alias.length <= 3) || item;
     return [value, value];
   })).values());
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((record: any) => {
+      if (historyDivision && record.division !== historyDivision) return false;
+      if (historyCategory && record.category !== historyCategory) return false;
+      if (historyStatus && record.status !== historyStatus) return false;
+      
+      if (historySearch) {
+        const query = historySearch.toLowerCase().trim();
+        const divisionMatch = String(record.division || "").toLowerCase().includes(query);
+        const categoryMatch = String(record.category || "").toLowerCase().includes(query);
+        const formTypeMatch = String(record.formType || "").toLowerCase().includes(query);
+        const stationMatch = String(record.stationCode || record.stationName || record.section || "").toLowerCase().includes(query);
+        const remarksMatch = String(record.remarks || record.reason || "").toLowerCase().includes(query);
+        const statusMatch = String(record.status || "").toLowerCase().includes(query);
+        const assetMatch = String(recordAssetLabel(record, metadata)).toLowerCase().includes(query);
+        
+        if (!divisionMatch && !categoryMatch && !formTypeMatch && !stationMatch && !remarksMatch && !statusMatch && !assetMatch) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [records, historySearch, historyDivision, historyCategory, historyStatus, metadata]);
 
   const setValue = (name: string, nextValue: any) => {
     setValues(prev => {
@@ -942,6 +971,164 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
         </label>
       </div>
+
+      <div className="dp-history-filters" style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "12px",
+        marginTop: "16px",
+        marginBottom: "16px",
+        padding: "12px",
+        background: "#f8fafc",
+        borderRadius: "8px",
+        border: "1px solid var(--border)",
+        alignItems: "center"
+      }}>
+        {/* Search Input */}
+        <div style={{ position: "relative", flex: "1 1 240px" }}>
+          <Search size={16} style={{
+            position: "absolute",
+            left: "12px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--muted)"
+          }} />
+          <input
+            type="text"
+            placeholder="Search by division, category, station, remarks..."
+            value={historySearch}
+            onChange={e => setHistorySearch(e.target.value)}
+            style={{
+              width: "100%",
+              paddingLeft: "36px",
+              paddingRight: historySearch ? "32px" : "12px",
+              height: "38px",
+              border: "1px solid var(--border)",
+              borderRadius: "6px",
+              fontSize: "14px",
+              background: "#fff"
+            }}
+          />
+          {historySearch && (
+            <button
+              type="button"
+              onClick={() => setHistorySearch("")}
+              style={{
+                position: "absolute",
+                right: "8px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                color: "var(--muted)",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Division Filter */}
+        <select
+          value={historyDivision}
+          onChange={e => setHistoryDivision(e.target.value)}
+          style={{
+            height: "38px",
+            padding: "0 12px",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            fontSize: "14px",
+            background: "#fff",
+            flex: "0 1 150px",
+            cursor: "pointer"
+          }}
+        >
+          <option value="">All Divisions</option>
+          {Array.from(new Set(records.map((r: any) => r.division).filter(Boolean))).sort().map((div: any) => (
+            <option key={div} value={div}>{div}</option>
+          ))}
+        </select>
+
+        {/* Category Filter */}
+        <select
+          value={historyCategory}
+          onChange={e => setHistoryCategory(e.target.value)}
+          style={{
+            height: "38px",
+            padding: "0 12px",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            fontSize: "14px",
+            background: "#fff",
+            flex: "0 1 180px",
+            cursor: "pointer"
+          }}
+        >
+          <option value="">All Categories</option>
+          {Array.from(new Set(records.map((r: any) => r.category).filter(Boolean))).sort().map((cat: any) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+
+        {/* Status Filter */}
+        <select
+          value={historyStatus}
+          onChange={e => setHistoryStatus(e.target.value)}
+          style={{
+            height: "38px",
+            padding: "0 12px",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            fontSize: "14px",
+            background: "#fff",
+            flex: "0 1 160px",
+            cursor: "pointer"
+          }}
+        >
+          <option value="">All Statuses</option>
+          {Array.from(new Set(records.map((r: any) => r.status).filter(Boolean))).sort().map((status: any) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+
+        {/* Clear Button */}
+        {(historySearch || historyDivision || historyCategory || historyStatus) && (
+          <button
+            type="button"
+            onClick={() => {
+              setHistorySearch("");
+              setHistoryDivision("");
+              setHistoryCategory("");
+              setHistoryStatus("");
+            }}
+            style={{
+              height: "38px",
+              padding: "0 16px",
+              background: "#fee2e2",
+              color: "#dc2626",
+              border: "1px solid #fecaca",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "background 0.2s"
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = "#fecaca"; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = "#fee2e2"; }}
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
       <div className="table-scroll-container">
         <table className="data-table dp-history-table">
           <thead>
@@ -959,7 +1146,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </tr>
           </thead>
           <tbody>
-            {records.map((record: any) => {
+            {filteredRecords.map((record: any) => {
               const canEdit = canFill && isTodayRecord(record) && (!user?.id || record.createdById === user.id);
               return (
                 <tr key={record.id}>
@@ -988,6 +1175,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             {records.length === 0 && (
               <tr>
                 <td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records for this date.</td>
+              </tr>
+            )}
+            {records.length > 0 && filteredRecords.length === 0 && (
+              <tr>
+                <td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No matching records found.</td>
               </tr>
             )}
           </tbody>
