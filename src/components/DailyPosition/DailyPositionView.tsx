@@ -50,7 +50,10 @@ const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
 };
 
 const statusFromForm = (form: DailyPositionFormDefinition, values: Record<string, any>) => {
-  if (form.statusMode === "log") return "OPERATIONAL";
+  if (form.statusMode === "log") {
+    if (!values.rectificationTime) return "FAULTY";
+    return "OPERATIONAL";
+  }
   if (form.statusMode === "maintenance") {
     if (values.balanceTemporaryJoints !== undefined) {
       return Number(values.balanceTemporaryJoints) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
@@ -70,6 +73,7 @@ const statusFromForm = (form: DailyPositionFormDefinition, values: Record<string
   }
   if (values.failureTime && !values.rectificationTime) return "FAULTY";
   if (values.failureTime && values.rectificationTime) return "RECTIFIED";
+  if (!values.rectificationTime) return "FAULTY";
   return "OPERATIONAL";
 };
 
@@ -950,7 +954,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <th>Category</th>
               <th>Form Type</th>
               <th>Station</th>
-              <th>Linked Asset</th>
               <th>Status</th>
               <th>Failure Time</th>
               <th>Rectification Time</th>
@@ -967,7 +970,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <td>{record.category}</td>
                   <td><strong>{record.formType}</strong></td>
                   <td>{record.stationCode || record.stationName || record.section || "-"}</td>
-                  <td>{recordAssetLabel(record, metadata)}</td>
                   <td><span className={`pill status-${String(record.status || "").toLowerCase()}`}>{record.status}</span></td>
                   <td>{record.failureTime ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
                   <td>{record.rectificationTime ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
@@ -987,7 +989,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             })}
             {records.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records for this date.</td>
+                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records for this date.</td>
               </tr>
             )}
           </tbody>
