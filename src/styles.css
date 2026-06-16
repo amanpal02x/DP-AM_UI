@@ -3689,3 +3689,14 @@ textarea {
   }
 }
 
+/* Force field to start on a new row in Daily Position forms */
+.dp-field.force-new-row {
+  grid-column-start: 1;
+}
+
+@media (max-width: 760px) {
+  .dp-field.force-new-row {
+    grid-column-start: auto;
+  }
+}
+
