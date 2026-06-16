@@ -3546,3 +3546,128 @@ textarea {
   -webkit-appearance: checkbox !important;
   appearance: checkbox !important;
 }
+
+/* --- Responsive Layout Rules for Tablet & Mobile --- */
+
+/* Responsive modal header, body, and footer styling */
+.modal-header {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e294b 100%) !important;
+  color: #fff !important;
+  padding: 24px 28px !important;
+  position: relative !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.modal-body {
+  padding: 28px !important;
+  overflow-y: auto !important;
+  display: grid !important;
+  gap: 24px !important;
+}
+
+.modal-footer {
+  background: #f8fafd !important;
+  padding: 16px 28px !important;
+  border-top: 1px solid var(--line) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .modal-header {
+    padding: 16px 20px !important;
+  }
+  .modal-body {
+    padding: 16px 20px !important;
+    gap: 16px !important;
+  }
+  .modal-footer {
+    padding: 12px 20px !important;
+  }
+}
+
+/* Grid responsiveness overrides */
+@media (max-width: 1120px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .bottom-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .bottom-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bottom-stats {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Specification parameter row responsiveness */
+.spec-parameter-row {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+@media (max-width: 480px) {
+  .spec-parameter-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    border-bottom: 1px dashed var(--line) !important;
+    padding-bottom: 12px !important;
+    position: relative !important;
+  }
+  .spec-parameter-row button {
+    align-self: flex-end !important;
+  }
+}
+
+/* Scrollable table container mobile fixes */
+@media (max-width: 900px) {
+  .table-scroll-container {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    max-height: none !important;
+  }
+}
+
+/* Map legend mobile alignment */
+@media (max-width: 560px) {
+  .map-legend {
+    top: auto !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    grid-auto-flow: column !important;
+    gap: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 10px !important;
+  }
+}
+
