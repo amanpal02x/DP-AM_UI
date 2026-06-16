@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Edit, Eye, Send } from "lucide-react";
@@ -170,6 +170,238 @@ function DailyPositionFieldInput({
       : true;
     return matchesStation && matchesSection;
   });
+
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (field.name === "reason") {
+    const REASON_OPTIONS = [
+      "Cable Cut",
+      "Link Failure",
+      "Equipment Failure (STM / MUX)",
+      "Mux Card",
+      "Power Supply"
+    ];
+
+    const parts = (value || "").split(/,\s*/).map((p: string) => p.trim()).filter(Boolean);
+    const selectedOptions = REASON_OPTIONS.filter(opt => parts.includes(opt));
+    const hasOthers = parts.some(p => p === "Others" || p.startsWith("Others:"));
+    const othersPart = parts.find(p => p.startsWith("Others:"));
+    const othersText = othersPart ? othersPart.replace(/^Others:\s*/, "") : "";
+
+    const toggleOption = (opt: string) => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (parts.includes(opt)) {
+        nextParts = parts.filter(p => p !== opt);
+      } else {
+        nextParts = [...parts.filter(p => REASON_OPTIONS.includes(p) || p === "Others" || p.startsWith("Others:")), opt];
+        nextParts.sort((a, b) => {
+          const idxA = REASON_OPTIONS.indexOf(a);
+          const idxB = REASON_OPTIONS.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return 0;
+        });
+      }
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const toggleOthers = () => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (hasOthers) {
+        nextParts = parts.filter(p => p !== "Others" && !p.startsWith("Others:"));
+      } else {
+        const othersVal = othersText ? `Others: ${othersText}` : "Others";
+        nextParts = [...parts, othersVal];
+      }
+      setValue(field.name, nextParts.join(", "));
+      setIsOpen(false);
+    };
+
+    const handleOthersTextChange = (text: string) => {
+      if (readOnly) return;
+      const filteredParts = parts.filter(p => p !== "Others" && !p.startsWith("Others:"));
+      const othersVal = text ? `Others: ${text}` : "Others";
+      const nextParts = [...filteredParts, othersVal];
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const displaySelected = () => {
+      const displayParts = [...selectedOptions];
+      if (hasOthers) {
+        displayParts.push("Others");
+      }
+      return displayParts.join(", ") || "Select Reason of Failure";
+    };
+
+    return (
+      <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+        <label>{field.label}{field.required && <span>*</span>}</label>
+        <div className="multi-dropdown" style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="multi-dropdown-trigger"
+            disabled={readOnly}
+            onClick={() => setIsOpen(!isOpen)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              minHeight: "42px",
+              padding: "10px 14px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              background: readOnly ? "#f8fafc" : "#ffffff",
+              color: readOnly ? "#64748b" : "#1e293b",
+              fontSize: "14px",
+              textAlign: "left",
+              cursor: readOnly ? "not-allowed" : "pointer"
+            }}
+          >
+            <span style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: (selectedOptions.length || hasOthers) ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+            }}>
+              {displaySelected()}
+            </span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+          </button>
+
+          {isOpen && !readOnly && (
+            <div
+              className="multi-dropdown-menu"
+              style={{
+                position: "absolute",
+                zIndex: 100,
+                top: "100%",
+                left: 0,
+                right: 0,
+                marginTop: "4px",
+                maxHeight: "250px",
+                overflowY: "auto",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: "#ffffff",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                padding: "6px"
+              }}
+            >
+              {REASON_OPTIONS.map(opt => {
+                const checked = selectedOptions.includes(opt);
+                return (
+                  <div
+                    key={opt}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1e293b",
+                      margin: 0,
+                      transition: "background 0.15s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOption(opt);
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      className="dp-checkbox"
+                      checked={checked}
+                      disabled={readOnly}
+                      onChange={() => {}}
+                    />
+                    <span>{opt}</span>
+                  </div>
+                );
+              })}
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 10px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#1e293b",
+                  margin: 0,
+                  transition: "background 0.15s",
+                  borderTop: "1px solid #f1f5f9"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleOthers();
+                }}
+              >
+                <input
+                  type="checkbox"
+                  className="dp-checkbox"
+                  checked={hasOthers}
+                  disabled={readOnly}
+                  onChange={() => {}}
+                />
+                <span>Others</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {hasOthers && (
+          <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Specify Other Reason:</label>
+            <input
+              type="text"
+              autoFocus
+              required={field.required && !readOnly}
+              disabled={readOnly}
+              value={othersText}
+              onChange={e => handleOthersTextChange(e.target.value)}
+              placeholder="Type manual reason of failure..."
+              style={{
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly ? "#f8fafc" : "#ffffff",
+                color: readOnly ? "#64748b" : "#1e293b",
+                fontSize: "14px",
+                cursor: readOnly ? "not-allowed" : "text"
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (field.name === "majorSection") {
     return (
