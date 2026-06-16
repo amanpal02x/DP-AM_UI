@@ -42,7 +42,7 @@ const requiredDocketField: DailyPositionField = {
 const timingFields: DailyPositionField[] = [
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Date & Time", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "Calculated duration of failure" },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
 ];
 
 const reasonRemarkFields: DailyPositionField[] = [
@@ -97,7 +97,7 @@ const exchangeFields: DailyPositionField[] = [
   },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "Calculated duration of failure" },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
   {
     name: "reason",
     label: "Reason of Failure",
@@ -127,7 +127,7 @@ export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "Calculated duration of failure" },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
@@ -143,7 +143,7 @@ export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "Calculated duration of failure" },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
@@ -279,9 +279,10 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "kmNo", label: "Km.No.", type: "text", required: true, placeholder: "Enter Kilometer number (e.g. 712/14)" },
       { name: "cableType", label: "Cable Type", type: "select", required: true, options: ["OFC", "Quad", "OFC & Quad"], placeholder: "Select Cable Type" },
       { name: "cableCutByWhom", label: "Cable Cut by Whom", type: "select", required: true, options: ["DFCCIL", "NHAI", "RVNL", "Contractor", "Private Party", "Other"], placeholder: "Select Excavator(s)..." },
+      { name: "cableCutByWhomOther", label: "Cable Cut by Whom (Other)", type: "text", required: true, placeholder: "Enter who cut the cable" },
       { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-      { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "Calculated duration of failure" },
+      { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason of Failure", type: "text", required: true, placeholder: "Enter reason of cable cut (e.g. JCB digging)" },
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, joint type, or restoration remarks" },
     ],
@@ -343,7 +344,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "faultyGuidanceBoards", label: "No. of faulty board", type: "number", required: true, placeholder: "Enter number of faulty boards" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Rectification Date & Time" },
-      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "Calculated total duration" },
+      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
@@ -361,7 +362,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "faultyBoards", label: "No. Of Faulty TIB", type: "number", required: true, placeholder: "Enter number of faulty TIBs" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time( RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Date & Time" },
-      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "Calculated total duration" },
+      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
@@ -429,7 +430,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Rectification Date & Time" },
-      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "Calculated total duration" },
+      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
@@ -447,7 +448,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Rectification Date & Time" },
-      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "Calculated total duration" },
+      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],

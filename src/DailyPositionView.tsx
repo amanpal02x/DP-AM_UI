@@ -319,7 +319,7 @@ function DailyPositionFieldInput({
     return (
       <div className="dp-field">
         <label>{field.label}</label>
-        <input readOnly value={calcDurationText(values.failureTime, values.rectificationTime)} />
+        <input readOnly placeholder={field.placeholder || "XX hrs XX min"} value={calcDurationText(values.failureTime, values.rectificationTime)} />
       </div>
     );
   }
@@ -416,9 +416,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (field.name === "cpmsNo") {
         return values.cpmsEntry === "YES";
       }
+      if (field.name === "cableCutByWhomOther") {
+        return values.cableCutByWhom === "Other";
+      }
       return true;
     });
-  }, [activeFields, values.cpmsEntry]);
+  }, [activeFields, values.cpmsEntry, values.cableCutByWhom]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -533,6 +536,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
       if (name === "cpmsEntry" && nextValue !== "YES") {
         next.cpmsNo = "";
+      }
+
+      if (name === "cableCutByWhom" && nextValue !== "Other") {
+        next.cableCutByWhomOther = "";
       }
 
       return next;
