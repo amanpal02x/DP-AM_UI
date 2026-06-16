@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Edit, Eye, Send } from "lucide-react";
-import { api } from "./api/apiClient";
-import type { UserRole } from "./types";
+import { api } from "../../api/apiClient";
+import type { UserRole } from "../../types";
 import {
   DAILY_POSITION_CATEGORIES,
   DAILY_POSITION_FORMS,
@@ -12,7 +12,7 @@ import {
   RAILNET_DIVISIONAL_FIELDS,
   RAILNET_HQ_FIELDS,
 } from "./dailyPositionForms";
-import { useAppStore } from "./App";
+import { useAppStore } from "../../App";
 
 type DailyPositionViewProps = {
   role: UserRole;
@@ -395,6 +395,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
+  const [shouldNavigateToNext, setShouldNavigateToNext] = useState(false);
+
+  const moveToNextForm = () => {
+    if (!selectedForm) return;
+    const currentIndex = DAILY_POSITION_FORMS.findIndex(f => f.name === selectedForm.name);
+    if (currentIndex !== -1 && currentIndex < DAILY_POSITION_FORMS.length - 1) {
+      const nextForm = DAILY_POSITION_FORMS[currentIndex + 1];
+      setSelectedCategory(nextForm.category);
+      setSelectedFormName(nextForm.name);
+      setOpenCategory(nextForm.category);
+    } else {
+      showToast("You have reached the end of the forms.");
+    }
+  };
 
   const forms = DAILY_POSITION_FORMS.filter(form => form.category === selectedCategory);
   const visibleForms = forms.filter(form =>
@@ -467,6 +481,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       setValues({ failureTime: toLocalDateTimeValue() });
       setEditingRecordId(null);
       showToast("Daily Position record saved.");
+      if (shouldNavigateToNext) {
+        setShouldNavigateToNext(false);
+        moveToNextForm();
+      }
     },
     onError: (err: any) => showToast(err.message || "Failed to save Daily Position record."),
   });
@@ -479,6 +497,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       setValues({ failureTime: toLocalDateTimeValue() });
       setEditingRecordId(null);
       showToast("Daily Position record updated.");
+      if (shouldNavigateToNext) {
+        setShouldNavigateToNext(false);
+        moveToNextForm();
+      }
     },
     onError: (err: any) => showToast(err.message || "Failed to update Daily Position record."),
   });
@@ -876,16 +898,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               </div>
 
               <div className="dp-form-actions">
-                <button className="export-button" type="button" onClick={resetForm}>Reset</button>
                 {!editingRecordId && (
                   <button className="export-button ok-button" type="button" onClick={handleOk} disabled={createRecord.isPending}>
                     <CheckCircle2 size={16} />
-                    OK
+                    ALL OK
                   </button>
                 )}
-                <button className="export-button" type="submit" disabled={createRecord.isPending || updateRecord.isPending}>
+                <button 
+                  className="export-button" 
+                  type="submit" 
+                  onClick={() => setShouldNavigateToNext(false)} 
+                  disabled={createRecord.isPending || updateRecord.isPending}
+                >
                   <Send size={16} />
                   {editingRecordId ? "Update Daily Position" : "Save"}
+                </button>
+                <button 
+                  className="export-button" 
+                  type="submit" 
+                  onClick={() => setShouldNavigateToNext(true)} 
+                  disabled={createRecord.isPending || updateRecord.isPending}
+                >
+                  <Send size={16} />
+                  {editingRecordId ? "Update & Next" : "Save & Next"}
                 </button>
               </div>
             </form>
