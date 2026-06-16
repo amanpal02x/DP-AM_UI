@@ -9,7 +9,6 @@ export type DailyPositionField = {
   placeholder?: string;
   fullWidth?: boolean;
   readonly?: boolean;
-  forceNewRow?: boolean;
 };
 
 export type DailyPositionFormDefinition = {
@@ -23,9 +22,9 @@ export type DailyPositionFormDefinition = {
 };
 
 const hierarchyFields: DailyPositionField[] = [
-  { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section", forceNewRow: true },
+  { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
   { name: "section", label: "Section", type: "select", required: true, placeholder: "Select Section" },
-  { name: "stationCode", label: "Station / Location", type: "select", required: true, placeholder: "Select Station / Location", forceNewRow: true },
+  { name: "stationCode", label: "Station / Location", type: "select", required: true, placeholder: "Select Station / Location" },
 ];
 
 const docketField: DailyPositionField = {
@@ -41,9 +40,9 @@ const requiredDocketField: DailyPositionField = {
 };
 
 const timingFields: DailyPositionField[] = [
-  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time", forceNewRow: true },
+  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Date & Time", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min", forceNewRow: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
 ];
 
 const reasonRemarkFields: DailyPositionField[] = [
@@ -119,35 +118,35 @@ const exchangeFields: DailyPositionField[] = [
 
 export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
   docketField,
-  { name: "stationCode", label: "Station / Location", type: "select", required: true, placeholder: "Select Station / Location", forceNewRow: true },
-  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps", forceNewRow: true },
+  { name: "stationCode", label: "Station / Location", type: "select", required: true, placeholder: "Select Station / Location" },
+  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
   { name: "lastTestingTime", label: "Last Testing Time", type: "datetime-local", required: true, placeholder: "Select Last Testing Time" },
-  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault", forceNewRow: true },
+  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
   { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
-  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details", forceNewRow: true },
+  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
-  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed", forceNewRow: true },
+  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
-  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time", forceNewRow: true },
+  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min", forceNewRow: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
 
 export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   docketField,
-  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps", forceNewRow: true },
+  { name: "bandwidth", label: "Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
   { name: "lastTestingTime", label: "Last Testing Time", type: "datetime-local", required: true, placeholder: "Select Last Testing Time" },
-  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault", forceNewRow: true },
+  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
   { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
-  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details", forceNewRow: true },
+  { name: "auditReport", label: "Audit Report", type: "text", required: true, placeholder: "Enter Audit Report details" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
-  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed", forceNewRow: true },
+  { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
-  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time", forceNewRow: true },
+  { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", required: true, placeholder: "Select Rectification Time" },
-  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min", forceNewRow: true },
+  { name: "durationText", label: "Duration of Failure", type: "text", readonly: true, placeholder: "XX hrs XX min" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
@@ -324,11 +323,11 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     statusMode: "maintenance",
     fields: [
       { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
-      { name: "section", label: "Sub Section", type: "select", required: true, placeholder: "Select Section" },
+      { name: "section", label: "Section", type: "select", required: true, placeholder: "Select Section" },
       { name: "sectionYard", label: "Section/Yard", type: "select", required: true, options: ["Yard", "Block Section", "Station", "Other"], placeholder: "Select Section/Yard" },
       { name: "kmNo", label: "Km.No.", type: "text", required: true, placeholder: "Enter Kilometer number (e.g. 732/18)" },
       { name: "cableType", label: "Type of Cable", type: "text", required: true, placeholder: "Enter Type of Cable (e.g. 6 Quad Cable)" },
-      { name: "failureTime", label: "Total no. of Insulation Faults(Date & Time)", type: "datetime-local", required: true, placeholder: "Select Date & Time" },
+      { name: "totalInsulationFaults", label: "Total no. of Insulation Faults", type: "number", required: true, placeholder: "Enter total number of faults" },
       { name: "rectificationTime", label: "Low Insulation rectified (Date & Time)", type: "datetime-local", placeholder: "Select Rectified Date & Time" },
       { name: "balanceInsulationFaults", label: "Balance Low Insulation Fault To be rectified", type: "number", required: true, placeholder: "Enter balance faults count" },
       { name: "actionPlanTdc", label: "Action Plan & TDC to rectify Low Insulation", type: "textarea", required: true, placeholder: "Enter Action Plan & TDC" },
@@ -458,30 +457,14 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
   },
-  ...[
-    ["BSP", "EX-BSP", "SECR/TEL/EX-01", "Bilaspur main electronic telephone exchange switchboard."],
-    ["Div HQ", "EX-HQ", "SECR/TEL/EX-02", "Divisional Headquarters telecom exchange system."],
-    ["Div (for Zone)", "EX-DIV", "SECR/TEL/EX-03", "Divisional trunk lines connecting to zonal network."],
-    ["Loco Shed (BSP)", "EX-LOC", "SECR/TEL/EX-04", "Loco shed dedicated internal exchange lines."],
-    ["RIG", "EX-RIG", "SECR/TEL/EX-05", "Raigarh station local railway exchange."],
-    ["APG", "EX-APG", "SECR/TEL/EX-06", "Anuppur local railway exchange."],
-    ["SDL", "EX-SDL", "SECR/TEL/EX-07", "Shahdol railway telephone exchange."],
-    ["MDGR", "EX-MDGR", "SECR/TEL/EX-08", "Manendragarh exchange terminal."],
-    ["BSRI", "EX-BSRI", "SECR/TEL/EX-09", "Bishrampur exchange unit."],
-    ["CPH", "EX-CPH", "SECR/TEL/EX-10", "Champa junction local exchange."],
-    ["KRBA", "EX-KRBA", "SECR/TEL/EX-11", "Korba industrial branch exchange."],
-    ["BRJN", "EX-BRJN", "SECR/TEL/EX-12", "Brajrajnagar station exchange."],
-    ["PND", "EX-PND", "SECR/TEL/EX-13", "Pendra Road local railway exchange."],
-    ["UMR", "EX-UMR", "SECR/TEL/EX-14", "Umaria railway telephone exchange."],
-    ["BRS", "EX-BRS", "SECR/TEL/EX-15", "Birsinghpur exchange lines."],
-  ].map(([name, badge, systemCode, description]) => ({
+  {
     category: "Exchange",
-    name,
-    badge,
-    systemCode,
-    description,
+    name: "Exchange",
+    badge: "EXCH",
+    systemCode: "SECR/TEL/EX-ALL",
+    description: "Electronic telephone exchange switchboard status tracking.",
     fields: exchangeFields,
-  })),
+  },
   {
     category: "Rail Madad",
     name: "Rail Madad",
