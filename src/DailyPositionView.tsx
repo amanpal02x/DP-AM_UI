@@ -207,17 +207,17 @@ function DailyPositionFieldInput({
 
     const parts = (value || "").split(/,\s*/).map((p: string) => p.trim()).filter(Boolean);
     const selectedOptions = REASON_OPTIONS.filter(opt => parts.includes(opt));
-    const hasOthers = parts.some(p => p === "Others" || p.startsWith("Others:"));
-    const othersPart = parts.find(p => p.startsWith("Others:"));
+    const hasOthers = parts.some((p: string) => p === "Others" || p.startsWith("Others:"));
+    const othersPart = parts.find((p: string) => p.startsWith("Others:"));
     const othersText = othersPart ? othersPart.replace(/^Others:\s*/, "") : "";
 
     const toggleOption = (opt: string) => {
       if (readOnly) return;
       let nextParts: string[];
       if (parts.includes(opt)) {
-        nextParts = parts.filter(p => p !== opt);
+        nextParts = parts.filter((p: string) => p !== opt);
       } else {
-        nextParts = [...parts.filter(p => REASON_OPTIONS.includes(p) || p === "Others" || p.startsWith("Others:")), opt];
+        nextParts = [...parts.filter((p: string) => REASON_OPTIONS.includes(p) || p === "Others" || p.startsWith("Others:")), opt];
         nextParts.sort((a, b) => {
           const idxA = REASON_OPTIONS.indexOf(a);
           const idxB = REASON_OPTIONS.indexOf(b);
@@ -234,7 +234,7 @@ function DailyPositionFieldInput({
       if (readOnly) return;
       let nextParts: string[];
       if (hasOthers) {
-        nextParts = parts.filter(p => p !== "Others" && !p.startsWith("Others:"));
+        nextParts = parts.filter((p: string) => p !== "Others" && !p.startsWith("Others:"));
       } else {
         const othersVal = othersText ? `Others: ${othersText}` : "Others";
         nextParts = [...parts, othersVal];
@@ -245,7 +245,7 @@ function DailyPositionFieldInput({
 
     const handleOthersTextChange = (text: string) => {
       if (readOnly) return;
-      const filteredParts = parts.filter(p => p !== "Others" && !p.startsWith("Others:"));
+      const filteredParts = parts.filter((p: string) => p !== "Others" && !p.startsWith("Others:"));
       const othersVal = text ? `Others: ${text}` : "Others";
       const nextParts = [...filteredParts, othersVal];
       setValue(field.name, nextParts.join(", "));
