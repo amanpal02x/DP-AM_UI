@@ -419,9 +419,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (field.name === "cableCutByWhomOther") {
         return values.cableCutByWhom === "Other";
       }
+      if (field.name === "natureOfFaultOther") {
+        return values.natureOfFault === "Other";
+      }
       return true;
     });
-  }, [activeFields, values.cpmsEntry, values.cableCutByWhom]);
+  }, [activeFields, values.cpmsEntry, values.cableCutByWhom, values.natureOfFault]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -540,6 +543,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
       if (name === "cableCutByWhom" && nextValue !== "Other") {
         next.cableCutByWhomOther = "";
+      }
+
+      if (name === "natureOfFault" && nextValue !== "Other") {
+        next.natureOfFaultOther = "";
       }
 
       return next;
