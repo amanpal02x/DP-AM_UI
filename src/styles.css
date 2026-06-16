@@ -2513,10 +2513,11 @@ textarea {
   position: sticky;
   bottom: 0;
   background: var(--surface);
-  padding: 6px 0;
+  padding: 8px 24px;
   margin-top: 6px;
   border-top: 1px solid var(--border);
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .dp-form-actions .export-button {
@@ -2693,8 +2694,6 @@ textarea {
   margin-left: -24px !important;
   margin-right: -24px !important;
   border-radius: 0 !important;
-  padding: 24px;
-  box-sizing: border-box;
 }
 
 @media (max-width: 1120px) {
@@ -2713,8 +2712,9 @@ textarea {
 .dp-form-scrollable-container {
   flex: 1;
   overflow-y: auto;
-  padding-right: 6px;
+  padding: 24px 24px 0;
   margin-bottom: 12px;
+  box-sizing: border-box;
 }
 
 .dp-tabs {
@@ -2778,6 +2778,7 @@ textarea {
 
 .secr-form-shell .dp-form-grid {
   gap: 12px 14px;
+  align-items: start;
 }
 
 .secr-form-shell .dp-field label {
@@ -2803,6 +2804,17 @@ textarea {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.secr-form-shell .dp-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px !important;
+}
+
 .secr-form-shell .dp-field input:hover,
 .secr-form-shell .dp-field select:hover,
 .secr-form-shell .dp-field textarea:hover {
@@ -2817,6 +2829,23 @@ textarea {
   border-color: #3b82f6;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dp-form-scrollable-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dp-form-scrollable-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dp-form-scrollable-container::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+
+.dp-form-scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 .dp-history-panel,
@@ -3493,4 +3522,27 @@ textarea {
   gap: 12px;
 }
 
+.dashboard-scroll-wrap {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
 
+.dashboard-scroll-wrap::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+.dp-checkbox {
+  width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #fff !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  -webkit-appearance: checkbox !important;
+  appearance: checkbox !important;
+}
