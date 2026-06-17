@@ -22,7 +22,7 @@ export type DailyPositionFormDefinition = {
 };
 
 const hierarchyFields: DailyPositionField[] = [
-  { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+  { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
   { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
   { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
 ];
@@ -243,7 +243,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/WIFI-09",
     description: "Public Wi-Fi access points at stations (RailWire).",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
       { name: "faultyAccessPointLocation", label: "Location of Faulty Access Point", type: "text", required: true, placeholder: "Enter location of faulty access point" },
       ...timingFields,
@@ -274,7 +274,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     fields: [
       { name: "cpmsEntry", label: "CPMS No.", type: "select", required: true, options: ["YES", "NO"], placeholder: "Select CPMS Entry" },
       { name: "cpmsNo", label: "CPMS No. Value", type: "text", placeholder: "Enter CPMS No." },
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "sectionYard", label: "Yard", type: "select", options: ["Yard", "Block Section", "Station", "Other"], placeholder: "Select Yard" },
       { name: "kmNo", label: "OHE Mast No.", type: "text", required: true, placeholder: "Enter OHE Mast number (e.g. 732/18)" },
@@ -295,7 +295,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Temporary splice closures awaiting permanent block jointing.",
     statusMode: "maintenance",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "sectionYard", label: "Yard", type: "text", placeholder: "Enter Yard (e.g. CPH-RIG)" },
       { name: "kmNo", label: "OHE Mast No.", type: "text", required: true, placeholder: "Enter OHE Mast number (e.g. 732/18)" },
@@ -316,7 +316,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Insulation resistance values monitoring for signaling/block quad pairs.",
     statusMode: "maintenance",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "sectionYard", label: "Yard", type: "select", options: ["Yard", "Block Section", "Station", "Other"], placeholder: "Select Yard" },
       { name: "kmNo", label: "OHE Mast No.", type: "text", required: true, placeholder: "Enter OHE Mast number (e.g. 732/18)" },
@@ -336,7 +336,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/CGDM-16",
     description: "Coach Guidance Display System showing coach layouts on platforms.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "stationCode", label: "Faulty Station Name", type: "select", placeholder: "Select Faulty Station Name" },
       { name: "pfNo", label: "PF NO.", type: "text", required: true, placeholder: "Enter Platform Number (e.g. 2)" },
@@ -355,7 +355,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/TIB-17",
     description: "Train Indication Boards displaying arrival and departure timings.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "stationCode", label: "Location of faulty TIB", type: "select", placeholder: "Select Location of faulty TIB" },
       { name: "faultyBoards", label: "No. Of Faulty TIB", type: "number", required: true, placeholder: "Enter number of faulty TIBs" },
@@ -397,7 +397,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Workshop maintenance records and battery cell replacements.",
     statusMode: "maintenance",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "stationCode", label: "Station/Location", type: "select", placeholder: "Select Station/Location" },
       { name: "testDate", label: "Date", type: "date", required: true, placeholder: "Select Date" },
@@ -423,7 +423,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/CCTVM-20",
     description: "Video surveillance cameras live status feeds at platforms.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "totalNotWorkingCctvLoc", label: "Total CCTV/ Not working CCTV (NOS) (Location)", type: "text", required: true, placeholder: "e.g. Total: 16 / Not Working: 2 (PF-1)" },
       { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
@@ -441,7 +441,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/CCTVS-21",
     description: "NVR storage check, camera cleaning, and PoE switch repairs.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "totalNotWorkingCctvLoc", label: "Total CCTV/ Not working CCTV (NOS) (Location)", type: "text", required: true, placeholder: "e.g. Total: 24 / Not Working: 2 (Bhilai Bazar)" },
       { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
@@ -467,7 +467,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/MAD-07",
     description: "Passenger grievance portal integration and telecom complaints hotline.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", required: true, placeholder: "Select Major Section" },
+      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
       { name: "stationCode", label: "Station/Location", type: "select", placeholder: "Select Station/Location" },
       requiredDocketField,
