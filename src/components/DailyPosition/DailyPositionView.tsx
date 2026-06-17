@@ -216,8 +216,7 @@ function SearchableStationDropdown({
     );
   });
 
-  const term = searchTerm.toLowerCase();
-  if ("others".includes(term)) {
+  if (!filteredStations.some(s => s.code === "Others")) {
     filteredStations.push({ code: "Others", name: "Others" });
   }
 
@@ -1352,7 +1351,7 @@ function DailyPositionFieldInput({
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
       <label>
         {field.label}
-        {field.type === "datetime-local" && (
+        {field.type === "datetime-local" && field.name !== "lastTestingTime" && (
           <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
             (Date, Hours & Min)
           </span>
