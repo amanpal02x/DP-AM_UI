@@ -863,6 +863,27 @@ function DailyPositionFieldInput({
   );
 }
 
+const RealTimeClock = () => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--muted)", fontWeight: 500 }}>
+      {time.toLocaleDateString(undefined, {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })}{" "}
+      | {time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+    </p>
+  );
+};
+
 export default function DailyPositionView({ role, division, user, mode, showToast }: DailyPositionViewProps) {
   const queryClient = useQueryClient();
   const canFill = role === "TESTROOM";
@@ -1258,6 +1279,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       <section className="tabular-header dp-page-header">
         <div className="header-title-section">
           <h2>Daily Position</h2>
+          <RealTimeClock />
         </div>
         {canChooseDivision && (
           <div className="header-controls-section">
