@@ -1023,6 +1023,53 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       return String(a.id || "").localeCompare(String(b.id || ""));
     });
   }, [recordsQuery.data?.data]);
+
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDivision, setHistoryDivision] = useState("");
+  const [historyCategory, setHistoryCategory] = useState("");
+  const [historyFormType, setHistoryFormType] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("");
+
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.category).filter(Boolean))) as string[];
+  }, [records]);
+
+  const uniqueFormTypes = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.formType).filter(Boolean))) as string[];
+  }, [records]);
+
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.status).filter(Boolean))) as string[];
+  }, [records]);
+
+  const filteredHistoryRecords = useMemo(() => {
+    return records.filter((r: any) => {
+      if (historyDivision && r.division !== historyDivision) return false;
+      if (historyCategory && r.category !== historyCategory) return false;
+      if (historyFormType && r.formType !== historyFormType) return false;
+      if (historyStatus && r.status !== historyStatus) return false;
+      if (historySearch) {
+        const query = historySearch.toLowerCase();
+        const division = String(r.division || "").toLowerCase();
+        const category = String(r.category || "").toLowerCase();
+        const formType = String(r.formType || "").toLowerCase();
+        const station = String(r.stationCode || r.stationName || r.section || "").toLowerCase();
+        const status = String(r.status || "").toLowerCase();
+        const remarks = String(r.remarks || r.reason || "").toLowerCase();
+        const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
+
+        const match = division.includes(query) || 
+                      category.includes(query) || 
+                      formType.includes(query) || 
+                      station.includes(query) || 
+                      status.includes(query) || 
+                      remarks.includes(query) ||
+                      customFields.includes(query);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -1212,15 +1259,81 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const renderHistory = () => (
     <section className="dp-history-panel">
-      <div className="dp-history-toolbar">
-        <div>
-          <h3>{canFill ? "My Daily Position History" : "Daily Position History"}</h3>
-          <p>Records for selected date. Details contains every submitted form field.</p>
+      <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            value={historySearch} 
+            onChange={e => setHistorySearch(e.target.value)} 
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
+          />
         </div>
-        <label>
-          Position Date
-          <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
-        </label>
+        {role === "SUPER_ADMIN" && (
+          <div style={{ flex: "1 1 150px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+            <select 
+              value={historyDivision} 
+              onChange={e => setHistoryDivision(e.target.value)}
+              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+            >
+              <option value="">All Divisions</option>
+              <option value="Bilaspur">Bilaspur</option>
+              <option value="Raipur">Raipur</option>
+              <option value="Nagpur">Nagpur</option>
+            </select>
+          </div>
+        )}
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Category</label>
+          <select 
+            value={historyCategory} 
+            onChange={e => setHistoryCategory(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Categories</option>
+            {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Form Type</label>
+          <select 
+            value={historyFormType} 
+            onChange={e => setHistoryFormType(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Form Types</option>
+            {uniqueFormTypes.map(ft => <option key={ft} value={ft}>{ft}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
+          <select 
+            value={historyStatus} 
+            onChange={e => setHistoryStatus(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Statuses</option>
+            {uniqueStatuses.map(st => <option key={st} value={st}>{st}</option>)}
+          </select>
+        </div>
+        {(historySearch || historyDivision || historyCategory || historyFormType || historyStatus) && (
+          <button 
+            type="button" 
+            onClick={() => {
+              setHistorySearch("");
+              setHistoryDivision("");
+              setHistoryCategory("");
+              setHistoryFormType("");
+              setHistoryStatus("");
+            }}
+            className="action-btn text-red"
+            style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px" }}
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
       <div className="table-scroll-container">
         <table className="data-table dp-history-table">
@@ -1238,7 +1351,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </tr>
           </thead>
           <tbody>
-            {records.map((record: any) => {
+            {filteredHistoryRecords.map((record: any) => {
               const canEdit = canFill && isTodayRecord(record) && (!user?.id || record.createdById === user.id);
               return (
                 <tr key={record.id}>
@@ -1263,9 +1376,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </tr>
               );
             })}
-            {records.length === 0 && (
+            {filteredHistoryRecords.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records for this date.</td>
+                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records found matching current criteria.</td>
               </tr>
             )}
           </tbody>
@@ -1276,13 +1389,30 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   return (
     <article className="daily-position-page secr-position-page">
-      <section className="tabular-header dp-page-header">
+      <section className={`tabular-header dp-page-header ${viewMode === "history" ? "history-mode" : ""}`}>
         <div className="header-title-section">
-          <h2>Daily Position</h2>
+          <h2>{viewMode === "history" ? "Daily position History" : "Daily Position"}</h2>
           <RealTimeClock />
         </div>
-        {canChooseDivision && (
-          <div className="header-controls-section">
+        <div className="header-controls-section">
+          {viewMode === "history" && (
+            <label className="division-select">
+              <span>Position Date</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={event => setSelectedDate(event.target.value)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "14px",
+                  background: "#fff"
+                }}
+              />
+            </label>
+          )}
+          {canChooseDivision && (
             <label className="division-select">
               <span>Division</span>
               <select value={selectedDivision} onChange={event => setSelectedDivision(event.target.value)}>
@@ -1290,8 +1420,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {normalizedDivisions.map((item: string) => <option key={item} value={item}>{divisionOptionLabel(item)}</option>)}
               </select>
             </label>
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {canFill && viewMode === "form" && (
