@@ -991,7 +991,17 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   });
 
   const metadata = metadataQuery.data?.data;
-  const records = recordsQuery.data?.data || [];
+  const records = useMemo(() => {
+    const rawRecords = recordsQuery.data?.data || [];
+    return [...rawRecords].sort((a: any, b: any) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : (a.failureTime ? new Date(a.failureTime).getTime() : 0);
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : (b.failureTime ? new Date(b.failureTime).getTime() : 0);
+      if (aTime !== bTime) {
+        return aTime - bTime;
+      }
+      return String(a.id || "").localeCompare(String(b.id || ""));
+    });
+  }, [recordsQuery.data?.data]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
