@@ -65,6 +65,8 @@ async function request<T>(
   if (response.status === 401) {
     // Auto logout on token expiration/invalid
     setAuthToken(null);
+    setCachedUser(null);
+    window.location.reload();
   }
 
   const resJson = await response.json();
@@ -148,11 +150,6 @@ export const api = {
     getAssets: (gateId: string) => request<ApiResponse<any[]>>("GET", `/api/gates/${gateId}/assets`),
     addAsset: (gateId: string, body: any) => request<ApiResponse<any>>("POST", `/api/gates/${gateId}/assets`, body),
     deleteAsset: (assetId: string) => request<ApiResponse<any>>("DELETE", `/api/gates/assets/${assetId}`),
-  },
-  gis: {
-    list: () => request<ApiResponse<any[]>>("GET", "/api/gis"),
-    create: (body: any) => request<ApiResponse<any>>("POST", "/api/gis", body),
-    delete: (id: string) => request<ApiResponse<any>>("DELETE", `/api/gis/${id}`),
   },
   reports: {
     dashboard: (division?: string) => {

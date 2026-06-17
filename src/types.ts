@@ -110,4 +110,6 @@ export interface DashboardSummary {
   bottomStats: BottomStat[];
   commissioningSummary?: CommissioningSummary;
   dailyPositionStatus?: Array<{ status: string; count: number }>;
+  dailyPositionByDivision?: Array<{ division: string; count: number }>;
+  dailyPositionByCategory?: Array<{ category: string; count: number }>;
 }

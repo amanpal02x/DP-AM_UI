@@ -12,7 +12,7 @@ import type {
   BottomStat
 } from "../types";
 
-export async function getDashboardSummary(division = "Raipur"): Promise<DashboardSummary> {
+export async function getDashboardSummary(division = ""): Promise<DashboardSummary> {
   // Fetch only dashboard stats payload from backend in a single request!
   const statsRes = await api.reports.dashboard(division);
   const stats = statsRes.data;
@@ -198,6 +198,8 @@ export async function getDashboardSummary(division = "Raipur"): Promise<Dashboar
     activity,
     alerts,
     bottomStats,
-    commissioningSummary: stats.commissioningSummary
+    commissioningSummary: stats.commissioningSummary,
+    dailyPositionByDivision: stats.dailyPositionByDivision,
+    dailyPositionByCategory: stats.dailyPositionByCategory
   };
 }

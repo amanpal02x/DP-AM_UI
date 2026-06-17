@@ -33,7 +33,8 @@ import {
   Menu,
   SlidersHorizontal,
   Filter,
-  Edit
+  Edit,
+  Lock
 } from "lucide-react";
 import {
   Cell,
@@ -43,17 +44,6 @@ import {
   Tooltip
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  LayersControl,
-  MapContainer,
-  Marker,
-  Polyline,
-  Popup,
-  TileLayer,
-  useMap
-} from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -68,55 +58,55 @@ const INDIAN_STATES = [
 
 // Human-readable labels for checklist boolean fields
 const CHECKLIST_LABELS: Record<string, string> = {
-  hasIpis:                  "IPIS (Integrated Passenger Information System)",
-  hasPaSystem:              "P.A. System",
-  hasCctv:                  "CCTV",
-  hasUts:                   "UTS (Unreserved Ticketing System)",
-  hasPrs:                   "PRS (Passenger Reservation System)",
-  hasFois:                  "FOIS (Freight Operations Info System)",
-  hasDigitalClock:          "Digital Clock",
-  hasWifi:                  "High Speed Wi-Fi",
-  hasExchange:              "Exchange / EPABX",
-  hasTalkback:              "Talkback System",
-  hasPms:                   "PMS (Power Management System)",
-  hasCms:                   "CMS (Control Management System)",
-  hasAtvm:                  "ATVM (Automatic Ticket Vending Machine)",
-  hasArt:                   "ART (Accident Relief Train)",
-  hasVhf25W:                "VHF 25W Set",
-  hasControlTelephoneVoip:  "Control Telephone (VoIP)",
-  hasCgsCgdb:               "CGS / CGDB",
-  hasTib:                   "Train Indication Board (TIB)",
-  hasAgdb:                  "AGDB / At-A-Glance Display Board",
-  hasAutoAnnouncement:      "Auto Announcement System",
-  hasAnalogClock:           "Analog Clock",
-  hasGpsClock:              "GPS Clock",
-  hasCoachGuidanceDisplay:  "Coach Guidance Display",
-  hasTrainIndicationBoard:  "Train Indication Board",
-  hasDigitalDisplayHeritage:"Digital Display (Under Heritage Museum)",
-  hasAtAGlanceBoard:        "At A Glance Board",
-  hasCctvDe:                "CCTV D&E",
+  hasIpis: "IPIS (Integrated Passenger Information System)",
+  hasPaSystem: "P.A. System",
+  hasCctv: "CCTV",
+  hasUts: "UTS (Unreserved Ticketing System)",
+  hasPrs: "PRS (Passenger Reservation System)",
+  hasFois: "FOIS (Freight Operations Info System)",
+  hasDigitalClock: "Digital Clock",
+  hasWifi: "High Speed Wi-Fi",
+  hasExchange: "Exchange / EPABX",
+  hasTalkback: "Talkback System",
+  hasPms: "PMS (Power Management System)",
+  hasCms: "CMS (Control Management System)",
+  hasAtvm: "ATVM (Automatic Ticket Vending Machine)",
+  hasArt: "ART (Accident Relief Train)",
+  hasVhf25W: "VHF 25W Set",
+  hasControlTelephoneVoip: "Control Telephone (VoIP)",
+  hasCgsCgdb: "CGS / CGDB",
+  hasTib: "Train Indication Board (TIB)",
+  hasAgdb: "AGDB / At-A-Glance Display Board",
+  hasAutoAnnouncement: "Auto Announcement System",
+  hasAnalogClock: "Analog Clock",
+  hasGpsClock: "GPS Clock",
+  hasCoachGuidanceDisplay: "Coach Guidance Display",
+  hasTrainIndicationBoard: "Train Indication Board",
+  hasDigitalDisplayHeritage: "Digital Display (Under Heritage Museum)",
+  hasAtAGlanceBoard: "At A Glance Board",
+  hasCctvDe: "CCTV D&E",
 };
 
 // Map Excel column header → DB boolean field key (case-insensitive partial match)
 const EXCEL_COL_MAP: Array<{ match: string; field: string }> = [
-  { match: "pa system",                field: "hasPaSystem" },
-  { match: "p.a. system",              field: "hasPaSystem" },
-  { match: "analog clock",             field: "hasAnalogClock" },
-  { match: "gpsclock",                 field: "hasGpsClock" },
-  { match: "gps clock",                field: "hasGpsClock" },
-  { match: "coach guidance",           field: "hasCoachGuidanceDisplay" },
-  { match: "train indication board",   field: "hasTrainIndicationBoard" },
-  { match: "high speed wi-fi",         field: "hasWifi" },
-  { match: "high speed wifi",          field: "hasWifi" },
-  { match: "wi-fi",                    field: "hasWifi" },
-  { match: "cctv d",                   field: "hasCctvDe" },
-  { match: "cctv",                     field: "hasCctv" },
-  { match: "digital display",          field: "hasDigitalDisplayHeritage" },
-  { match: "at a glance",              field: "hasAtAGlanceBoard" },
-  { match: "prs",                      field: "hasPrs" },
-  { match: "uts",                      field: "hasUts" },
-  { match: "atvm",                     field: "hasAtvm" },
-  { match: "ipis",                     field: "hasIpis" },
+  { match: "pa system", field: "hasPaSystem" },
+  { match: "p.a. system", field: "hasPaSystem" },
+  { match: "analog clock", field: "hasAnalogClock" },
+  { match: "gpsclock", field: "hasGpsClock" },
+  { match: "gps clock", field: "hasGpsClock" },
+  { match: "coach guidance", field: "hasCoachGuidanceDisplay" },
+  { match: "train indication board", field: "hasTrainIndicationBoard" },
+  { match: "high speed wi-fi", field: "hasWifi" },
+  { match: "high speed wifi", field: "hasWifi" },
+  { match: "wi-fi", field: "hasWifi" },
+  { match: "cctv d", field: "hasCctvDe" },
+  { match: "cctv", field: "hasCctv" },
+  { match: "digital display", field: "hasDigitalDisplayHeritage" },
+  { match: "at a glance", field: "hasAtAGlanceBoard" },
+  { match: "prs", field: "hasPrs" },
+  { match: "uts", field: "hasUts" },
+  { match: "atvm", field: "hasAtvm" },
+  { match: "ipis", field: "hasIpis" },
 ];
 
 const ASSET_MODE_STANDALONE = "STANDALONE";
@@ -291,26 +281,26 @@ import type {
 } from "./types";
 
 type NavKey =
-  | "Dashboard"
+  | "Asset Dashboard"
+  | "DP Dashboard"
   | "Master List"
   | "Assets"
   | "LC Gate"
-  | "GIS Mapping"
   | "Daily Position"
-  | "Daily Position History"
+  | "DP Logs"
   | "Sections"
   | "Reports & Analytics"
   | "Users & Roles"
   | "Audit Logs";
 
 const navToHash: Record<NavKey, string> = {
-  "Dashboard": "#/dashboard",
+  "Asset Dashboard": "#/dashboard/asset-management",
+  "DP Dashboard": "#/dashboard/daily-position",
   "Master List": "#/stations",
   "Assets": "#/assets",
   "LC Gate": "#/gates",
-  "GIS Mapping": "#/gis",
   "Daily Position": "#/daily-position",
-  "Daily Position History": "#/daily-position-history",
+  "DP Logs": "#/daily-position-history",
   "Sections": "#/sections",
   "Reports & Analytics": "#/reports",
   "Users & Roles": "#/users",
@@ -318,13 +308,13 @@ const navToHash: Record<NavKey, string> = {
 };
 
 const hashToNav: Record<string, NavKey> = {
-  "#/dashboard": "Dashboard",
+  "#/dashboard/asset-management": "Asset Dashboard",
+  "#/dashboard/daily-position": "DP Dashboard",
   "#/stations": "Master List",
   "#/assets": "Assets",
   "#/gates": "LC Gate",
-  "#/gis": "GIS Mapping",
   "#/daily-position": "Daily Position",
-  "#/daily-position-history": "Daily Position History",
+  "#/daily-position-history": "DP Logs",
   "#/sections": "Sections",
   "#/reports": "Reports & Analytics",
   "#/users": "Users & Roles",
@@ -339,12 +329,14 @@ type AppState = {
   token: string | null;
   user: any | null;
   assetStatusFilter: string;
+  dpHistoryFilter: "date" | "active-faults" | "resolved-faults";
   setActiveNav: (activeNav: NavKey) => void;
   setDivision: (division: string) => void;
   setToken: (token: string | null) => void;
   setUser: (user: any | null) => void;
   setSidebarOpen: (sidebarOpen: boolean) => void;
   setAssetStatusFilter: (status: string) => void;
+  setDpHistoryFilter: (filter: "date" | "active-faults" | "resolved-faults") => void;
   logout: () => void;
   dpSelectedCategory: string;
   dpSelectedFormName: string;
@@ -357,14 +349,17 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  activeNav: "Dashboard",
+  activeNav: getCachedUser() && getCachedUser().accessDailyPosition === false && getCachedUser().accessAssets === true
+    ? "Asset Dashboard"
+    : "DP Dashboard",
   role: getCachedUser() ? getCachedUser().role : "VIEWER",
-  division: getCachedUser() ? (getCachedUser().division || "Raipur") : "Raipur",
+  division: getCachedUser() && getCachedUser().role === "SUPER_ADMIN" ? "" : (getCachedUser()?.division || "Raipur"),
   sidebarOpen: false,
   token: getAuthToken(),
   user: getCachedUser(),
   assetStatusFilter: "",
-  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "" }),
+  dpHistoryFilter: "date",
+  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "", dpHistoryFilter: "date" }),
   setDivision: (division) => set({ division }),
   setToken: (token) => {
     setAuthToken(token);
@@ -376,10 +371,11 @@ export const useAppStore = create<AppState>((set) => ({
   },
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setAssetStatusFilter: (status) => set({ assetStatusFilter: status }),
+  setDpHistoryFilter: (dpHistoryFilter) => set({ dpHistoryFilter }),
   logout: () => {
     setAuthToken(null);
     setCachedUser(null);
-    set({ token: null, user: null, role: "VIEWER", activeNav: "Dashboard", assetStatusFilter: "" });
+    set({ token: null, user: null, role: "VIEWER", activeNav: "DP Dashboard", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date" });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
@@ -415,17 +411,18 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-  { label: "Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-  { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
-  { label: "Daily Position History", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
-  { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-  { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-  { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-  { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-  { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-  { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-  { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
-];
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+    { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+    { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
+    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+    { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
+  ];
 
 // Fallback points for Leaflet map if DB is empty
 const defaultStationPoints = [
@@ -448,7 +445,7 @@ const parseCSV = (text: string) => {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     let cols = [];
     let current = '';
     let inQuotes = false;
@@ -464,7 +461,7 @@ const parseCSV = (text: string) => {
       }
     }
     cols.push(current.trim());
-    
+
     const obj: any = {};
     headers.forEach((h, index) => {
       let val = cols[index] || '';
@@ -544,10 +541,10 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
     for (const [col, val] of entries) {
       const colLower = String(col).toLowerCase().trim();
       if (colLower === "s.n." || colLower === "s.no" || colLower === "sn" || colLower === "#") continue;
-      if (colLower === "station")  { row.name = String(val).trim(); continue; }
-      if (colLower === "code")     { row.code = String(val).trim().toUpperCase(); continue; }
+      if (colLower === "station") { row.name = String(val).trim(); continue; }
+      if (colLower === "code") { row.code = String(val).trim().toUpperCase(); continue; }
       if (colLower === "division") { row.division = String(val).trim(); continue; }
-      if (colLower === "state")    { row.state = String(val).trim(); continue; }
+      if (colLower === "state") { row.state = String(val).trim(); continue; }
       if (colLower === "category") { row.category = String(val).trim(); continue; }
       // Checklist boolean columns — match by EXCEL_COL_MAP
       for (const mapping of EXCEL_COL_MAP) {
@@ -877,7 +874,7 @@ function App() {
     };
 
     window.addEventListener("hashchange", handleHashChange);
-    
+
     // Initial load sync
     const initialHash = window.location.hash;
     const initialNav = hashToNav[initialHash];
@@ -932,25 +929,45 @@ function App() {
     }
   }, [profileQuery.data, setUser, setDivision]);
 
+  // Route redirection guard based on user access flags
+  useEffect(() => {
+    if (!token || !user) return;
+    const hasAssetAccess = user.accessAssets !== false;
+    const hasDailyPositionAccess = user.accessDailyPosition !== false;
+
+    const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
+    const dpRoutes: NavKey[] = ["DP Dashboard", "Daily Position", "DP Logs"];
+
+    if (assetRoutes.includes(activeNav) && !hasAssetAccess) {
+      if (hasDailyPositionAccess) {
+        useAppStore.getState().setActiveNav("DP Dashboard");
+      }
+    } else if (dpRoutes.includes(activeNav) && !hasDailyPositionAccess) {
+      if (hasAssetAccess) {
+        useAppStore.getState().setActiveNav("Asset Dashboard");
+      }
+    }
+  }, [activeNav, user, token]);
+
   const queryClient = useQueryClient();
 
   // All Queries for dynamic data - Lazy-loaded based on active tab to prevent pool exhaustion!
   const stationsQuery = useQuery({
     queryKey: ["stations-list"],
     queryFn: () => api.stations.list(),
-    enabled: !!token && ["Dashboard", "Master List", "Assets", "LC Gate", "GIS Mapping"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "DP Dashboard", "Master List", "Assets", "LC Gate"].includes(activeNav)
   });
 
   const assetsQuery = useQuery({
     queryKey: ["assets-list"],
     queryFn: () => api.assets.list(),
-    enabled: !!token && ["Dashboard", "Assets", "Master List"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "DP Dashboard", "Assets", "Master List"].includes(activeNav)
   });
 
   const gatesQuery = useQuery({
     queryKey: ["gates-list"],
     queryFn: () => api.gates.list(),
-    enabled: !!token && (activeNav === "LC Gate" || activeNav === "GIS Mapping")
+    enabled: !!token && activeNav === "LC Gate"
   });
 
   const usersQuery = useQuery({
@@ -965,17 +982,11 @@ function App() {
     enabled: !!token && activeNav === "Audit Logs"
   });
 
-  const gisFeaturesQuery = useQuery({
-    queryKey: ["gis-features-list"],
-    queryFn: () => api.gis.list(),
-    enabled: !!token && activeNav === "GIS Mapping"
-  });
-
   // Dashboard Aggregated Query
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["dashboard-summary", division, token],
     queryFn: () => getDashboardSummary(division),
-    enabled: !!token && activeNav === "Dashboard"
+    enabled: !!token && ["Asset Dashboard", "DP Dashboard"].includes(activeNav)
   });
 
   const showToast = (msg: string) => {
@@ -995,11 +1006,11 @@ function App() {
   }
 
   const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
-  if (isProfileLoading || (activeNav === "Dashboard" && dashboardLoading)) {
+  if (isProfileLoading || (["Asset Dashboard", "DP Dashboard"].includes(activeNav) && dashboardLoading)) {
     return <div className="app-loading">Loading telecom asset dashboard...</div>;
   }
 
-  if (activeNav === "Dashboard" && (dashboardError || !dashboardData)) {
+  if ((["Asset Dashboard", "DP Dashboard"].includes(activeNav)) && (dashboardError || !dashboardData)) {
     return (
       <div className="app-loading">
         <div>
@@ -1021,8 +1032,7 @@ function App() {
     assetsQuery,
     gatesQuery,
     usersQuery,
-    logsQuery,
-    gisFeaturesQuery
+    logsQuery
   };
 
   return (
@@ -1039,14 +1049,13 @@ function App() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
-        {activeNav === "GIS Mapping" ? <PageHeader activeNav={activeNav} /> : null}
-        {activeNav === "Dashboard" ? (
-          <DashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
-        ) : activeNav === "GIS Mapping" ? (
-          <GisView openPanel={openPanel} queries={queries} />
+        {activeNav === "Asset Dashboard" ? (
+          <AssetDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
+        ) : activeNav === "DP Dashboard" ? (
+          <DailyPositionDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} showToast={showToast} />
         ) : activeNav === "Daily Position" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
-        ) : activeNav === "Daily Position History" ? (
+        ) : activeNav === "DP Logs" ? (
           <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
         ) : activeNav === "Sections" ? (
           <SectionsManagementView showToast={showToast} />
@@ -1086,21 +1095,21 @@ function App() {
         />
       ) : null}
       {editProfileOpen && (
-        <EditProfileModal 
-          close={() => setEditProfileOpen(false)} 
-          showToast={showToast} 
+        <EditProfileModal
+          close={() => setEditProfileOpen(false)}
+          showToast={showToast}
         />
       )}
     </div>
   );
 }
 
-function EditProfileModal({ 
-  close, 
-  showToast 
-}: { 
-  close: () => void; 
-  showToast: (msg: string) => void; 
+function EditProfileModal({
+  close,
+  showToast
+}: {
+  close: () => void;
+  showToast: (msg: string) => void;
 }) {
   const { user, setUser } = useAppStore();
   const [name, setName] = useState(user?.name || "");
@@ -1134,7 +1143,7 @@ function EditProfileModal({
   const showDesignationField = user?.role !== "SUPER_ADMIN" && user?.role !== "DIVISIONAL_ADMIN";
 
   return (
-    <div 
+    <div
       className="modal-backdrop"
       style={{
         position: "fixed",
@@ -1148,7 +1157,7 @@ function EditProfileModal({
       }}
       onClick={close}
     >
-      <div 
+      <div
         className="modal-card"
         style={{
           width: "min(460px, calc(100vw - 32px))",
@@ -1180,7 +1189,7 @@ function EditProfileModal({
               Edit Profile Credentials
             </h3>
           </div>
-          <button 
+          <button
             onClick={close}
             style={{
               background: "rgba(255,255,255,0.1)",
@@ -1203,42 +1212,42 @@ function EditProfileModal({
         <form onSubmit={handleSave} style={{ padding: 24, display: "grid", gap: 16 }}>
           <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
             Full Name
-            <input 
-              required 
+            <input
+              required
               style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
-              value={name} 
-              onChange={e => setName(e.target.value)} 
+              value={name}
+              onChange={e => setName(e.target.value)}
             />
           </label>
-          
+
           <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
             Username (Read-Only)
-            <input 
+            <input
               readOnly
               style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f1f5f9", color: "var(--muted)", cursor: "not-allowed", fontWeight: 550 }}
-              value={user?.username || ""} 
+              value={user?.username || ""}
             />
           </label>
 
           {showDesignationField && (
             <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
               Designation
-              <input 
+              <input
                 style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
-                value={designation} 
-                onChange={e => setDesignation(e.target.value)} 
+                value={designation}
+                onChange={e => setDesignation(e.target.value)}
               />
             </label>
           )}
 
           <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
             New Password
-            <input 
+            <input
               type="password"
               placeholder="Leave blank to keep current password"
               style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
+              value={password}
+              onChange={e => setPassword(e.target.value)}
             />
           </label>
 
@@ -1251,16 +1260,16 @@ function EditProfileModal({
             paddingTop: 16,
             marginTop: 8
           }}>
-            <button 
+            <button
               type="button"
-              className="export-button" 
+              className="export-button"
               onClick={close}
               style={{ background: "#f1f5f9", color: "#334155", borderColor: "#cbd5e1", margin: 0, minHeight: 38 }}
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="export-button"
               disabled={loading}
               style={{ margin: 0, minHeight: 38 }}
@@ -1383,12 +1392,22 @@ function SidebarDailyPositionAccordion() {
   );
 }
 
-// Sidebar Component
 function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   const { activeNav, role, sidebarOpen, setActiveNav, logout, user } = useAppStore();
-  const visibleNav = navItems.filter((item) => item.roles.includes(role));
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [dpDropdownOpen, setDpDropdownOpen] = useState(true);
+
+  const hasAccessAssets = user?.accessAssets !== false;
+  const hasAccessDailyPosition = user?.accessDailyPosition !== false;
+
+  const visibleNav = navItems.filter((item) => {
+    if (!item.roles.includes(role)) return false;
+    const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
+    const isDpLink = ["DP Dashboard", "Daily Position", "DP Logs"].includes(item.label);
+    if (isAssetLink && !hasAccessAssets) return false;
+    if (isDpLink && !hasAccessDailyPosition) return false;
+    return true;
+  });
 
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
@@ -1398,43 +1417,60 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
         </div>
         <div>
           <h1>SECR</h1>
-          <p>Telecom Daily Position & Asset Management</p>
+          <p>Telecom DP & Assets Management </p>
         </div>
       </div>
 
       <nav className="nav-list" aria-label="Primary">
-        {visibleNav.map((item) => (
-          <Fragment key={item.label}>
-            <button
-              className={`nav-item ${item.label === activeNav ? "active" : ""}`}
-              onClick={() => {
-                if (item.label === "Daily Position") {
-                  if (activeNav === "Daily Position") {
-                    setDpDropdownOpen(!dpDropdownOpen);
+        {visibleNav.map((item) => {
+          const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
+          const isDpLink = ["DP Dashboard", "Daily Position", "DP Logs"].includes(item.label);
+          const hasAccess = (isAssetLink ? hasAccessAssets : true) && (isDpLink ? hasAccessDailyPosition : true);
+
+          return (
+            <Fragment key={item.label}>
+              <button
+                className={`nav-item ${item.label === activeNav ? "active" : ""}`}
+                style={{ opacity: hasAccess ? 1 : 0.6 }}
+                onClick={() => {
+                  if (!hasAccess) {
+                    alert("Access to this module is not permitted. Please request access from the administrator.");
+                    return;
+                  }
+                  if (item.label === "Daily Position") {
+                    if (activeNav === "Daily Position") {
+                      setDpDropdownOpen(!dpDropdownOpen);
+                    } else {
+                      setActiveNav(item.label);
+                      setDpDropdownOpen(true);
+                    }
                   } else {
                     setActiveNav(item.label);
-                    setDpDropdownOpen(true);
                   }
-                } else {
-                  setActiveNav(item.label);
-                }
-              }}
-              type="button"
-            >
-              <item.icon size={20} />
-              <span>{item.label}</span>
-              {item.badge ? <b>{item.badge}</b> : null}
-              {item.expandable ? <ChevronDown className="nav-caret" size={16} /> : null}
-            </button>
-            {item.label === "Daily Position" && activeNav === "Daily Position" && dpDropdownOpen && (
-              <SidebarDailyPositionAccordion />
-            )}
-          </Fragment>
-        ))}
+                }}
+                type="button"
+              >
+                <item.icon size={20} />
+                <span>{item.label}</span>
+                {hasAccess ? (
+                  <>
+                    {item.badge ? <b>{item.badge}</b> : null}
+                    {item.expandable ? <ChevronDown className="nav-caret" size={16} /> : null}
+                  </>
+                ) : (
+                  <Lock className="nav-caret" size={14} style={{ color: "var(--muted)", marginLeft: "auto" }} />
+                )}
+              </button>
+              {item.label === "Daily Position" && activeNav === "Daily Position" && dpDropdownOpen && hasAccess && (
+                <SidebarDailyPositionAccordion />
+              )}
+            </Fragment>
+          );
+        })}
       </nav>
 
       {user && (
-        <div 
+        <div
           className="sidebar-footer"
           onMouseEnter={() => setShowProfileCard(true)}
           onMouseLeave={() => setShowProfileCard(false)}
@@ -1450,15 +1486,15 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
           }}
         >
           {/* Visual Avatar */}
-          <div 
-            className="profile-avatar" 
-            style={{ 
-              width: 38, 
-              height: 38, 
-              fontSize: 14, 
-              fontWeight: 700, 
-              borderRadius: "50%", 
-              display: "grid", 
+          <div
+            className="profile-avatar"
+            style={{
+              width: 38,
+              height: 38,
+              fontSize: 14,
+              fontWeight: 700,
+              borderRadius: "50%",
+              display: "grid",
               placeItems: "center",
               background: "linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%)",
               color: "#fff",
@@ -1476,9 +1512,9 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 
           {/* Actions Button Group */}
           <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-            <button 
-              className="logout-btn" 
-              onClick={onEditProfile} 
+            <button
+              className="logout-btn"
+              onClick={onEditProfile}
               title="Edit Profile"
               style={{
                 background: "transparent",
@@ -1493,9 +1529,9 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
             >
               <Edit size={16} />
             </button>
-            <button 
-              className="logout-btn" 
-              onClick={logout} 
+            <button
+              className="logout-btn"
+              onClick={logout}
               title="Sign Out"
               style={{
                 background: "transparent",
@@ -1550,45 +1586,29 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 
 // PageHeader Component
 function PageHeader({ activeNav }: { activeNav: NavKey }) {
-  const { division, setDivision, role } = useAppStore();
-  const stationsQ = useQuery({ queryKey: ["stations-list"], queryFn: () => api.stations.list(), staleTime: 60000 });
-  const divs: string[] = Array.from(new Set((stationsQ.data?.data || []).map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
-  const divOptions = divs.length > 0 ? divs : ["Raipur", "Bilaspur", "Nagpur"];
-
-  if (role === "DIVISIONAL_ADMIN") {
-    return (
-      <section className="page-title">
-        <div>
-          <h2>{activeNav}</h2>
-          <p>{activeNav === "Dashboard" ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
-        </div>
-        <label className="division-select title-division">
-          <span>Division</span>
-          <select value={division} onChange={(event) => setDivision(event.target.value)}>
-            {divOptions.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
-      </section>
-    );
-  }
+  const { division, role } = useAppStore();
 
   return (
-    <section className="page-title">
+    <section className="page-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
       <div>
-        <h2>{activeNav}</h2>
-        <p>{activeNav === "Dashboard" ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
+        <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>{activeNav}</h2>
+        <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "var(--muted)" }}>
+          {["Asset Dashboard", "DP Dashboard"].includes(activeNav)
+            ? "Overview of Telecom Assets and Operations"
+            : `${activeNav} operations workspace`}
+        </p>
       </div>
+
       {role !== "SUPER_ADMIN" && (
         <div style={{ textTransform: "uppercase", fontWeight: 700, fontSize: 13, background: "#eef2f6", padding: "8px 16px", borderRadius: 6, color: "var(--muted)" }}>
-          {`Division: ${normalizeDivision(division)}`}
+          {`Division: ${normalizeDivision(division) || "HQ"}`}
         </div>
       )}
     </section>
   );
 }
 
-// Dashboard View
-function DashboardView({
+function AssetDashboardView({
   data,
   openPanel,
   queries
@@ -1603,16 +1623,330 @@ function DashboardView({
       setActiveNav("Master List");
     } else if (label === "Gates" || label === "LC Gate" || label === "LC Gates") {
       setActiveNav("LC Gate");
-    } else if (label === "Active Faults" || label === "Reported Today") {
-      if (data.user.role === "TESTROOM") {
-        setActiveNav("Daily Position");
-      } else {
-        setActiveNav("Daily Position History");
-      }
     } else {
       setActiveNav(label as any);
     }
   };
+
+  const assetKpis = data.kpis.filter(kpi => ["assets", "operational", "maintenance"].includes(kpi.id));
+
+  const commissioningMetrics = useMemo(() => {
+    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
+    const total = (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
+    const getPercent = (val: number) => total > 0 ? `${((val / total) * 100).toFixed(1)}%` : "0%";
+    return [
+      { name: "ABSS Only", value: summary.abssOnly || 0, percent: getPercent(summary.abssOnly || 0), color: "#3b82f6" },
+      { name: "Divisional Only", value: summary.divisionalOnly || 0, percent: getPercent(summary.divisionalOnly || 0), color: "#10b981" },
+      { name: "Both Schemes", value: summary.bothSchemes || 0, percent: getPercent(summary.bothSchemes || 0), color: "#8b5cf6" }
+    ];
+  }, [data.commissioningSummary]);
+
+  const totalStations = useMemo(() => {
+    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
+    return (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
+  }, [data.commissioningSummary]);
+
+  return (
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
+      <section className="kpi-grid">
+        {assetKpis.map((kpi, index) => (
+          <KpiCard key={kpi.id} kpi={kpi} index={index} />
+        ))}
+      </section>
+
+      <section className="dashboard-grid">
+        <ChartPanel
+          title="Assets by Category"
+          total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"}
+          metrics={data.categories}
+          openPanel={() => useAppStore.getState().setActiveNav("Assets")}
+        />
+        <ChartPanel
+          title="Assets by Status"
+          total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"}
+          metrics={data.statuses.map(s => ({ name: s.status, value: s.count, percent: s.percent, color: s.color }))}
+          openPanel={() => useAppStore.getState().setActiveNav("Assets")}
+        />
+        <ChartPanel
+          title="Station Commissioning Status"
+          total={totalStations.toString()}
+          metrics={commissioningMetrics}
+          openPanel={() => useAppStore.getState().setActiveNav("Master List")}
+        />
+      </section>
+
+      <section className="operations-grid">
+        <TelecomCoveragePanel queries={queries} />
+        <DivisionDistributionPanel queries={queries} />
+        <CategoryDistributionPanel queries={queries} />
+      </section>
+
+      <section className="bottom-stats">
+        {data.bottomStats.map((stat) => (
+          <BottomStatCard key={stat.id} stat={stat} openPanel={() => handleBottomStatClick(stat.label)} />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DailyPositionSubmissionProgressPanel({ division }: { division: string }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dpQuery = useQuery({
+    queryKey: ["dp-summary-table", division, todayStr],
+    queryFn: () => api.dailyPosition.list({ division, date: todayStr, limit: 500 }),
+    staleTime: 30 * 1000
+  });
+
+  const entries = dpQuery.data?.data || [];
+
+  // Count unique forms submitted today
+  const displayedForms = useMemo(() => {
+    return DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+  }, []);
+
+  const submittedFormsCount = useMemo(() => {
+    const submittedNames = new Set(entries.map((e: any) => e.formType));
+    return displayedForms.filter(form => submittedNames.has(form.name) || submittedNames.has(form.systemCode)).length;
+  }, [entries, displayedForms]);
+
+  const totalFormsCount = displayedForms.length; // 20
+  const pendingFormsCount = Math.max(0, totalFormsCount - submittedFormsCount);
+
+  const chartData = [
+    { name: "Submitted", value: submittedFormsCount, color: "#10b981" },
+    { name: "Pending", value: pendingFormsCount, color: "#cbd5e1" }
+  ];
+
+  return (
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Today's Submission Progress</h3>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
+        <div style={{ width: 140, height: 140, flexShrink: 0, position: "relative" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart style={{ outline: 'none' }}>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={65}
+                paddingAngle={3}
+                dataKey="value"
+                style={{ outline: 'none' }}
+              >
+                {chartData.map((entry, idx) => (
+                  <Cell
+                    key={`cell-${idx}`}
+                    fill={entry.color}
+                    style={{ outline: 'none' }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [`${value} Forms`, 'Count']} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            pointerEvents: "none"
+          }}>
+            <strong style={{ fontSize: 20, color: "var(--navy)", display: "block", lineHeight: 1 }}>
+              {Math.round((submittedFormsCount / totalFormsCount) * 100)}%
+            </strong>
+            <span style={{ fontSize: 10, color: "var(--muted)" }}>Complete</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <span style={{ fontSize: 12, color: "var(--muted)", display: "block" }}>Division</span>
+            <strong style={{ fontSize: 16, color: "var(--navy)" }}>{division}</strong>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+              <strong style={{ color: "var(--navy)" }}>Submitted:</strong> {submittedFormsCount} / {totalFormsCount}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#cbd5e1", display: "inline-block" }} />
+              <strong style={{ color: "var(--navy)" }}>Pending:</strong> {pendingFormsCount}
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionDivisionPanel({ divisionData }: { divisionData: any[] }) {
+  const { setDivision, setActiveNav, setDpHistoryFilter } = useAppStore();
+  const hasData = divisionData.some(d => d.value > 0);
+  const chartData = hasData ? divisionData : [
+    { name: "Raipur", value: 1, color: "#f1f5f9" },
+    { name: "Bilaspur", value: 1, color: "#f1f5f9" },
+    { name: "Nagpur", value: 1, color: "#f1f5f9" }
+  ];
+
+  const handleDivisionClick = (divName: string) => {
+    setDivision(divName);
+    setDpHistoryFilter("active-faults");
+    setActiveNav("DP Logs");
+  };
+
+  return (
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Division-wise Fault Distribution</h3>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
+        <div style={{ width: 140, height: 140, flexShrink: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart style={{ outline: 'none' }}>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={65}
+                paddingAngle={hasData ? 3 : 0}
+                dataKey="value"
+                style={{ outline: 'none' }}
+              >
+                {chartData.map((entry, idx) => (
+                  <Cell
+                    key={`cell-${idx}`}
+                    fill={entry.color}
+                    style={{ outline: 'none', cursor: (hasData && entry.value > 0) ? 'pointer' : 'default' }}
+                    onClick={() => hasData && entry.value > 0 && handleDivisionClick(entry.name)}
+                  />
+                ))}
+              </Pie>
+              {hasData && <Tooltip formatter={(value) => [`${value} Faults`, 'Count']} />}
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {divisionData.map(entry => {
+            const clickable = hasData && entry.value > 0;
+            return (
+              <div
+                key={entry.name}
+                onClick={() => clickable && handleDivisionClick(entry.name)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  cursor: clickable ? "pointer" : "default",
+                  transition: "opacity 0.2s"
+                }}
+                onMouseEnter={e => {
+                  if (clickable) e.currentTarget.style.opacity = "0.7";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = "1";
+                }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: hasData ? entry.color : "#cbd5e1", display: "inline-block" }} />
+                <strong style={{ color: clickable ? "var(--blue)" : "var(--navy)", textDecoration: clickable ? "underline" : "none" }}>{entry.name}:</strong> {entry.value}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
+  const hasData = categoryData.some(d => d.value > 0);
+  const displayData = hasData ? categoryData : [
+    { name: "IPIS", value: 0, color: "#cbd5e1" },
+    { name: "CCTV", value: 0, color: "#cbd5e1" },
+    { name: "PA System", value: 0, color: "#cbd5e1" },
+    { name: "UTS", value: 0, color: "#cbd5e1" },
+    { name: "PRS", value: 0, color: "#cbd5e1" },
+  ];
+  const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
+  return (
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Category-wise Fault Distribution</h3>
+      <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 14 }}>
+        {displayData.slice(0, 5).map(stat => {
+          const percent = total > 0 && hasData ? Math.round((stat.value / total) * 100) : 0;
+          return (
+            <div key={stat.name} style={{ display: "grid", gap: 5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
+                <span style={{ color: "var(--navy)" }}>{stat.name}</span>
+                <span style={{ color: hasData ? "var(--blue)" : "var(--muted)" }}>
+                  {stat.value} faults {hasData && <span style={{ fontWeight: 500, color: "var(--muted)" }}>({percent}%)</span>}
+                </span>
+              </div>
+              <div style={{ height: 6, background: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${percent}%`, height: "100%", background: stat.color, borderRadius: 3 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionDashboardView({
+  data,
+  openPanel,
+  queries,
+  showToast
+}: {
+  data: DashboardSummary;
+  openPanel: (title: string, itemId?: string | null) => void;
+  queries: any;
+  showToast: (msg: string) => void;
+}) {
+  const { role, division: userDivision } = useAppStore();
+
+  const handleBottomStatClick = (label: string) => {
+    const { setActiveNav } = useAppStore.getState();
+    if (label === "Active Faults" || label === "Reported Today") {
+      setActiveNav(data.user.role === "TESTROOM" ? "Daily Position" : "DP Logs");
+    } else {
+      setActiveNav(label as any);
+    }
+  };
+
+  const rectifiedCount = useMemo(() => {
+    return (data.dailyPositionStatus || []).find((item: any) => item.status.toUpperCase() === "RECTIFIED")?.count || 0;
+  }, [data.dailyPositionStatus]);
+
+  const dpKpis = useMemo(() => {
+    const faultsKpi = data.kpis.find(k => k.id === "activeFaults") || {
+      id: "activeFaults",
+      label: "Active Faults",
+      value: "0",
+      detail: "Pending faults",
+      tone: "red",
+      series: [0, 0, 0, 0, 0]
+    };
+    const reportedKpi = data.kpis.find(k => k.id === "reportedToday") || {
+      id: "reportedToday",
+      label: "Reported Today",
+      value: "0",
+      detail: "Daily Position entries",
+      tone: "teal",
+      series: [0, 0, 0, 0, 0]
+    };
+    const resolvedKpi: KpiMetric = {
+      id: "resolvedToday",
+      label: "Resolved Faults",
+      value: rectifiedCount.toString(),
+      detail: "Rectified failure tickets",
+      tone: "green",
+      series: [5, 7, 8, 12, 10, 11, 14, 15, 13, 16, 17, rectifiedCount]
+    };
+    return [faultsKpi, reportedKpi, resolvedKpi];
+  }, [data.kpis, rectifiedCount]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -1639,70 +1973,67 @@ function DashboardView({
     return (data.dailyPositionStatus || []).reduce((acc: number, curr: any) => acc + curr.count, 0);
   }, [data.dailyPositionStatus]);
 
-  const commissioningMetrics = useMemo(() => {
-    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
-    const total = (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
-    const getPercent = (val: number) => total > 0 ? `${((val / total) * 100).toFixed(1)}%` : "0%";
-    return [
-      { name: "ABSS Only", value: summary.abssOnly || 0, percent: getPercent(summary.abssOnly || 0), color: "#3b82f6" },
-      { name: "Divisional Only", value: summary.divisionalOnly || 0, percent: getPercent(summary.divisionalOnly || 0), color: "#10b981" },
-      { name: "Both Schemes", value: summary.bothSchemes || 0, percent: getPercent(summary.bothSchemes || 0), color: "#8b5cf6" }
-    ];
-  }, [data.commissioningSummary]);
+  const divisionData = useMemo(() => {
+    const records = data.dailyPositionByDivision || [];
+    const divColors: Record<string, string> = {
+      Raipur: "#3b82f6",
+      Bilaspur: "#10b981",
+      Nagpur: "#8b5cf6"
+    };
+    return ["Raipur", "Bilaspur", "Nagpur"].map(name => {
+      const record = records.find(r => normalizeDivision(r.division).toLowerCase() === name.toLowerCase());
+      return {
+        name,
+        value: record ? record.count : 0,
+        color: divColors[name] || "#8b5cf6"
+      };
+    });
+  }, [data.dailyPositionByDivision]);
 
-  const totalStations = useMemo(() => {
-    const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
-    return (summary.abssOnly || 0) + (summary.divisionalOnly || 0) + (summary.bothSchemes || 0);
-  }, [data.commissioningSummary]);
+  const categoryData = useMemo(() => {
+    const records = data.dailyPositionByCategory || [];
+    const catColors = ["#0b6dff", "#10b981", "#f5b51b", "#7c3aed", "#0f5fbf", "#8b95a8"];
+    return records.map((r, idx) => ({
+      name: r.category,
+      value: r.count,
+      color: catColors[idx % catColors.length]
+    }));
+  }, [data.dailyPositionByCategory]);
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20, paddingRight: 4 }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
       <section className="kpi-grid">
-        {data.kpis.map((kpi, index) => (
+        {dpKpis.map((kpi, index) => (
           <KpiCard key={kpi.id} kpi={kpi} index={index} />
         ))}
       </section>
- 
+
       <section className="dashboard-grid">
-        <ChartPanel 
-          title="Assets by Category" 
-          total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"} 
-          metrics={data.categories} 
-          openPanel={() => useAppStore.getState().setActiveNav("Assets")} 
+        <ChartPanel
+          title="Daily Position Status"
+          total={totalDailyPositions.toString()}
+          metrics={dailyPositionMetrics}
+          openPanel={() => data.user.role === "TESTROOM" ? useAppStore.getState().setActiveNav("Daily Position") : useAppStore.getState().setActiveNav("DP Logs")}
         />
-        <ChartPanel 
-          title="Daily Position Status" 
-          total={totalDailyPositions.toString()} 
-          metrics={dailyPositionMetrics} 
-          openPanel={() => data.user.role === "TESTROOM" ? useAppStore.getState().setActiveNav("Daily Position") : useAppStore.getState().setActiveNav("Daily Position History")} 
-        />
-        <ChartPanel 
-          title="Station Commissioning Status" 
-          total={totalStations.toString()} 
-          metrics={commissioningMetrics} 
-          openPanel={() => useAppStore.getState().setActiveNav("Master List")} 
-        />
+        {role === "TESTROOM" ? (
+          <DailyPositionSubmissionProgressPanel division={userDivision} />
+        ) : (
+          <DailyPositionDivisionPanel divisionData={divisionData} />
+        )}
+        <DailyPositionCategoryPanel categoryData={categoryData} />
       </section>
- 
-      <section className="operations-grid">
-        <TelecomCoveragePanel queries={queries} />
-        <DivisionDistributionPanel queries={queries} />
-        <CategoryDistributionPanel queries={queries} />
-      </section>
- 
-      <section className="bottom-stats">
-        {data.bottomStats.map((stat) => (
-          <BottomStatCard key={stat.id} stat={stat} openPanel={() => handleBottomStatClick(stat.label)} />
-        ))}
+
+      <section className="operations-grid" style={{ gridTemplateColumns: "1fr" }}>
+        <DailyPositionSummaryTable user={data.user} queries={queries} showToast={showToast} />
       </section>
     </div>
   );
 }
- 
+
 // KPI Card Component
 function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
   const Icon = toneIcons[kpi.tone];
-  const { setActiveNav, setAssetStatusFilter, role } = useAppStore();
+  const { setActiveNav, setAssetStatusFilter, setDpHistoryFilter, role } = useAppStore();
 
   const handleClick = () => {
     if (kpi.label === "Total Assets") {
@@ -1715,20 +2046,20 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
       setActiveNav("Assets");
       setAssetStatusFilter("UNDER_MAINTENANCE");
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
-      if (role === "TESTROOM") {
-        setActiveNav("Daily Position");
-      } else {
-        setActiveNav("Daily Position History");
-      }
+      setDpHistoryFilter("active-faults");
+      setActiveNav("DP Logs");
+    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults") {
+      setDpHistoryFilter("resolved-faults");
+      setActiveNav("DP Logs");
     } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today") {
       if (role === "TESTROOM") {
         setActiveNav("Daily Position");
       } else {
-        setActiveNav("Daily Position History");
+        setActiveNav("DP Logs");
       }
     }
   };
- 
+
   return (
     <motion.button
       className={`kpi-card ${kpi.tone}`}
@@ -1766,6 +2097,10 @@ function ChartPanel({
   metrics: Array<CategoryMetric | SeverityMetric>;
   openPanel: () => void;
 }) {
+  const sum = metrics.reduce((acc, curr) => acc + (curr.value || 0), 0);
+  const hasData = sum > 0;
+  const chartData = hasData ? metrics : [{ name: "No Data", value: 1, color: "#f1f5f9" }];
+
   return (
     <article className={`panel chart-panel ${className}`}>
       <h3>{title}</h3>
@@ -1774,17 +2109,17 @@ function ChartPanel({
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={metrics}
+                data={chartData}
                 dataKey="value"
                 innerRadius="52%"
                 outerRadius="82%"
-                paddingAngle={1}
+                paddingAngle={hasData ? 1 : 0}
               >
-                {metrics.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
+                {chartData.map((entry, idx) => (
+                  <Cell key={entry.name || idx} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              {hasData && <Tooltip />}
             </PieChart>
           </ResponsiveContainer>
           <div className="donut-center">
@@ -1795,7 +2130,7 @@ function ChartPanel({
         <ul className="legend-list">
           {metrics.map((metric) => (
             <li key={metric.name}>
-              <i style={{ background: metric.color }} />
+              <i style={{ background: hasData ? metric.color : "#cbd5e1" }} />
               <span>{metric.name}</span>
               <strong>{metric.value}</strong>
               <em>({metric.percent})</em>
@@ -1805,143 +2140,6 @@ function ChartPanel({
       </div>
     </article>
   );
-}
-
-// Leaflet Map Panel Component
-function MapPanel({
-  className = "",
-  compact = false,
-  openPanel,
-  queries
-}: {
-  className?: string;
-  compact?: boolean;
-  openPanel: (title: string) => void;
-  queries: any;
-}) {
-  const markerIcon = (type: string) =>
-    L.divIcon({
-      className: `map-pin ${type}`,
-      html: "<span></span>",
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-
-  const stations = queries.stationsQuery.data?.data || [];
-  const gates = queries.gatesQuery.data?.data || [];
-  const gisFeatures = queries.gisFeaturesQuery.data?.data || [];
-
-  // Generate markers list
-  const markers: Array<{ name: string; type: string; position: [number, number] }> = [];
-  stations.forEach((s: any) => {
-    // Raipur Junction position, generate nearby for others or use location name coordinates if parsed
-    let pos: [number, number] = [21.2514, 81.6296];
-    if (s.code === "BSP") pos = [22.0797, 82.1391];
-    else if (s.code === "DURG") pos = [21.1904, 81.2849];
-    else if (s.code === "R") pos = [21.2514, 81.6296];
-    else {
-      // Offset slightly to spread out
-      pos = [21.2514 + (Math.random() - 0.5) * 0.4, 81.6296 + (Math.random() - 0.5) * 0.4];
-    }
-    markers.push({ name: s.name, type: "station", position: pos });
-  });
-
-  gates.forEach((g: any) => {
-    let pos: [number, number] = [21.2668, 81.5185];
-    pos = [pos[0] + (Math.random() - 0.5) * 0.25, pos[1] + (Math.random() - 0.5) * 0.25];
-    markers.push({ name: g.gateNumber + (g.name ? ` - ${g.name}` : ""), type: "lc", position: pos });
-  });
-
-  const polyLines: Array<{ id: string; name: string; color: string; coords: [number, number][] }> = [];
-  gisFeatures.forEach((f: any) => {
-    try {
-      const coords = typeof f.coordinates === "string" ? JSON.parse(f.coordinates) : f.coordinates;
-      if (Array.isArray(coords)) {
-        polyLines.push({
-          id: f.id,
-          name: f.name,
-          color: f.type === "OFC_ROUTE" ? "#0b6dff" : "#ff8a00",
-          coords: coords as [number, number][]
-        });
-      }
-    } catch (e) {
-      // invalid coordinates format
-    }
-  });
-
-  return (
-    <article className={`panel map-panel ${compact ? "" : "map-full-panel"} ${className}`}>
-      <h3>Live Telecom Infrastructure Map</h3>
-      <div className="leaflet-shell">
-        <MapContainer center={[21.315, 81.63]} zoom={9} scrollWheelZoom className="leaflet-map">
-          <TileLayer
-            attribution="OpenStreetMap"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <LayersControl position="topright">
-            <LayersControl.Overlay checked name="OFC routes">
-              <>
-                {polyLines.filter(p => p.color === "#0b6dff").map(p => (
-                  <Polyline key={p.id} pathOptions={{ color: p.color, weight: 5 }} positions={p.coords}>
-                    <Popup><strong>OFC Line:</strong> {p.name}</Popup>
-                  </Polyline>
-                ))}
-                {polyLines.length === 0 && (
-                  <Polyline pathOptions={{ color: "#0b6dff", weight: 5 }} positions={fallbackRouteLines} />
-                )}
-              </>
-            </LayersControl.Overlay>
-            <LayersControl.Overlay checked name="LC Cabin links">
-              <>
-                {polyLines.filter(p => p.color === "#ff8a00").map(p => (
-                  <Polyline key={p.id} pathOptions={{ color: p.color, weight: 4 }} positions={p.coords}>
-                    <Popup><strong>LC Link:</strong> {p.name}</Popup>
-                  </Polyline>
-                ))}
-              </>
-            </LayersControl.Overlay>
-            <LayersControl.Overlay checked name="Telecom Points">
-              <>
-                {markers.map((point, index) => (
-                  <Marker icon={markerIcon(point.type)} key={`${point.name}-${index}`} position={point.position}>
-                    <Popup>
-                      <strong>{point.name}</strong>
-                      <br />
-                      Type: {point.type.toUpperCase()}
-                    </Popup>
-                  </Marker>
-                ))}
-                {markers.length === 0 && defaultStationPoints.map((point) => (
-                  <Marker icon={markerIcon(point.type)} key={point.name} position={point.position}>
-                    <Popup>
-                      <strong>{point.name}</strong>
-                      <br />
-                      Type: {point.type.toUpperCase()}
-                    </Popup>
-                  </Marker>
-                ))}
-              </>
-            </LayersControl.Overlay>
-          </LayersControl>
-          <MapResize />
-        </MapContainer>
-        <div className="map-legend">
-          <span><i className="blue-dot" />Stations</span>
-          <span><i className="green-dot" />LC Gates</span>
-          <span><i className="amber-dot" />Assets</span>
-          <span><i className="red-dot" />Faults</span>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function MapResize() {
-  const map = useMap();
-  useEffect(() => {
-    map.invalidateSize();
-  }, [map]);
-  return null;
 }
 
 // Status Panel Component
@@ -1970,8 +2168,508 @@ function StatusPanel({
   );
 }
 
+// Helper functions for summary table details modal
+const summaryAssetLabel = (asset: any) => {
+  const parts = [
+    asset.telecomAsset || asset.category || "Asset",
+    asset.equipmentName,
+    asset.rdsoSpec || asset.serialNo,
+    asset.stationCode,
+  ].filter(Boolean);
+  return parts.join(" / ");
+};
+
+const summaryRecordAssetLabel = (record: any, assets: any[]) => {
+  const asset = (assets || []).find((item: any) => item.id === record.assetId);
+  return asset ? summaryAssetLabel(asset) : (record.telecomAsset || "-");
+};
+
+const summaryHumanizeFieldName = (key: string) => {
+  const labels: Record<string, string> = {
+    actionType: "Action",
+    checkedAt: "Checked At",
+    icmsEntryNo: "ICMS Entry No./Docket No.",
+    stationCode: "Station",
+    assetId: "Linked Asset",
+    majorSection: "Major Section",
+    failureTime: "Failure Time",
+    rectificationTime: "Rectification Time",
+    durationText: "Duration of Failure",
+  };
+  if (labels[key]) return labels[key];
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, char => char.toUpperCase())
+    .trim();
+};
+
+const summaryDisplayValue = (value: any) => {
+  if (value === undefined || value === null || value === "") return "-";
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  }
+  return String(value);
+};
+
+// Daily Position Summary Table Component
+function DailyPositionSummaryTable({
+  user,
+  queries,
+  showToast
+}: {
+  user: any;
+  queries?: any;
+  showToast: (msg: string) => void;
+}) {
+  const { setActiveNav, setDpSelectedCategory, setDpSelectedFormName, setDpOpenCategory } = useAppStore.getState();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const userDivision = user?.division || "Bilaspur";
+
+  const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
+  const [selectedDivision, setSelectedDivision] = useState(isSuperAdmin ? "Bilaspur" : userDivision);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+
+  const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
+
+  // Fetch all DP entries for the selected division + date
+  const dpQuery = useQuery({
+    queryKey: ["dp-summary-table", selectedDivision, selectedDate],
+    queryFn: () => api.dailyPosition.list({ division: selectedDivision, date: selectedDate, limit: 500 }),
+    enabled: !!selectedDivision,
+    staleTime: 5 * 60 * 1000
+  });
+
+  const entries: any[] = dpQuery.data?.data || [];
+
+  // Group all entries by formType for this division+date
+  const entriesByForm = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const entry of entries) {
+      const key = entry.formType || entry.category || "";
+      if (key) {
+        if (!map[key]) map[key] = [];
+        map[key].push(entry);
+      }
+    }
+    // Sort each form type's entries by createdAt desc
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    }
+    return map;
+  }, [entries]);
+
+  const displayedForms = useMemo(() => {
+    return DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+  }, []);
+
+  const handleRowClick = (form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+    if (formEntries.length > 0) {
+      setDetailsRecord(formEntries);
+    } else {
+      showToast(`No entry submitted for "${form.name}" on this date.`);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  // Group forms by category
+  const grouped = useMemo(() => {
+    const cats: Record<string, typeof DAILY_POSITION_FORMS> = {};
+    for (const form of displayedForms) {
+      if (!cats[form.category]) cats[form.category] = [];
+      cats[form.category].push(form);
+    }
+    return cats;
+  }, [displayedForms]);
+
+  const getStatus = (form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+    if (formEntries.length === 0) return null;
+    const hasFault = formEntries.some(entry => {
+      const s = (entry.status || "").toUpperCase();
+      return s !== "OPERATIONAL" && s !== "RECTIFIED";
+    });
+    return hasFault ? "FAULT" : "NORMAL";
+  };
+
+  const getFaultCount = (form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+    if (formEntries.length === 0) return "-";
+
+    let totalFaults = 0;
+    let hasFaultyState = false;
+
+    for (const entry of formEntries) {
+      const status = (entry.status || "").toUpperCase();
+      if (status !== "OPERATIONAL" && status !== "RECTIFIED") {
+        hasFaultyState = true;
+        const fd = entry.formData || {};
+        switch (form.name) {
+          case "Temporary Joints":
+            totalFaults += Number(fd.balanceTemporaryJoints ?? fd.temporaryJointsCount ?? 1);
+            break;
+          case "Low Insulation":
+            totalFaults += Number(fd.balanceInsulationFaults ?? fd.totalInsulationFaults ?? 1);
+            break;
+          case "CGDM":
+            totalFaults += Number(fd.faultyGuidanceBoards ?? 1);
+            break;
+          case "TIB":
+            totalFaults += Number(fd.faultyBoards ?? 1);
+            break;
+          case "Walkie-Talkie Repairing":
+            totalFaults += Number(fd.pendingRepair ?? fd.openingDefective ?? 1);
+            break;
+          case "CCTV Monitoring":
+          case "CCTV Maintenance":
+            const cctvVal = fd.totalNotWorkingCctvLoc;
+            if (typeof cctvVal === "number") {
+              totalFaults += cctvVal;
+            } else if (typeof cctvVal === "string") {
+              const match = cctvVal.match(/(?:not\s+working|failed|defective|faulty)?\s*:?\s*(\d+)\s*(?:\(|$)/i);
+              if (match) {
+                totalFaults += Number(match[1]);
+              } else {
+                const anyNum = cctvVal.match(/\d+/);
+                totalFaults += anyNum ? Number(anyNum[0]) : 1;
+              }
+            } else {
+              totalFaults += 1;
+            }
+            break;
+          default:
+            totalFaults += 1;
+            break;
+        }
+      }
+    }
+
+    if (!hasFaultyState) return "-";
+    return totalFaults > 0 ? totalFaults : "-";
+  };
+
+  const getRemark = (form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+    if (formEntries.length === 0) return "";
+    return formEntries
+      .map(entry => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
+      .filter(Boolean)
+      .join(" | ");
+  };
+
+  return (
+    <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+        padding: "16px 20px 12px", borderBottom: "1px solid var(--line)"
+      }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
+            Daily Position Summary
+          </h3>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          {isSuperAdmin && (
+            <select
+              value={selectedDivision}
+              onChange={e => setSelectedDivision(e.target.value)}
+              style={{
+                border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
+                fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
+                fontFamily: "inherit"
+              }}
+            >
+              {DIVISIONS.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          )}
+          {!isSuperAdmin && (
+            <span style={{
+              border: "1px solid var(--blue-soft)", borderRadius: 8, padding: "6px 10px",
+              fontSize: 12, color: "var(--blue)", background: "var(--blue-soft)", fontWeight: 600
+            }}>
+              📍 {userDivision}
+            </span>
+          )}
+          <input
+            type="date"
+            value={selectedDate}
+            max={todayStr}
+            onChange={e => setSelectedDate(e.target.value)}
+            style={{
+              border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
+              fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
+              fontFamily: "inherit"
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {dpQuery.isLoading && (
+        <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+          Loading summary…
+        </div>
+      )}
+
+      {!dpQuery.isLoading && (
+        <>
+          {/* Table header */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
+            padding: "8px 20px",
+            background: "var(--page)",
+            borderBottom: "1px solid var(--line)",
+            gap: 12
+          }}>
+            {["FORM / SECTION", "STATUS", "FAULTS", "KEY REMARK", ""].map((col, i) => (
+              <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {col}
+              </span>
+            ))}
+          </div>
+
+          {/* Grouped rows */}
+          <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 520 }}>
+            {Object.entries(grouped).map(([category, forms]) => (
+              <div key={category}>
+                {/* Category divider */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 20px 5px", background: "#f4f7fb",
+                  borderBottom: "1px solid var(--line)"
+                }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {category}
+                  </span>
+                </div>
+
+                {/* Form rows */}
+                {forms.map(form => {
+                  const status = getStatus(form);
+                  const remark = getRemark(form);
+                  const isFault = status === "FAULT";
+                  const noData = status === null;
+                  const faultCount = isFault ? getFaultCount(form) : "-";
+
+                  return (
+                    <div
+                      key={form.systemCode}
+                      onClick={() => handleRowClick(form)}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
+                        alignItems: "center",
+                        padding: "0 20px",
+                        height: 44,
+                        gap: 12,
+                        cursor: "pointer",
+                        borderLeft: `3px solid ${isFault ? "var(--red)" : noData ? "var(--line)" : "var(--green)"}`,
+                        background: isFault ? "rgba(255,51,40,0.04)" : "#fff",
+                        borderBottom: "1px solid var(--line)",
+                        transition: "background 0.15s"
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.background = "var(--blue-soft)";
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = isFault ? "rgba(255,51,40,0.04)" : "#fff";
+                      }}
+                    >
+                      {/* Form name */}
+                      <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {form.name}
+                      </span>
+
+                      {/* Status pill */}
+                      <span>
+                        {noData ? (
+                          <span style={{ fontSize: 11, color: "var(--muted)" }}>No entry</span>
+                        ) : (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                            color: "#fff",
+                            background: isFault ? "var(--red)" : "var(--green)"
+                          }}>
+                            {isFault ? "FAULT" : "NORMAL"}
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Faults count */}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: isFault ? "var(--red)" : "var(--muted)", paddingLeft: 4 }}>
+                        {faultCount}
+                      </span>
+
+                      {/* Key remark */}
+                      <span style={{
+                        fontSize: 12, color: remark ? "var(--navy)" : "var(--muted)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                      }}>
+                        {remark || (noData ? "—" : "No remarks")}
+                      </span>
+
+                      {/* Chevron */}
+                      <span style={{ fontSize: 16, color: "var(--line)", textAlign: "right" }}>›</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            padding: "8px 20px", background: "var(--page)",
+            borderTop: "1px solid var(--line)",
+            display: "flex", justifyContent: "space-between", alignItems: "center"
+          }}>
+            <div style={{ display: "flex", gap: 12 }}>
+              {[
+                { label: "Normal", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
+                { label: "Fault", color: "var(--red)", bg: "var(--red-soft)", count: displayedForms.filter(f => getStatus(f) === "FAULT").length },
+                { label: "No Entry", color: "var(--muted)", bg: "var(--line)", count: displayedForms.filter(f => getStatus(f) === null).length },
+              ].map(s => (
+                <span key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                  <span style={{ color: s.color, fontWeight: 700 }}>{s.count}</span>
+                  <span style={{ color: "var(--muted)" }}>{s.label}</span>
+                </span>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>
+              {formatDate(selectedDate)} · {isSuperAdmin ? selectedDivision : userDivision} Division
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Details modal */}
+      {detailsRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)} style={{ zIndex: 9999 }}>
+          <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "750px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
+            <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)}>X</button>
+            <div style={{ padding: "20px 24px 12px", borderBottom: "1px solid var(--line)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.5px" }}>
+                Daily Position Record Details
+              </span>
+              <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
+                {detailsRecord[0]?.formType || "Daily Position"}
+              </h2>
+              <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
+                {formatDate(selectedDate)} · {detailsRecord.length} {detailsRecord.length === 1 ? "entry" : "entries"} submitted
+              </p>
+            </div>
+
+            <div style={{ overflowY: "auto", padding: "16px 24px 24px", display: "flex", flexDirection: "column", gap: "20px", flex: 1 }}>
+              {detailsRecord.map((entry: any, index: number) => (
+                <div key={entry.id} style={{
+                  border: "1px solid var(--line)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  background: entry.status === "OPERATIONAL" || entry.status === "RECTIFIED" ? "#fff" : "rgba(255,51,40,0.02)",
+                  position: "relative"
+                }}>
+                  {detailsRecord.length > 1 && (
+                    <div style={{
+                      position: "absolute", top: "16px", right: "16px",
+                      fontSize: "11px", fontWeight: 700, color: "var(--blue)",
+                      background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                    }}>
+                      Entry #{index + 1}
+                    </div>
+                  )}
+
+                  <div className="dp-details-header" style={{ padding: 0, borderBottom: "none", marginBottom: "16px" }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--navy)" }}>
+                        {entry.division} / {entry.stationCode || entry.stationName || entry.section || "-"}
+                      </h4>
+                      <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                        Submitted by: {entry.createdByUsername || "Test Room"}
+                      </span>
+                    </div>
+                    <em className={`status-chip status-${String(entry.status || "").toLowerCase()}`} style={{ margin: 0 }}>
+                      {entry.status}
+                    </em>
+                  </div>
+
+                  <div className="dp-details-summary" style={{ padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: "16px" }}>
+                    {[
+                      ["Category", entry.category],
+                      ["Action", entry.formData?.actionType || (entry.status === "OPERATIONAL" ? "OK" : "FAULT")],
+                      ["Linked Asset", summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data)],
+                      ["Submitted At", entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase" }}>{label}</span>
+                        <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+
+                  <section className="dp-details-section" style={{ marginBottom: "16px" }}>
+                    <h5 style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Fault Timing</h5>
+                    <div className="dp-details-grid">
+                      {[
+                        ["Failure Time", entry.failureTime ? new Date(entry.failureTime).toLocaleString() : "-"],
+                        ["Rectification Time", entry.rectificationTime ? new Date(entry.rectificationTime).toLocaleString() : "-"],
+                        ["Duration of Failure", entry.durationText || "-"],
+                        ["Reason", entry.reason || "-"],
+                        ["Remarks", entry.remarks || "-"],
+                      ].map(([label, value]) => (
+                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>{label}</span>
+                          <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="dp-details-section">
+                    <h5 style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Submitted Form Fields</h5>
+                    <div className="dp-details-grid">
+                      {Object.entries(entry.formData || {}).map(([key, value]) => {
+                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return null;
+                        return (
+                          <div key={key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{summaryHumanizeFieldName(key)}</span>
+                            <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{summaryDisplayValue(value)}</strong>
+                          </div>
+                        );
+                      })}
+                      {Object.keys(entry.formData || {}).filter(k => k !== "actionType" && k !== "checkedAt" && k !== "maintenanceType").length === 0 && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>Form Data</span>
+                          <strong style={{ fontSize: "13px", color: "var(--navy)" }}>No additional fields submitted.</strong>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 // Activity Panel Component
 function ActivityPanel({ items }: { items: ActivityItem[] }) {
+
   return (
     <article className="panel list-panel">
       <PanelTitle title="Activity Feed" />
@@ -2061,7 +2759,7 @@ function DivisionDistributionPanel({ queries }: { queries: any }) {
     const divStations = stations.filter((s: any) => normalizeDivision(s.division) === div);
     const stationCodes = new Set(divStations.map((s: any) => s.code.toUpperCase()));
     const divAssets = assets.filter((a: any) => a.stationCode && stationCodes.has(a.stationCode.toUpperCase()));
-    
+
     const total = divAssets.length;
     const operational = divAssets.filter((a: any) => a.status === "OPERATIONAL").length;
     const percent = total > 0 ? Math.round((operational / total) * 100) : 0;
@@ -2181,87 +2879,6 @@ function BottomStatCard({ stat, openPanel }: { stat: BottomStat; openPanel: () =
         <small>{stat.detail}</small>
       </div>
     </button>
-  );
-}
-
-// GIS View Component
-function GisView({ openPanel, queries }: { openPanel: (title: string) => void; queries: any }) {
-  const queryClient = useQueryClient();
-  const [featureName, setFeatureName] = useState("");
-  const [featureType, setFeatureType] = useState("OFC_ROUTE");
-  const [coordinatesText, setCoordinatesText] = useState("");
-
-  const addGisMutation = useMutation({
-    mutationFn: (body: any) => api.gis.create(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gis-features-list"] });
-      setFeatureName("");
-      setCoordinatesText("");
-    }
-  });
-
-  const deleteGisMutation = useMutation({
-    mutationFn: (id: string) => api.gis.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gis-features-list"] });
-    }
-  });
-
-  const handleAddFeature = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const parsed = JSON.parse(coordinatesText);
-      addGisMutation.mutate({
-        name: featureName,
-        type: featureType,
-        coordinates: parsed,
-        division: useAppStore.getState().division
-      });
-    } catch (err) {
-      alert("Invalid JSON format for coordinates. E.g. [[21.2, 81.6], [21.3, 81.7]]");
-    }
-  };
-
-  const gisFeatures = queries.gisFeaturesQuery.data?.data || [];
-
-  return (
-    <section className="module-grid gis-page">
-      <MapPanel openPanel={openPanel} queries={queries} />
-      <article className="panel">
-        <h3>Map Polyline Features</h3>
-        <form onSubmit={handleAddFeature} style={{ display: "grid", gap: 10, margin: "10px 0 20px" }}>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Feature Name
-            <input required placeholder="e.g. OFC Link Raipur to Durg" style={{ width: "100%", padding: 6, border: "1px solid var(--line)", borderRadius: 4 }} value={featureName} onChange={e => setFeatureName(e.target.value)} />
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Type
-            <select style={{ width: "100%", padding: 6, border: "1px solid var(--line)", borderRadius: 4 }} value={featureType} onChange={e => setFeatureType(e.target.value)}>
-              <option value="OFC_ROUTE">OFC Route</option>
-              <option value="QUAD_CABLE_ROUTE">Quad Cable Route</option>
-              <option value="MAST">Mast Layer</option>
-            </select>
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Coordinates (JSON format)
-            <textarea required placeholder="[[21.251, 81.62], [21.19, 81.28]]" style={{ width: "100%", padding: 6, border: "1px solid var(--line)", borderRadius: 4, height: 60 }} value={coordinatesText} onChange={e => setCoordinatesText(e.target.value)} />
-          </label>
-          <button type="submit" className="export-button" style={{ minHeight: 32 }}>Add Feature</button>
-        </form>
-
-        <div className="features-list" style={{ overflowY: "auto", maxHeight: 240 }}>
-          {gisFeatures.map((f: any) => (
-            <div key={f.id} className="module-row" style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee" }}>
-              <div>
-                <strong>{f.name}</strong>
-                <small style={{ display: "block", color: "var(--muted)" }}>{f.type} • {f.division}</small>
-              </div>
-              <button style={{ background: "transparent", border: 0, color: "var(--red)", fontWeight: 700 }} onClick={() => deleteGisMutation.mutate(f.id)}>Delete</button>
-            </div>
-          ))}
-        </div>
-      </article>
-    </section>
   );
 }
 
@@ -2455,8 +3072,6 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
       <div className="search-filter-row">
         <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="Filter sections..." />
       </div>
-
-      {renderSectionPagination()}
 
       <div className="table-scroll-container">
         <table className="data-table">
@@ -2686,7 +3301,7 @@ function ModuleView({
         const rawList = queries.stationsQuery.data?.data || [];
         const list = rawList.filter((s: any) => {
           const normDiv = normalizeDivision(s.division).toLowerCase();
-          const matchesSearch = 
+          const matchesSearch =
             s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (s.division && s.division.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -2721,271 +3336,271 @@ function ModuleView({
                       <Fragment key={s.id}>
                         <tr style={{ background: isExpanded ? "#f8fafd" : undefined }}>
                           <td>{(currentPage - 1) * 50 + idx + 1}</td>
-                        <td>{normalizeDivision(s.division)}</td>
-                        <td>
-                          <strong 
-                            onClick={() => openPanel("Station Details", s.id)} 
-                            style={{ cursor: "pointer", color: "var(--blue)" }}
-                            className="clickable-link"
-                          >
-                            {s.name}
-                          </strong>
-                        </td>
-                        <td>
-                          <strong 
-                            onClick={() => openPanel("Station Details", s.id)} 
-                            style={{ cursor: "pointer", color: "var(--blue)" }}
-                            className="clickable-link"
-                          >
-                            {s.code}
-                          </strong>
-                        </td>
-                        <td>{s.state || "-"}</td>
-                        <td>{s.category}</td>
-                        <td className="telecom-assets-dropdown-cell">
-                          <button 
-                            className="action-btn text-blue"
-                            style={{
-                              background: isExpanded ? "var(--blue)" : "var(--blue-soft)",
-                              color: isExpanded ? "#fff" : "var(--blue)",
-                              padding: "6px 12px",
-                              borderRadius: "6px",
-                              fontWeight: "700",
-                              border: isExpanded ? "1px solid var(--blue)" : "1px solid rgba(11, 109, 255, 0.15)",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease"
-                            }}
-                            onClick={() => setExpandedStationCode(isExpanded ? null : s.code)}
-                          >
-                            {isExpanded ? "Hide Telecom Assets" : "View Telecom Assets"}
-                          </button>
+                          <td>{normalizeDivision(s.division)}</td>
+                          <td>
+                            <strong
+                              onClick={() => openPanel("Station Details", s.id)}
+                              style={{ cursor: "pointer", color: "var(--blue)" }}
+                              className="clickable-link"
+                            >
+                              {s.name}
+                            </strong>
+                          </td>
+                          <td>
+                            <strong
+                              onClick={() => openPanel("Station Details", s.id)}
+                              style={{ cursor: "pointer", color: "var(--blue)" }}
+                              className="clickable-link"
+                            >
+                              {s.code}
+                            </strong>
+                          </td>
+                          <td>{s.state || "-"}</td>
+                          <td>{s.category}</td>
+                          <td className="telecom-assets-dropdown-cell">
+                            <button
+                              className="action-btn text-blue"
+                              style={{
+                                background: isExpanded ? "var(--blue)" : "var(--blue-soft)",
+                                color: isExpanded ? "#fff" : "var(--blue)",
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                fontWeight: "700",
+                                border: isExpanded ? "1px solid var(--blue)" : "1px solid rgba(11, 109, 255, 0.15)",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease"
+                              }}
+                              onClick={() => setExpandedStationCode(isExpanded ? null : s.code)}
+                            >
+                              {isExpanded ? "Hide Telecom Assets" : "View Telecom Assets"}
+                            </button>
 
-                          {isExpanded && (
-                            <div className="telecom-assets-dropdown-popover">
-                              <div className="telecom-assets-dropdown-body">
-                                {(() => {
-                                  const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
-                                  
-                                  const activeTelecomAssets = TELECOM_ASSET_CHECKS.filter(cap => !!s[cap.key]);
-                                  const telecomAssetsToShow = activeTelecomAssets.length > 0
-                                    ? activeTelecomAssets
-                                    : Array.from(new Set(stationAssets.map((asset: any) => getTelecomAssetName(asset)))).map(label => ({ key: label, label }));
+                            {isExpanded && (
+                              <div className="telecom-assets-dropdown-popover">
+                                <div className="telecom-assets-dropdown-body">
+                                  {(() => {
+                                    const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
 
-                                  if (telecomAssetsToShow.length === 0) {
+                                    const activeTelecomAssets = TELECOM_ASSET_CHECKS.filter(cap => !!s[cap.key]);
+                                    const telecomAssetsToShow = activeTelecomAssets.length > 0
+                                      ? activeTelecomAssets
+                                      : Array.from(new Set(stationAssets.map((asset: any) => getTelecomAssetName(asset)))).map(label => ({ key: label, label }));
+
+                                    if (telecomAssetsToShow.length === 0) {
+                                      return (
+                                        <div style={{ padding: "16px 20px", border: "1px dashed var(--line)", borderRadius: "10px", textAlign: "center", color: "var(--muted)", background: "#fff" }}>
+                                          No active Telecom Assets ticked or registered for this station.
+                                        </div>
+                                      );
+                                    }
+
+                                    const assetsByCategory = telecomAssetsToShow.reduce((acc: Record<string, any[]>, cap: any) => {
+                                      acc[cap.label] = stationAssets.filter((asset: any) => isTelecomAssetMatch(getTelecomAssetName(asset), cap.label));
+                                      return acc;
+                                    }, {});
+
+                                    const catColor: Record<string, { bg: string; border: string; accent: string }> = {
+                                      "CCTV": { bg: "#eaf2ff", border: "#b3d1ff", accent: "#0b6dff" },
+                                      "IPIS": { bg: "#edf9f0", border: "#a3ddb8", accent: "#0db76b" },
+                                      "OFC": { bg: "#fff7e6", border: "#ffd08a", accent: "#d97300" },
+                                      "WIFI": { bg: "#f3eeff", border: "#c9b3ff", accent: "#7c3aed" },
+                                      "PA SYSTEM": { bg: "#fff0f0", border: "#ffb3b3", accent: "#ef4444" },
+                                      "OTHERS": { bg: "#f0f4ff", border: "#c5cfe8", accent: "#4b5e8b" },
+                                    };
+                                    const getColor = (cat: string) => catColor[cat] || catColor["OTHERS"];
+
                                     return (
-                                      <div style={{ padding: "16px 20px", border: "1px dashed var(--line)", borderRadius: "10px", textAlign: "center", color: "var(--muted)", background: "#fff" }}>
-                                        No active Telecom Assets ticked or registered for this station.
-                                      </div>
-                                    );
-                                  }
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                        {/* Category Cards Row */}
+                                        <div style={{
+                                          display: "grid",
+                                          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                                          gap: 8,
+                                          alignItems: "stretch"
+                                        }}>
+                                          {telecomAssetsToShow.map((cap: any) => {
+                                            const categoryName = cap.label;
+                                            const assets = assetsByCategory[categoryName] || [];
+                                            const key = `${s.code}::${categoryName}`;
+                                            const isOpen = expandedCategoryKey === key;
+                                            const anyOpen = expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`);
+                                            const col = getColor(categoryName);
+                                            if (anyOpen && !isOpen) return null;
+                                            return (
+                                              <button
+                                                key={categoryName}
+                                                onClick={() => setExpandedCategoryKey(isOpen ? null : key)}
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  justifyContent: "space-between",
+                                                  gap: 8,
+                                                  minHeight: 36,
+                                                  width: "100%",
+                                                  padding: "6px 10px",
+                                                  background: isOpen ? col.accent : col.bg,
+                                                  border: isOpen ? `1px solid ${col.accent}` : `1px solid ${col.border}`,
+                                                  borderRadius: 8,
+                                                  cursor: "pointer",
+                                                  transition: "all 0.2s ease",
+                                                  boxShadow: isOpen ? `0 4px 14px ${col.accent}33` : "none",
+                                                }}
+                                              >
+                                                <span style={{
+                                                  fontSize: 12,
+                                                  fontWeight: 800,
+                                                  color: isOpen ? "#fff" : col.accent,
+                                                  textTransform: "uppercase",
+                                                  overflow: "hidden",
+                                                  textOverflow: "ellipsis",
+                                                  whiteSpace: "nowrap",
+                                                  minWidth: 0,
+                                                }}>
+                                                  {categoryName}
+                                                </span>
+                                                {assets.length > 0 && (
+                                                  <span style={{
+                                                    minWidth: 20,
+                                                    height: 18,
+                                                    display: "inline-grid",
+                                                    placeItems: "center",
+                                                    flexShrink: 0,
+                                                    fontSize: 10,
+                                                    fontWeight: 800,
+                                                    background: isOpen ? "rgba(255,255,255,0.24)" : "#fff",
+                                                    color: isOpen ? "#fff" : col.accent,
+                                                    border: isOpen ? "1px solid rgba(255,255,255,0.28)" : `1px solid ${col.border}`,
+                                                    borderRadius: 999,
+                                                    padding: "0 5px",
+                                                  }}>
+                                                    {assets.length}
+                                                  </span>
+                                                )}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
 
-                                  const assetsByCategory = telecomAssetsToShow.reduce((acc: Record<string, any[]>, cap: any) => {
-                                    acc[cap.label] = stationAssets.filter((asset: any) => isTelecomAssetMatch(getTelecomAssetName(asset), cap.label));
-                                    return acc;
-                                  }, {});
-
-                                  const catColor: Record<string, { bg: string; border: string; accent: string }> = {
-                                    "CCTV":     { bg: "#eaf2ff", border: "#b3d1ff", accent: "#0b6dff" },
-                                    "IPIS":     { bg: "#edf9f0", border: "#a3ddb8", accent: "#0db76b" },
-                                    "OFC":      { bg: "#fff7e6", border: "#ffd08a", accent: "#d97300" },
-                                    "WIFI":     { bg: "#f3eeff", border: "#c9b3ff", accent: "#7c3aed" },
-                                    "PA SYSTEM":{ bg: "#fff0f0", border: "#ffb3b3", accent: "#ef4444" },
-                                    "OTHERS":   { bg: "#f0f4ff", border: "#c5cfe8", accent: "#4b5e8b" },
-                                  };
-                                  const getColor = (cat: string) => catColor[cat] || catColor["OTHERS"];
-
-                                  return (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                      {/* Category Cards Row */}
-                                      <div style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-                                        gap: 8,
-                                        alignItems: "stretch"
-                                      }}>
-                                        {telecomAssetsToShow.map((cap: any) => {
-                                          const categoryName = cap.label;
-                                          const assets = assetsByCategory[categoryName] || [];
-                                          const key = `${s.code}::${categoryName}`;
-                                          const isOpen = expandedCategoryKey === key;
-                                          const anyOpen = expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`);
-                                          const col = getColor(categoryName);
-                                          if (anyOpen && !isOpen) return null;
+                                        {/* Expanded Asset Rows */}
+                                        {expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`) && (() => {
+                                          const openCat = expandedCategoryKey.split("::")[1];
+                                          const openAssets: any[] = assetsByCategory[openCat] || [];
+                                          const col = getColor(openCat);
                                           return (
-                                            <button
-                                              key={categoryName}
-                                              onClick={() => setExpandedCategoryKey(isOpen ? null : key)}
-                                              style={{
+                                            <div style={{
+                                              border: `1.5px solid ${col.border}`,
+                                              borderRadius: 10,
+                                              overflow: "hidden",
+                                              background: "#fff",
+                                              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                            }}>
+                                              <div style={{
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "space-between",
-                                                gap: 8,
-                                                minHeight: 36,
-                                                width: "100%",
-                                                padding: "6px 10px",
-                                                background: isOpen ? col.accent : col.bg,
-                                                border: isOpen ? `1px solid ${col.accent}` : `1px solid ${col.border}`,
-                                                borderRadius: 8,
-                                                cursor: "pointer",
-                                                transition: "all 0.2s ease",
-                                                boxShadow: isOpen ? `0 4px 14px ${col.accent}33` : "none",
-                                              }}
-                                            >
-                                              <span style={{
-                                                fontSize: 12,
-                                                fontWeight: 800,
-                                                color: isOpen ? "#fff" : col.accent,
-                                                textTransform: "uppercase",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                                minWidth: 0,
+                                                padding: "8px 12px",
+                                                background: col.bg,
+                                                borderBottom: `1.5px solid ${col.border}`,
                                               }}>
-                                                {categoryName}
-                                              </span>
-                                              {assets.length > 0 && (
-                                                <span style={{
-                                                  minWidth: 20,
-                                                  height: 18,
-                                                  display: "inline-grid",
-                                                  placeItems: "center",
-                                                  flexShrink: 0,
-                                                  fontSize: 10,
-                                                  fontWeight: 800,
-                                                  background: isOpen ? "rgba(255,255,255,0.24)" : "#fff",
-                                                  color: isOpen ? "#fff" : col.accent,
-                                                  border: isOpen ? "1px solid rgba(255,255,255,0.28)" : `1px solid ${col.border}`,
-                                                  borderRadius: 999,
-                                                  padding: "0 5px",
-                                                }}>
-                                                  {assets.length}
+                                                <span style={{ fontSize: 12, fontWeight: 800, color: col.accent, textTransform: "uppercase" }}>
+                                                  {openCat} Details
                                                 </span>
-                                              )}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
+                                                <button
+                                                  onClick={() => setExpandedCategoryKey(null)}
+                                                  style={{ background: "none", border: "none", cursor: "pointer", color: col.accent, fontSize: 16, lineHeight: 1 }}
+                                                >✕</button>
+                                              </div>
 
-                                      {/* Expanded Asset Rows */}
-                                      {expandedCategoryKey && expandedCategoryKey.startsWith(`${s.code}::`) && (() => {
-                                        const openCat = expandedCategoryKey.split("::")[1];
-                                        const openAssets: any[] = assetsByCategory[openCat] || [];
-                                        const col = getColor(openCat);
-                                        return (
-                                          <div style={{
-                                            border: `1.5px solid ${col.border}`,
-                                            borderRadius: 10,
-                                            overflow: "hidden",
-                                            background: "#fff",
-                                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                                          }}>
-                                            <div style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              justifyContent: "space-between",
-                                              padding: "8px 12px",
-                                              background: col.bg,
-                                              borderBottom: `1.5px solid ${col.border}`,
-                                            }}>
-                                              <span style={{ fontSize: 12, fontWeight: 800, color: col.accent, textTransform: "uppercase" }}>
-                                                {openCat} Details
-                                              </span>
-                                              <button
-                                                onClick={() => setExpandedCategoryKey(null)}
-                                                style={{ background: "none", border: "none", cursor: "pointer", color: col.accent, fontSize: 16, lineHeight: 1 }}
-                                              >✕</button>
-                                            </div>
-
-                                            <div style={{ display: "grid", gap: 0, maxHeight: 180, overflowY: "auto" }}>
-                                              {openAssets.length === 0 && (
-                                                <div style={{ padding: "10px 12px", color: "var(--muted)", fontSize: 12 }}>
-                                                  No details registered.
-                                                </div>
-                                              )}
-                                              {openAssets.map((asset: any, idx: number) => (
-                                                <div
-                                                  key={asset.id}
-                                                  style={{
-                                                    display: "flex",
-                                                    justifyContent: "space-between",
-                                                    alignItems: "center",
-                                                    padding: "8px 12px",
-                                                    borderBottom: idx < openAssets.length - 1 ? `1px solid ${col.border}33` : "none",
-                                                    background: "#fff",
-                                                    cursor: "pointer",
-                                                  }}
-                                                  onClick={() => openPanel("Asset Details", asset.id)}
-                                                >
-                                                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                                                    <span style={{ fontSize: 11, fontWeight: 800, color: col.accent }}>{idx + 1}.</span>
-                                                    <div style={{ minWidth: 0 }}>
-                                                      <strong style={{ display: "block", fontSize: 12.5, color: "var(--navy)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                        {asset.assetMode === ASSET_MODE_HAS_EQUIPMENT ? asset.equipmentName : openCat}
-                                                      </strong>
-                                                      <small style={{ display: "block", color: "var(--muted)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                        {asset.make || "-"} / {asset.model || "-"}
-                                                      </small>
+                                              <div style={{ display: "grid", gap: 0, maxHeight: 180, overflowY: "auto" }}>
+                                                {openAssets.length === 0 && (
+                                                  <div style={{ padding: "10px 12px", color: "var(--muted)", fontSize: 12 }}>
+                                                    No details registered.
+                                                  </div>
+                                                )}
+                                                {openAssets.map((asset: any, idx: number) => (
+                                                  <div
+                                                    key={asset.id}
+                                                    style={{
+                                                      display: "flex",
+                                                      justifyContent: "space-between",
+                                                      alignItems: "center",
+                                                      padding: "8px 12px",
+                                                      borderBottom: idx < openAssets.length - 1 ? `1px solid ${col.border}33` : "none",
+                                                      background: "#fff",
+                                                      cursor: "pointer",
+                                                    }}
+                                                    onClick={() => openPanel("Asset Details", asset.id)}
+                                                  >
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                                      <span style={{ fontSize: 11, fontWeight: 800, color: col.accent }}>{idx + 1}.</span>
+                                                      <div style={{ minWidth: 0 }}>
+                                                        <strong style={{ display: "block", fontSize: 12.5, color: "var(--navy)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                          {asset.assetMode === ASSET_MODE_HAS_EQUIPMENT ? asset.equipmentName : openCat}
+                                                        </strong>
+                                                        <small style={{ display: "block", color: "var(--muted)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                          {asset.make || "-"} / {asset.model || "-"}
+                                                        </small>
+                                                      </div>
+                                                    </div>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                                      <span
+                                                        className={`pill ${asset.status.toLowerCase()}`}
+                                                        style={{ fontSize: 9.5, padding: "1px 5px", fontWeight: 700 }}
+                                                      >
+                                                        {asset.status}
+                                                      </span>
                                                     </div>
                                                   </div>
-                                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                                                    <span
-                                                      className={`pill ${asset.status.toLowerCase()}`}
-                                                      style={{ fontSize: 9.5, padding: "1px 5px", fontWeight: 700 }}
-                                                    >
-                                                      {asset.status}
-                                                    </span>
-                                                  </div>
-                                                </div>
-                                              ))}
+                                                ))}
+                                              </div>
                                             </div>
-                                          </div>
-                                        );
-                                      })()}
-                                    </div>
-                                  );
-                                })()}
+                                          );
+                                        })()}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <button 
-                            className="action-btn text-blue" 
-                            onClick={() => openPanel("Station Details", s.id)}
-                            style={{ marginRight: 8 }}
-                          >
-                            View
-                          </button>
-                          {canEditStations && (
-                            <>
-                              <button 
-                                className="action-btn text-blue" 
-                                onClick={() => openPanel("Edit Station", s.id)}
-                                style={{ marginRight: 8 }}
-                              >
-                                Edit
-                              </button>
-                              <button className="action-btn text-red" onClick={() => deleteStation.mutate(s.code)}>Delete</button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {renderPagination(list.length)}
-        </>
-      );
-    }
+                            )}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <button
+                              className="action-btn text-blue"
+                              onClick={() => openPanel("Station Details", s.id)}
+                              style={{ marginRight: 8 }}
+                            >
+                              View
+                            </button>
+                            {canEditStations && (
+                              <>
+                                <button
+                                  className="action-btn text-blue"
+                                  onClick={() => openPanel("Edit Station", s.id)}
+                                  style={{ marginRight: 8 }}
+                                >
+                                  Edit
+                                </button>
+                                <button className="action-btn text-red" onClick={() => deleteStation.mutate(s.code)}>Delete</button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {renderPagination(list.length)}
+          </>
+        );
+      }
       case "Assets": {
         const rawList = queries.assetsQuery.data?.data || [];
         const stations = queries.stationsQuery.data?.data || [];
         const list = rawList.filter((a: any) => {
           const telecomAssetName = getTelecomAssetName(a);
-          const matchesSearch = 
+          const matchesSearch =
             (a.rdsoSpec && a.rdsoSpec.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (telecomAssetName && telecomAssetName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (a.stationCode && a.stationCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -2993,7 +3608,7 @@ function ModuleView({
             (a.model && a.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (a.installLocation && a.installLocation.toLowerCase().includes(searchTerm.toLowerCase()));
           const matchesStatus = !assetStatusFilter || a.status === assetStatusFilter;
-          
+
           const linkedStation = stations.find((s: any) => s.code === a.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
@@ -3052,13 +3667,13 @@ function ModuleView({
         const rawList = queries.gatesQuery.data?.data || [];
         const stations = queries.stationsQuery.data?.data || [];
         const list = rawList.filter((g: any) => {
-          const matchesSearch = 
+          const matchesSearch =
             (g.gateNumber && g.gateNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (g.name && g.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (g.category && g.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (g.section && g.section.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (g.stationCode && g.stationCode.toLowerCase().includes(searchTerm.toLowerCase()));
-          
+
           const linkedStation = stations.find((s: any) => s.code === g.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
@@ -3151,8 +3766,8 @@ function ModuleView({
                       <tr key={u.id}>
                         <td>{(currentPage - 1) * 50 + idx + 1}</td>
                         <td>
-                          <strong 
-                            onClick={() => openPanel("User Details", u.id)} 
+                          <strong
+                            onClick={() => openPanel("User Details", u.id)}
                             style={{ cursor: "pointer", color: "var(--blue)" }}
                             className="clickable-link"
                           >
@@ -3183,7 +3798,7 @@ function ModuleView({
       }
       case "Audit Logs": {
         const rawList = queries.logsQuery.data?.data || [];
-        const list = rawList.filter((l: any) => 
+        const list = rawList.filter((l: any) =>
           (l.action && l.action.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (l.details && l.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (l.user?.name && l.user.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -3222,7 +3837,7 @@ function ModuleView({
 
       case "Reports & Analytics": {
         const rawList = queries.stationsQuery.data?.data || [];
-        const stats = rawList.filter((s: any) => 
+        const stats = rawList.filter((s: any) =>
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.code.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -3326,7 +3941,7 @@ function ModuleView({
       <div className="tabular-header">
         <div className="header-title-section">
           <h2>{activeNav}</h2>
-          <p>{activeNav === "Dashboard" ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
+          <p>{["Asset Dashboard", "DP Dashboard"].includes(activeNav) ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
         </div>
         <div className="header-controls-section">
           <div className="action-buttons-group">
@@ -3352,14 +3967,14 @@ function ModuleView({
             )}
           </div>
           <div className="search-filter-row">
-            <input 
-              placeholder="Filter records..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
+            <input
+              placeholder="Filter records..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-            
-            <button 
-              type="button" 
+
+            <button
+              type="button"
               className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
               onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
             >
@@ -3371,7 +3986,7 @@ function ModuleView({
             {filterPopoverOpen && (
               <div className="filter-popover">
                 <h4 className="filter-popover-title">Filter Records</h4>
-                
+
                 {/* Division Filter */}
                 <div className="filter-group">
                   <label>Division</label>
@@ -3409,8 +4024,8 @@ function ModuleView({
                 {activeNav === "Assets" && (
                   <div className="filter-group">
                     <label>Status</label>
-                    <select 
-                      value={assetStatusFilter} 
+                    <select
+                      value={assetStatusFilter}
                       onChange={(e) => setAssetStatusFilter(e.target.value)}
                     >
                       <option value="">All Statuses</option>
@@ -3423,8 +4038,8 @@ function ModuleView({
                 )}
 
                 <div className="filter-popover-footer">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="filter-reset-btn"
                     onClick={() => {
                       setFilterDivision("");
@@ -3436,8 +4051,8 @@ function ModuleView({
                   >
                     Reset
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="filter-apply-btn"
                     onClick={() => setFilterPopoverOpen(false)}
                   >
@@ -3476,7 +4091,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
   };
 
   return (
-    <div 
+    <div
       className="modal-backdrop"
       style={{
         position: "fixed",
@@ -3490,7 +4105,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
       }}
       onClick={close}
     >
-      <div 
+      <div
         className="modal-card"
         style={{
           width: "min(680px, calc(100vw - 32px))",
@@ -3516,7 +4131,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
               {asset.rdsoSpec || getTelecomAssetName(asset)}
             </h3>
           </div>
-          <button 
+          <button
             onClick={close}
             style={{
               background: "rgba(255,255,255,0.1)",
@@ -3613,7 +4228,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
                 {asset.installLocation || "No installation coordinates/location specified."}
               </p>
             </div>
-            
+
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
@@ -3671,7 +4286,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
 
         {/* Modal Footer */}
         <div className="modal-footer">
-          <button 
+          <button
             onClick={close}
             className="export-button"
             style={{
@@ -3714,7 +4329,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
   if (!userObj) return null;
 
   return (
-    <div 
+    <div
       className="modal-backdrop"
       style={{
         position: "fixed",
@@ -3728,7 +4343,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
       }}
       onClick={close}
     >
-      <div 
+      <div
         className="modal-card"
         style={{
           width: "min(520px, calc(100vw - 32px))",
@@ -3754,7 +4369,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
               {userObj.name}
             </h3>
           </div>
-          <button 
+          <button
             onClick={close}
             style={{
               background: "rgba(255,255,255,0.1)",
@@ -3832,7 +4447,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
 
         {/* Modal Footer */}
         <div className="modal-footer">
-          <button 
+          <button
             onClick={close}
             className="export-button"
             style={{
@@ -3903,7 +4518,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
   ];
 
   return (
-    <div 
+    <div
       className="modal-backdrop"
       style={{
         position: "fixed",
@@ -3917,7 +4532,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
       }}
       onClick={close}
     >
-      <div 
+      <div
         className="modal-card"
         style={{
           width: "min(720px, calc(100vw - 32px))",
@@ -3943,7 +4558,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
               {station.name} ({station.code})
             </h3>
           </div>
-          <button 
+          <button
             onClick={close}
             style={{
               background: "rgba(255,255,255,0.1)",
@@ -4043,14 +4658,14 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
               {capList.map((cap) => {
                 const isEnabled = !!station[cap.key];
                 return (
-                  <div 
-                    key={cap.key} 
-                    style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: 10, 
-                      padding: "10px 14px", 
-                      borderRadius: 8, 
+                  <div
+                    key={cap.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 14px",
+                      borderRadius: 8,
                       background: isEnabled ? "var(--green-soft)" : "#f8fafc",
                       border: isEnabled ? "1px solid rgba(13, 183, 107, 0.25)" : "1px solid var(--line)",
                       opacity: isEnabled ? 1 : 0.65
@@ -4069,10 +4684,10 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
                     }}>
                       {isEnabled ? "✓" : "✕"}
                     </div>
-                    <span style={{ 
-                      fontSize: 13.5, 
-                      fontWeight: isEnabled ? 700 : 550, 
-                      color: isEnabled ? "var(--navy)" : "var(--muted)" 
+                    <span style={{
+                      fontSize: 13.5,
+                      fontWeight: isEnabled ? 700 : 550,
+                      color: isEnabled ? "var(--navy)" : "var(--muted)"
                     }}>
                       {cap.label}
                     </span>
@@ -4085,7 +4700,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
 
         {/* Modal Footer */}
         <div className="modal-footer">
-          <button 
+          <button
             onClick={close}
             className="export-button"
             style={{
@@ -4183,8 +4798,25 @@ function ActionPanel({
 
   const changeUserRole = useMutation({
     mutationFn: ({ id, body }: { id: string; body: any }) => api.auth.updateRole(id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users-list"] });
+    onSuccess: async (response: any) => {
+      // Immediately patch the cache with the fresh values returned by the server.
+      // This makes the drawer read the correct state if it is re-opened before
+      // the background refetch completes.
+      const updatedUser = response?.data;
+      if (updatedUser) {
+        queryClient.setQueryData(["users-list"], (old: any) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((u: any) =>
+              u.id === updatedUser.id ? { ...u, ...updatedUser } : u
+            ),
+          };
+        });
+      }
+      // Force a full refetch so the cache is fresh from the DB.
+      // We do NOT await it — close immediately, the cache is already patched above.
+      queryClient.refetchQueries({ queryKey: ["users-list"] });
       showToast("User details updated.");
       close();
     },
@@ -4343,6 +4975,10 @@ function ActionPanel({
   // Role edit states
   const [newRole, setNewRole] = useState("SSE");
   const [newDesignation, setNewDesignation] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editAccessAssets, setEditAccessAssets] = useState(true);
+  const [editAccessDailyPosition, setEditAccessDailyPosition] = useState(true);
 
   // Add User states
   const [addUsername, setAddUsername] = useState("");
@@ -4351,6 +4987,8 @@ function ActionPanel({
   const [addRole, setAddRole] = useState<UserRole>("SSE");
   const [addDesignation, setAddDesignation] = useState("");
   const [addDivision, setAddDivision] = useState("Raipur");
+  const [addAccessAssets, setAddAccessAssets] = useState(true);
+  const [addAccessDailyPosition, setAddAccessDailyPosition] = useState(true);
 
   // Station Details — selected capability key (for inline asset card or "not registered" notice)
   const [selectedCapKey, setSelectedCapKey] = useState<string | null>(null);
@@ -4372,6 +5010,8 @@ function ActionPanel({
       setAddRole("SSE");
       setAddDesignation("");
       setAddDivision(useAppStore.getState().user?.division || "Raipur");
+      setAddAccessAssets(true);
+      setAddAccessDailyPosition(true);
     }
 
     if (title === "Add Station" || title === "Create Station") {
@@ -4438,6 +5078,10 @@ function ActionPanel({
           setNewRole(userObj.role);
           setNewDesignation(userObj.designation || "");
           setStationDivision(userObj.division || "Raipur");
+          setEditName(userObj.name || "");
+          setEditPassword("");
+          setEditAccessAssets(userObj.accessAssets !== false);
+          setEditAccessDailyPosition(userObj.accessDailyPosition !== false);
         }
       } else if (title === "Edit Station") {
         const s = queries.stationsQuery.data?.data.find((station: any) => station.id === itemId);
@@ -4447,7 +5091,7 @@ function ActionPanel({
           setStationDivision(s.division || "Raipur");
           setStationCategory(s.category || "NSG-2");
           setStationState(s.state || "Chhattisgarh");
-          
+
           const checks: Record<string, boolean> = {};
           const defaultChecksKeys = [
             "hasIpis", "hasPaSystem", "hasCctv", "hasUts", "hasPrs",
@@ -4488,7 +5132,7 @@ function ActionPanel({
           setAssetRemarks(a.remarks || "");
           setAssetSpecs(a.specifications ? (typeof a.specifications === "string" ? a.specifications : JSON.stringify(a.specifications, null, 2)) : "{}");
           setAssetStatus(a.status || "OPERATIONAL");
-          
+
           let parsedFields: { key: string; val: string }[] = [];
           if (a.specifications) {
             try {
@@ -4502,7 +5146,7 @@ function ActionPanel({
             }
           }
           setAssetSpecFields(parsedFields);
-          
+
           // Populate the asset's linked station if valid
           if (a.stationCode) {
             setAssetStation(a.stationCode);
@@ -4521,7 +5165,8 @@ function ActionPanel({
         }
       }
     }
-  }, [itemId, title, queries]);
+  }, [itemId, title]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -4593,14 +5238,20 @@ function ActionPanel({
 
     } else if (title === "Change User Role" || title === "Manage User") {
       const isSuper = newRole === "SUPER_ADMIN";
-      const isDivAdmin = newRole === "DIVISIONAL_ADMIN";
+      const updatePayload: any = {
+        role: newRole,
+        designation: newDesignation || null,
+        division: isSuper ? null : stationDivision,
+        name: editName,
+        accessAssets: editAccessAssets,
+        accessDailyPosition: editAccessDailyPosition
+      };
+      if (editPassword) {
+        updatePayload.password = editPassword;
+      }
       changeUserRole.mutate({
         id: itemId!,
-        body: { 
-          role: newRole, 
-          designation: (isSuper || isDivAdmin) ? null : newDesignation, 
-          division: isSuper ? null : stationDivision 
-        }
+        body: updatePayload
       });
     } else if (title === "Add User") {
       const currentRole = useAppStore.getState().role;
@@ -4613,7 +5264,9 @@ function ActionPanel({
         name: addName,
         role: addRole,
         designation: (isSuper || isDivAdmin) ? undefined : addDesignation,
-        division: isSuper ? undefined : (currentRole === "SUPER_ADMIN" ? addDivision : userDiv)
+        division: isSuper ? undefined : (currentRole === "SUPER_ADMIN" ? addDivision : userDiv),
+        accessAssets: addAccessAssets,
+        accessDailyPosition: addAccessDailyPosition
       });
     } else if (title.startsWith("Edit Station")) {
       const activeKeys = Object.keys(stationChecks).filter(k => stationChecks[k]);
@@ -4695,7 +5348,7 @@ function ActionPanel({
     if (title === "Add User") {
       const currentRole = useAppStore.getState().role;
       const userDiv = useAppStore.getState().user?.division || "Raipur";
-      
+
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
           <label>
@@ -4754,6 +5407,19 @@ function ActionPanel({
               </label>
             )
           )}
+          <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>Module Access Privileges</span>
+            <div style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
+                <input type="checkbox" checked={addAccessAssets} onChange={e => setAddAccessAssets(e.target.checked)} />
+                Access Assets Module
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
+                <input type="checkbox" checked={addAccessDailyPosition} onChange={e => setAddAccessDailyPosition(e.target.checked)} />
+                Access Daily Position Module
+              </label>
+            </div>
+          </div>
           <button type="submit" className="export-button">Add User</button>
         </form>
       );
@@ -5452,11 +6118,25 @@ function ActionPanel({
         <form onSubmit={handleSubmit} className="form-drawer">
           <label>
             User Full Name
-            <input readOnly value={userObj.name} />
+            <input
+              placeholder="e.g. Super Admin User"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              required
+            />
           </label>
           <label>
-            Username
+            Username (Read-Only)
             <input readOnly value={userObj.username} />
+          </label>
+          <label>
+            New Password
+            <input
+              type="password"
+              placeholder="Leave blank to keep current password"
+              value={editPassword}
+              onChange={e => setEditPassword(e.target.value)}
+            />
           </label>
           <label>
             System Role
@@ -5478,12 +6158,10 @@ function ActionPanel({
               )}
             </select>
           </label>
-          {newRole !== "SUPER_ADMIN" && newRole !== "DIVISIONAL_ADMIN" && (
-            <label>
-              Designation
-              <input placeholder="e.g. Sr. DSTE/Raipur" value={newDesignation} onChange={e => setNewDesignation(e.target.value)} />
-            </label>
-          )}
+          <label>
+            Designation
+            <input placeholder="e.g. Sr. DSTE/Raipur" value={newDesignation} onChange={e => setNewDesignation(e.target.value)} />
+          </label>
           {currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && (
             <label>
               Division
@@ -5495,6 +6173,19 @@ function ActionPanel({
               </select>
             </label>
           )}
+          <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>Module Access Privileges</span>
+            <div style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
+                <input type="checkbox" checked={editAccessAssets} onChange={e => setEditAccessAssets(e.target.checked)} />
+                Access Assets Module
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
+                <input type="checkbox" checked={editAccessDailyPosition} onChange={e => setEditAccessDailyPosition(e.target.checked)} />
+                Access Daily Position Module
+              </label>
+            </div>
+          </div>
           <button type="submit" className="export-button">Save Changes</button>
         </form>
       );
@@ -5722,7 +6413,7 @@ function ActionPanel({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
                 {enabledCaps.map(cap => {
                   const isSelected = selectedCapKey === cap.key;
-                  
+
                   const asset = (queries.assetsQuery.data?.data || []).find(
                     (a: any) => a.stationCode === station.code &&
                       isTelecomAssetMatch(getTelecomAssetName(a), cap.label)
@@ -5983,7 +6674,7 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         });
         showToast("Registration successful! Logging in.");
       }
-      
+
       const loginRes = await api.auth.login({ username, password });
       setToken(loginRes.token);
       setUser(loginRes.data);
@@ -6002,82 +6693,118 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           display: grid;
           place-items: center;
           min-height: 100vh;
-          background: radial-gradient(circle at 10% 20%, #e8f0fe 0%, #cce0ff 90%);
+          background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
           padding: 20px;
         }
         .auth-box {
           width: 100%;
-          max-width: 440px;
-          background: rgba(255, 255, 255, 0.75);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.5);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-          border-radius: 12px;
-          padding: 30px;
+          max-width: 400px;
+          background: rgba(255, 255, 255, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 40px rgba(11, 109, 255, 0.1);
+          border-radius: 16px;
+          padding: 40px 32px;
           text-align: center;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .auth-box:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.35), 0 0 50px rgba(11, 109, 255, 0.15);
         }
         .auth-logo {
-          margin: 0 auto 16px;
+          width: 54px;
+          height: 54px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 850;
+          font-size: 19px;
+          margin: 0 auto 20px;
+          box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
+          border: 2px solid #fff;
+          transition: transform 0.5s ease;
+        }
+        .auth-box:hover .auth-logo {
+          transform: rotate(360deg);
         }
         .auth-box h2 {
           margin: 0;
-          font-size: 22px;
-          font-weight: 850;
+          font-size: 24px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.5px;
         }
         .auth-box p {
-          color: var(--muted);
-          margin: 4px 0 20px;
+          color: #64748b;
+          margin: 6px 0 24px;
           font-size: 14px;
+          font-weight: 500;
         }
         .auth-box form {
           display: grid;
-          gap: 14px;
+          gap: 16px;
           text-align: left;
         }
         .auth-box label {
           display: grid;
-          gap: 4px;
-          font-weight: 700;
+          gap: 6px;
+          font-weight: 650;
           font-size: 13px;
+          color: #334155;
         }
         .auth-box input, .auth-box select {
           width: 100%;
-          height: 42px;
-          padding: 0 12px;
-          border: 1px solid var(--line);
-          border-radius: 6px;
-          background: rgba(255, 255, 255, 0.8);
+          height: 44px;
+          padding: 0 14px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 8px;
+          background: #ffffff;
           outline: 0;
+          font-size: 14.5px;
+          color: #0f172a;
+          transition: all 0.2s ease;
+        }
+        .auth-box input:hover {
+          border-color: #94a3b8;
+        }
+        .auth-box input:focus {
+          border-color: var(--blue);
+          box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.15);
         }
         .auth-box button[type="submit"] {
-          height: 44px;
-          background: var(--blue);
+          height: 46px;
+          background: linear-gradient(135deg, #0b6dff 0%, #0052cc 100%);
           color: #fff;
           border: 0;
-          border-radius: 6px;
+          border-radius: 8px;
           font-weight: 700;
-          margin-top: 8px;
-          box-shadow: 0 4px 12px rgba(11, 109, 255, 0.2);
+          font-size: 15px;
+          margin-top: 10px;
+          cursor: pointer;
+          box-shadow: 0 4px 14px rgba(11, 109, 255, 0.35);
+          transition: all 0.2s ease;
         }
-        .auth-toggle {
-          margin-top: 18px;
+        .auth-box button[type="submit"]:hover {
+          background: linear-gradient(135deg, #257eff 0%, #0b6dff 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(11, 109, 255, 0.45);
         }
-        .auth-toggle button {
-          background: transparent;
-          border: 0;
-          color: var(--blue);
-          font-weight: 750;
-          font-size: 13px;
+        .auth-box button[type="submit"]:active {
+          transform: translateY(0);
         }
         .auth-error {
-          background: #ffebe9;
-          border: 1px solid rgba(255, 51, 40, 0.2);
-          color: var(--red);
-          padding: 10px;
-          border-radius: 6px;
+          background: #fef2f2;
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: #dc2626;
+          padding: 12px;
+          border-radius: 8px;
           font-size: 13px;
-          margin-bottom: 16px;
+          margin-bottom: 18px;
           text-align: left;
+          font-weight: 500;
         }
         .sidebar-footer {
           margin-top: auto;
@@ -6184,6 +6911,14 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           outline: 0;
           font-size: 14px;
         }
+        .form-drawer input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          accent-color: var(--blue);
+        }
         .multi-dropdown {
           position: relative;
         }
@@ -6275,11 +7010,11 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
       `}</style>
       <div className="auth-box">
         <div className="railway-mark auth-logo">IR</div>
-        <h2>SECR Telecom Admin</h2>
+        <h2>Login to Access</h2>
         <p>{isRegister ? "Register New Account" : "Sign In to Management Portal"}</p>
-        
+
         {errorMsg && <div className="auth-error">{errorMsg}</div>}
-        
+
         <form onSubmit={handleAuth}>
           {isRegister && (
             <>
@@ -6315,22 +7050,18 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           )}
           <label>
             Username
-            <input required value={username} onChange={e => setUsername(e.target.value)} placeholder="admin" />
+            <input required value={username} onChange={e => setUsername(e.target.value)} placeholder="username" />
           </label>
           <label>
             Password
-            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" />
           </label>
           <button type="submit" disabled={loading}>
             {loading ? "Please wait..." : isRegister ? "Register & Login" : "Sign In"}
           </button>
         </form>
-        
-        <div className="auth-toggle">
-          <button onClick={() => { setIsRegister(!isRegister); setErrorMsg(""); }} type="button">
-            {isRegister ? "Already have an account? Sign In" : "Need to register? Sign Up"}
-          </button>
-        </div>
+
+        {/* Registration is disabled */}
       </div>
     </div>
   );

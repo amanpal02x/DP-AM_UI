@@ -887,8 +887,6 @@ const RealTimeClock = () => {
 export default function DailyPositionView({ role, division, user, mode, showToast }: DailyPositionViewProps) {
   const queryClient = useQueryClient();
   const canFill = role === "TESTROOM";
-  const viewMode = mode || (canFill ? "form" : "history");
-  const canChooseDivision = role === "SUPER_ADMIN";
   const {
     dpSelectedCategory: selectedCategory,
     dpSelectedFormName: selectedFormName,
@@ -897,8 +895,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpSelectedCategory: setSelectedCategory,
     setDpSelectedFormName: setSelectedFormName,
     setDpOpenCategory: setOpenCategory,
-    setDpCircuitSearch: setCircuitSearch
+    setDpCircuitSearch: setSearchTerm,
+    dpHistoryFilter,
+    setDpHistoryFilter
   } = useAppStore();
+
+  const [localViewMode, setLocalViewMode] = useState<"form" | "history" | null>(null);
+  const viewMode = localViewMode || mode || (canFill ? "form" : "history");
+  const canChooseDivision = role === "SUPER_ADMIN";
 
   const [selectedDivision, setSelectedDivision] = useState(role === "SUPER_ADMIN" ? "" : (division || ""));
   const [selectedDate, setSelectedDate] = useState(toDateValue());
@@ -971,12 +975,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   });
 
   const recordsQuery = useQuery({
-    queryKey: ["daily-position-records", selectedDivision, selectedDate],
-    queryFn: () => api.dailyPosition.list({
-      division: selectedDivision || "",
-      date: selectedDate,
-      limit: "500",
-    }),
+    queryKey: ["daily-position-records", selectedDivision, selectedDate, dpHistoryFilter],
+    queryFn: () => {
+      const params: any = {
+        division: selectedDivision || "",
+        limit: "500",
+      };
+      if (dpHistoryFilter === "active-faults") {
+        params.isFaulty = "true";
+      } else if (dpHistoryFilter === "resolved-faults") {
+        params.isResolved = "true";
+      } else {
+        params.date = selectedDate;
+      }
+      return api.dailyPosition.list(params);
+    },
   });
 
   const createRecord = useMutation({
@@ -984,8 +997,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       setValues({ failureTime: toLocalDateTimeValue() });
       setEditingRecordId(null);
+      if (mode === "history") {
+        setLocalViewMode("history");
+      }
       showToast("Daily Position record saved.");
       if (shouldNavigateToNext) {
         setShouldNavigateToNext(false);
@@ -1000,8 +1017,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       setValues({ failureTime: toLocalDateTimeValue() });
       setEditingRecordId(null);
+      if (mode === "history") {
+        setLocalViewMode("history");
+      }
       showToast("Daily Position record updated.");
       if (shouldNavigateToNext) {
         setShouldNavigateToNext(false);
@@ -1194,6 +1215,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       remarks: record.remarks || record.formData?.remarks || "",
     });
     setEditingRecordId(record.id);
+    if (mode === "history") {
+      setLocalViewMode("form");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
+    if (mode === "history") {
+      setLocalViewMode("history");
+    }
   };
 
   const resetForm = () => {
@@ -1214,13 +1245,44 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     <section className="dp-history-panel">
       <div className="dp-history-toolbar">
         <div>
-          <h3>{canFill ? "My Daily Position History" : "Daily Position History"}</h3>
-          <p>Records for selected date. Details contains every submitted form field.</p>
+          <h3>{canFill ? "My DP Logs" : "DP Logs"}</h3>
+          <p>
+            {dpHistoryFilter === "active-faults"
+              ? "All active/pending faults from history that are not closed."
+              : dpHistoryFilter === "resolved-faults"
+              ? "All resolved faults from history that have been rectified."
+              : "Records for selected date. Details contains every submitted form field."}
+          </p>
         </div>
-        <label>
-          Position Date
-          <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
-        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <label style={{ margin: 0, fontWeight: 500, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}>
+            Filter Type:
+            <select
+              value={dpHistoryFilter}
+              onChange={event => setDpHistoryFilter(event.target.value as any)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid #d1d5db",
+                backgroundColor: "#fff",
+                fontSize: "13.5px",
+                fontWeight: 500,
+                outline: "none",
+                cursor: "pointer"
+              }}
+            >
+              <option value="date">Filter by Date</option>
+              <option value="active-faults">Active/Pending Faults Only</option>
+              <option value="resolved-faults">Resolved Faults Only</option>
+            </select>
+          </label>
+          {dpHistoryFilter === "date" && (
+            <label style={{ margin: 0 }}>
+              Position Date
+              <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
+            </label>
+          )}
+        </div>
       </div>
       <div className="table-scroll-container">
         <table className="data-table dp-history-table">
@@ -1239,7 +1301,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           </thead>
           <tbody>
             {records.map((record: any) => {
-              const canEdit = canFill && isTodayRecord(record) && (!user?.id || record.createdById === user.id);
+              const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL";
+              const canEdit = canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id);
               return (
                 <tr key={record.id}>
                   <td>{record.division}</td>
@@ -1247,8 +1310,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <td><strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong></td>
                   <td>{record.stationCode || record.stationName || record.section || "-"}</td>
                   <td><span className={`pill status-${String(record.status || "").toLowerCase()}`}>{record.status}</span></td>
-                  <td>{record.failureTime ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
-                  <td>{record.rectificationTime ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                  <td>{record.failureTime ? (isTodayRecord(record) ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.failureTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
+                  <td>{record.rectificationTime ? (isTodayRecord(record) ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.rectificationTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
                   <td>{record.remarks || record.reason || "-"}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
@@ -1265,7 +1328,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             })}
             {records.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No Daily Position records for this date.</td>
+                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
+                  {dpHistoryFilter === "active-faults" ? "No active/pending faults found." : "No Daily Position records for this date."}
+                </td>
               </tr>
             )}
           </tbody>
@@ -1424,6 +1489,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               </div>
 
               <div className="dp-form-actions">
+                {editingRecordId && (
+                  <button
+                    className="export-button"
+                    type="button"
+                    style={{ background: "transparent", color: "var(--muted)", borderColor: "var(--line)", marginRight: "auto" }}
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                )}
                 {!editingRecordId && (
                   <button className="export-button ok-button" type="button" onClick={handleOk} disabled={createRecord.isPending}>
                     <CheckCircle2 size={16} />
@@ -1439,15 +1514,17 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <Send size={16} />
                   {editingRecordId ? "Update Daily Position" : "Save"}
                 </button>
-                <button 
-                  className="export-button" 
-                  type="submit" 
-                  onClick={() => setShouldNavigateToNext(true)} 
-                  disabled={createRecord.isPending || updateRecord.isPending}
-                >
-                  <Send size={16} />
-                  {editingRecordId ? "Update & Next" : "Save & Next"}
-                </button>
+                {!editingRecordId && (
+                  <button 
+                    className="export-button" 
+                    type="submit" 
+                    onClick={() => setShouldNavigateToNext(true)} 
+                    disabled={createRecord.isPending || updateRecord.isPending}
+                  >
+                    <Send size={16} />
+                    Save & Next
+                  </button>
+                )}
               </div>
             </form>
           </main>
