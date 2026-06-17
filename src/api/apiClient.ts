@@ -157,6 +157,10 @@ export const api = {
       return request<ApiResponse<any>>("GET", `/api/reports/dashboard${q}`);
     },
   },
+  feedback: {
+    create: (body: any) => request<ApiResponse<any>>("POST", "/api/feedback", body),
+    list: () => request<ApiResponse<any[]>>("GET", "/api/feedback"),
+  },
   settings: {
     auditLogs: () => request<ApiResponse<any[]>>("GET", "/api/reports/audit-logs"),
   },

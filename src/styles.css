@@ -3733,6 +3733,7 @@ path:focus {
 .wide-list-container,
 .daily-position-page,
 .sections-page,
+.feedback-page,
 .dashboard-scroll-wrap {
   width: 100% !important;
   max-width: 100% !important;
@@ -3796,7 +3797,7 @@ path:focus {
   align-items: center !important;
   position: relative !important;
   margin-top: 0px !important;
-  margin-bottom: 16px !important;
+  margin-bottom: 0px !important;
   padding: 16px 24px !important;
   gap: 16px !important;
 }
@@ -3826,5 +3827,14 @@ path:focus {
     justify-content: center !important;
     margin-top: 8px !important;
   }
+}
+
+/* Category-wise Fault Distribution Panel hover styles */
+.category-distribution-row {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.category-distribution-row:hover {
+  transform: translateX(4px);
+  opacity: 0.85;
 }
 

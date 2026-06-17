@@ -339,6 +339,7 @@ type AppState = {
   user: any | null;
   assetStatusFilter: string;
   dpHistoryFilter: "date" | "active-faults" | "resolved-faults";
+  dpHistoryCategoryFilter: string;
   setActiveNav: (activeNav: NavKey) => void;
   setDivision: (division: string) => void;
   setToken: (token: string | null) => void;
@@ -346,6 +347,7 @@ type AppState = {
   setSidebarOpen: (sidebarOpen: boolean) => void;
   setAssetStatusFilter: (status: string) => void;
   setDpHistoryFilter: (filter: "date" | "active-faults" | "resolved-faults") => void;
+  setDpHistoryCategoryFilter: (category: string) => void;
   logout: () => void;
   dpSelectedCategory: string;
   dpSelectedFormName: string;
@@ -368,7 +370,8 @@ export const useAppStore = create<AppState>((set) => ({
   user: getCachedUser(),
   assetStatusFilter: "",
   dpHistoryFilter: "date",
-  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "", dpHistoryFilter: "date" }),
+  dpHistoryCategoryFilter: "",
+  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" }),
   setDivision: (division) => set({ division }),
   setToken: (token) => {
     setAuthToken(token);
@@ -381,10 +384,11 @@ export const useAppStore = create<AppState>((set) => ({
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setAssetStatusFilter: (status) => set({ assetStatusFilter: status }),
   setDpHistoryFilter: (dpHistoryFilter) => set({ dpHistoryFilter }),
+  setDpHistoryCategoryFilter: (dpHistoryCategoryFilter) => set({ dpHistoryCategoryFilter }),
   logout: () => {
     setAuthToken(null);
     setCachedUser(null);
-    set({ token: null, user: null, role: "VIEWER", activeNav: "DP Dashboard", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date" });
+    set({ token: null, user: null, role: "VIEWER", activeNav: "DP Dashboard", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
@@ -420,19 +424,19 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-  { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-  { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-  { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
-  { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
-  { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM"] },
-  { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-  { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-  { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-  { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-  { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-  { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-  { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
-];
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+    { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+    { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
+    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
+    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+    { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
+  ];
 
 // Fallback points for Leaflet map if DB is empty
 const defaultStationPoints = [
@@ -1017,7 +1021,7 @@ function App() {
 
   const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
   if (isProfileLoading || (["Asset Dashboard", "DP Dashboard"].includes(activeNav) && dashboardLoading)) {
-    return <div className="app-loading">Loading telecom asset dashboard...</div>;
+    return <div className="app-loading">Loading...</div>;
   }
 
   if ((["Asset Dashboard", "DP Dashboard"].includes(activeNav)) && (dashboardError || !dashboardData)) {
@@ -1068,7 +1072,11 @@ function App() {
         ) : activeNav === "DP Logs" ? (
           <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
         ) : activeNav === "Feedback" ? (
-          <FeedbackFormView showToast={showToast} />
+          role === "SUPER_ADMIN" ? (
+            <FeedbackAdminView showToast={showToast} />
+          ) : (
+            <FeedbackFormView showToast={showToast} />
+          )
         ) : activeNav === "Sections" ? (
           <SectionsManagementView showToast={showToast} />
         ) : (
@@ -1427,22 +1435,22 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   const isFeedbackActive = activeNav === "Feedback";
   const feedbackStyle = isFeedbackActive
     ? {
-        background: "linear-gradient(135deg, var(--blue) 0%, #0056cc 100%)",
-        color: "#ffffff",
-        fontWeight: 800,
-        boxShadow: "0 4px 12px rgba(11, 109, 255, 0.25)",
-        border: "none",
-        marginTop: "auto",
-        marginBottom: "0"
-      }
+      background: "linear-gradient(135deg, var(--blue) 0%, #0056cc 100%)",
+      color: "#ffffff",
+      fontWeight: 800,
+      boxShadow: "0 4px 12px rgba(11, 109, 255, 0.25)",
+      border: "none",
+      marginTop: "auto",
+      marginBottom: "8px"
+    }
     : {
-        background: "linear-gradient(135deg, rgba(11, 109, 255, 0.05) 0%, rgba(11, 109, 255, 0.12) 100%)",
-        border: "1px solid rgba(11, 109, 255, 0.25)",
-        color: "var(--blue)",
-        fontWeight: 750,
-        marginTop: "auto",
-        marginBottom: "0"
-      };
+      background: "linear-gradient(135deg, rgba(11, 109, 255, 0.05) 0%, rgba(11, 109, 255, 0.12) 100%)",
+      border: "1px solid rgba(11, 109, 255, 0.25)",
+      color: "var(--blue)",
+      fontWeight: 750,
+      marginTop: "auto",
+      marginBottom: "8px"
+    };
 
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
@@ -1529,7 +1537,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
             borderRadius: "10px",
             border: "1px solid var(--line)",
             background: "rgba(255, 255, 255, 0.6)",
-            marginTop: "auto"
+            marginTop: feedbackItem ? "0" : "auto"
           }}
         >
           {/* Visual Avatar */}
@@ -1923,7 +1931,19 @@ function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
         {displayData.slice(0, 5).map(stat => {
           const percent = total > 0 && hasData ? Math.round((stat.value / total) * 100) : 0;
           return (
-            <div key={stat.name} style={{ display: "grid", gap: 5 }}>
+            <div
+              key={stat.name}
+              className="category-distribution-row"
+              style={{ display: "grid", gap: 5, cursor: hasData ? "pointer" : "default" }}
+              onClick={() => {
+                if (!hasData) return;
+                useAppStore.setState({
+                  activeNav: "DP Logs",
+                  dpHistoryFilter: "active-faults",
+                  dpHistoryCategoryFilter: stat.name
+                });
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
                 <span style={{ color: "var(--navy)" }}>{stat.name}</span>
                 <span style={{ color: hasData ? "var(--blue)" : "var(--muted)" }}>
@@ -2084,25 +2104,20 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
 
   const handleClick = () => {
     if (kpi.label === "Total Assets") {
-      setActiveNav("Assets");
-      setAssetStatusFilter("");
+      useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "" });
     } else if (kpi.label === "Operational Assets") {
-      setActiveNav("Assets");
-      setAssetStatusFilter("OPERATIONAL");
+      useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "OPERATIONAL" });
     } else if (kpi.label === "Under Maintenance") {
-      setActiveNav("Assets");
-      setAssetStatusFilter("UNDER_MAINTENANCE");
+      useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "UNDER_MAINTENANCE" });
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
-      setDpHistoryFilter("active-faults");
-      setActiveNav("DP Logs");
+      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults") {
-      setDpHistoryFilter("resolved-faults");
-      setActiveNav("DP Logs");
+      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today") {
       if (role === "TESTROOM") {
-        setActiveNav("Daily Position");
+        useAppStore.setState({ activeNav: "Daily Position" });
       } else {
-        setActiveNav("DP Logs");
+        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
       }
     }
   };
@@ -3200,6 +3215,15 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -3213,7 +3237,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
   const validateAndAddFiles = (selectedFiles: FileList) => {
     const allowedExtensions = ["pdf", "jpg", "jpeg", "png", "doc", "docx"];
     const validFiles: File[] = [];
-    
+
     for (let i = 0; i < selectedFiles.length; i++) {
       const selectedFile = selectedFiles[i];
       const ext = selectedFile.name.split(".").pop()?.toLowerCase();
@@ -3227,7 +3251,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
       }
       validFiles.push(selectedFile);
     }
-    
+
     if (validFiles.length > 0) {
       setFiles((prev) => [...prev, ...validFiles]);
     }
@@ -3257,18 +3281,42 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
     setFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!description.trim() && files.length === 0) {
+      showToast("Please enter a description or upload at least one file.");
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const base64Files = await Promise.all(
+        files.map(async (file) => {
+          const content = await fileToBase64(file);
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            content
+          };
+        })
+      );
+
+      await api.feedback.create({
+        description,
+        files: base64Files
+      });
+
       showToast("Feedback submitted successfully! Thank you for your feedback.");
       setDescription("");
       setFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    }, 1200);
+    } catch (err: any) {
+      showToast(err.message || "Failed to submit feedback.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -3280,18 +3328,18 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
   };
 
   return (
-    <article className="module-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <section className="tabular-header" style={{ display: "flex", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "14px 24px", margin: "-24px -24px 12px -24px" }}>
-        <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "center" }}>
-            <div 
-              style={{ 
-                width: "32px", 
-                height: "32px", 
-                borderRadius: "50%", 
-                background: "#0b6dff", 
-                display: "grid", 
-                placeItems: "center", 
+    <article className="feedback-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <section className="tabular-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", margin: 0, borderLeft: "none", borderRight: "none", borderRadius: 0 }}>
+        <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "#0b6dff",
+                display: "grid",
+                placeItems: "center",
                 color: "#ffffff",
                 boxShadow: "0 4px 10px rgba(11, 109, 255, 0.2)"
               }}
@@ -3300,16 +3348,16 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
             </div>
             <h2 style={{ margin: 0, fontSize: "22px", lineHeight: "1" }}>Feedback Form</h2>
           </div>
-          <p style={{ margin: "6px 0 0 0", textAlign: "center", fontSize: "13px", color: "var(--muted)", maxWidth: "600px" }}>
-            Submit feedback related to Daily Position entries, form issues, incorrect records, missing information, suggestions for Daily Position workflow, or report-related problems.
+          <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "var(--muted)" }}>
+            Submit feedback related to Daily Position entries, form issues, suggestions, or report-related problems.
           </p>
         </div>
       </section>
 
       {/* Scrollable Form Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0 0 0" }}>
-        <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "32px", borderRadius: "12px 12px 0 0", background: "#ffffff", border: "1px solid var(--line)", borderBottom: "none" }}>
-          <form id="feedback-form-element" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
+        <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "32px 24px", background: "#ffffff", border: "1px solid var(--line)", borderLeft: "none", borderRight: "none", borderBottom: "none", borderRadius: 0 }}>
+          <form id="feedback-form-element" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "800px", width: "100%" }}>
             {/* Feedback Description */}
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
@@ -3337,12 +3385,12 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                   }}
                   className="feedback-textarea"
                 />
-                <div 
-                  style={{ 
-                    display: "flex", 
-                    justifyContent: "flex-end", 
-                    fontSize: "12px", 
-                    color: "var(--muted)", 
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    fontSize: "12px",
+                    color: "var(--muted)",
                     marginTop: "6px",
                     fontWeight: 600
                   }}
@@ -3357,7 +3405,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
               <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
                 Upload Files <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
               </label>
-              
+
               <div
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
@@ -3388,7 +3436,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   disabled={loading}
                 />
-                
+
                 <div style={{ color: "#0b6dff" }}>
                   <UploadCloud size={36} />
                 </div>
@@ -3405,15 +3453,15 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
               {files.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
                   {files.map((file, idx) => (
-                    <div 
+                    <div
                       key={`${file.name}-${idx}`}
-                      style={{ 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "space-between", 
-                        gap: "12px", 
-                        background: "#f1f5f9", 
-                        padding: "8px 16px", 
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        background: "#f1f5f9",
+                        padding: "8px 16px",
                         borderRadius: "8px",
                         border: "1px solid var(--line)"
                       }}
@@ -3422,7 +3470,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                       <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>{file.name}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>({formatFileSize(file.size)})</span>
-                        <button 
+                        <button
                           onClick={(e) => removeFile(idx, e)}
                           style={{
                             background: "rgba(239, 68, 68, 0.1)",
@@ -3452,16 +3500,19 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
       </div>
 
       {/* Sticky Bottom Submit Bar */}
-      <div 
-        style={{ 
-          background: "#ffffff", 
-          borderTop: "1px solid var(--line)", 
-          padding: "16px 32px", 
-          display: "flex", 
+      <div
+        style={{
+          background: "#ffffff",
+          borderTop: "1px solid var(--line)",
+          padding: "16px 24px",
+          display: "flex",
           justifyContent: "flex-end",
           alignItems: "center",
-          borderRadius: "0 0 12px 12px",
+          borderRadius: 0,
           border: "1px solid var(--line)",
+          borderLeft: "none",
+          borderRight: "none",
+          borderBottom: "none",
           boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.02)"
         }}
       >
@@ -3508,6 +3559,171 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
           transform: translateY(-1px);
         }
       `}</style>
+    </article>
+  );
+}
+
+function FeedbackAdminView({ showToast }: { showToast: (message: string) => void }) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const { data: feedbacksQuery, isLoading } = useQuery({
+    queryKey: ["feedback-list"],
+    queryFn: () => api.feedback.list(),
+  });
+
+  const feedbacks = feedbacksQuery?.data || [];
+
+  const filteredFeedbacks = useMemo(() => {
+    return feedbacks.filter((fb: any) => {
+      const query = searchTerm.toLowerCase();
+      const desc = String(fb.description || "").toLowerCase();
+      const name = String(fb.createdBy?.name || "").toLowerCase();
+      const username = String(fb.createdBy?.username || "").toLowerCase();
+      const division = String(fb.createdBy?.division || "").toLowerCase();
+      const designation = String(fb.createdBy?.designation || "").toLowerCase();
+      const role = String(fb.createdBy?.role || "").toLowerCase();
+
+      return desc.includes(query) ||
+        name.includes(query) ||
+        username.includes(query) ||
+        division.includes(query) ||
+        designation.includes(query) ||
+        role.includes(query);
+    });
+  }, [feedbacks, searchTerm]);
+
+  const downloadAttachment = (fileObj: any) => {
+    try {
+      const link = document.createElement("a");
+      link.href = fileObj.content; // Base64 data URL
+      link.download = fileObj.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      showToast("Failed to download attachment.");
+    }
+  };
+
+  return (
+    <article className="feedback-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <section className="tabular-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", margin: 0, borderLeft: "none", borderRight: "none", borderRadius: 0 }}>
+        <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "#0b6dff",
+                display: "grid",
+                placeItems: "center",
+                color: "#ffffff",
+                boxShadow: "0 4px 10px rgba(11, 109, 255, 0.2)"
+              }}
+            >
+              <MessageSquare size={16} />
+            </div>
+            <h2 style={{ margin: 0, fontSize: "22px", lineHeight: "1" }}>User Feedback Inbox</h2>
+          </div>
+          <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "var(--muted)" }}>
+            Review feedback records submitted by testroom and other system users to track and proceed accordingly.
+          </p>
+        </div>
+      </section>
+
+      {/* Toolbar & Search */}
+      <div className="dp-history-filters" style={{ display: "flex", gap: "12px", padding: "12px 24px", background: "#f8fafc", borderBottom: "1px solid var(--line)" }}>
+        <div style={{ flex: "1 1 300px" }}>
+          <input
+            type="text"
+            placeholder="Search feedback, description, username, designation, division..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
+          />
+        </div>
+      </div>
+
+      {/* Feedbacks List */}
+      <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
+        {isLoading ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>Loading user feedback...</div>
+        ) : filteredFeedbacks.length === 0 ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "var(--muted)" }}>
+            {searchTerm ? "No feedback records found matching current query." : "No feedback submissions received yet."}
+          </div>
+        ) : (
+          <div className="panel" style={{ padding: 0, background: "#ffffff", border: "none", borderRadius: 0 }}>
+            <div className="table-scroll-container">
+              <table className="data-table" style={{ width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>Submitter</th>
+                    <th>Role / Designation</th>
+                    <th>Division</th>
+                    <th style={{ width: "45%" }}>Description</th>
+                    <th>Attachments</th>
+                    <th>Submitted At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFeedbacks.map((fb: any) => {
+                    const attachments = Array.isArray(fb.files) ? fb.files : [];
+                    return (
+                      <tr key={fb.id}>
+                        <td>
+                          <strong>{fb.createdBy?.name || "Unknown"}</strong>
+                          <div style={{ fontSize: "11px", color: "var(--muted)" }}>@{fb.createdBy?.username || "unknown"}</div>
+                        </td>
+                        <td>
+                          <div>{fb.createdBy?.role}</div>
+                          {fb.createdBy?.designation && (
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{fb.createdBy.designation}</div>
+                          )}
+                        </td>
+                        <td>{fb.createdBy?.division || "HQ"}</td>
+                        <td style={{ whiteSpace: "normal", wordBreak: "break-word", fontSize: "13px", lineHeight: "1.5" }}>
+                          {fb.description || <span style={{ color: "var(--muted)", fontStyle: "italic" }}>No description provided.</span>}
+                        </td>
+                        <td>
+                          {attachments.length === 0 ? (
+                            <span style={{ color: "var(--muted)" }}>—</span>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              {attachments.map((fileObj: any, fileIdx: number) => (
+                                <button
+                                  key={fileIdx}
+                                  type="button"
+                                  onClick={() => downloadAttachment(fileObj)}
+                                  className="action-btn text-blue"
+                                  style={{
+                                    fontSize: "12px",
+                                    padding: 0,
+                                    background: "none",
+                                    border: "none",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    textDecoration: "underline"
+                                  }}
+                                  title={`Size: ${fileObj.size ? (fileObj.size / 1024).toFixed(1) + " KB" : "Unknown"}`}
+                                >
+                                  📎 {fileObj.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td>{new Date(fb.createdAt).toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </article>
   );
 }

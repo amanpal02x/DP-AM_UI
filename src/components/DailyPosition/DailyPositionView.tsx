@@ -1412,7 +1412,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpOpenCategory: setOpenCategory,
     setDpCircuitSearch: setSearchTerm,
     dpHistoryFilter,
-    setDpHistoryFilter
+    setDpHistoryFilter,
+    dpHistoryCategoryFilter: historyCategory,
+    setDpHistoryCategoryFilter: setHistoryCategory
   } = useAppStore();
 
   const [localViewMode, setLocalViewMode] = useState<"form" | "history" | null>(null);
@@ -1562,7 +1564,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const [historySearch, setHistorySearch] = useState("");
   const [historyDivision, setHistoryDivision] = useState("");
-  const [historyCategory, setHistoryCategory] = useState("");
   const [historyFormType, setHistoryFormType] = useState("");
   const [historyStatus, setHistoryStatus] = useState("");
 
@@ -1805,49 +1806,19 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const renderHistory = () => (
     <section className="dp-history-panel">
-      <div className="dp-history-toolbar">
-        <div>
-          <h3>{canFill ? "My DP Logs" : "DP Logs"}</h3>
-          <p>
-            {dpHistoryFilter === "active-faults"
-              ? "All active/pending faults from history that are not closed."
-              : dpHistoryFilter === "resolved-faults"
-              ? "All resolved faults from history that have been rectified."
-              : "Records for selected date. Details contains every submitted form field."}
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <label style={{ margin: 0, fontWeight: 500, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}>
-            Filter Type:
-            <select
-              value={dpHistoryFilter}
-              onChange={event => setDpHistoryFilter(event.target.value as any)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "6px",
-                border: "1px solid #d1d5db",
-                backgroundColor: "#fff",
-                fontSize: "13.5px",
-                fontWeight: 500,
-                outline: "none",
-                cursor: "pointer"
-              }}
-            >
-              <option value="date">Filter by Date</option>
-              <option value="active-faults">Active/Pending Faults Only</option>
-              <option value="resolved-faults">Resolved Faults Only</option>
-            </select>
-          </label>
-          {dpHistoryFilter === "date" && (
-            <label style={{ margin: 0 }}>
-              Position Date
-              <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
-            </label>
-          )}
-        </div>
-      </div>
-
       <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 180px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Filter Type</label>
+          <select
+            value={dpHistoryFilter}
+            onChange={event => setDpHistoryFilter(event.target.value as any)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="date">Filter by Date</option>
+            <option value="active-faults">Active/Pending Faults Only</option>
+            <option value="resolved-faults">Resolved Faults Only</option>
+          </select>
+        </div>
         <div style={{ flex: "1 1 200px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
           <input 
@@ -1992,7 +1963,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
-          {viewMode === "history" && (
+          {viewMode === "history" && dpHistoryFilter === "date" && (
             <label className="division-select">
               <span>Position Date</span>
               <input
