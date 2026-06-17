@@ -196,9 +196,19 @@ function SearchableStationDropdown({
     setIsOpen(!isOpen);
   };
 
-  const selectedStation = value === "Others" ? { code: "Others", name: "Others" } : stations.find((s) => s.code === value);
+  const sortedStations = useMemo(() => {
+    const list = [...stations];
+    list.sort((a, b) => {
+      const nameA = a.name || "";
+      const nameB = b.name || "";
+      return nameA.localeCompare(nameB, undefined, { sensitivity: "base", numeric: true });
+    });
+    return list;
+  }, [stations]);
 
-  const filteredStations = stations.filter((station: any) => {
+  const selectedStation = value === "Others" ? { code: "Others", name: "Others" } : sortedStations.find((s) => s.code === value);
+
+  const filteredStations = sortedStations.filter((station: any) => {
     const term = searchTerm.toLowerCase();
     return (
       (station.name || "").toLowerCase().includes(term) ||
@@ -206,8 +216,7 @@ function SearchableStationDropdown({
     );
   });
 
-  const term = searchTerm.toLowerCase();
-  if ("others".includes(term)) {
+  if (!filteredStations.some(s => s.code === "Others")) {
     filteredStations.push({ code: "Others", name: "Others" });
   }
 
@@ -262,7 +271,7 @@ function SearchableStationDropdown({
         }}
       >
         <option value="">{placeholder}</option>
-        {stations.map((s: any) => (
+        {sortedStations.map((s: any) => (
           <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
         ))}
         <option value="Others">Others</option>
@@ -358,6 +367,224 @@ function SearchableStationDropdown({
   );
 }
 
+function SearchableDropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+  required,
+  readOnly,
+}: {
+  options: Array<string | { value: string; label: string }>;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  required?: boolean;
+  readOnly?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const toggleDropdown = () => {
+    if (readOnly) return;
+    if (!isOpen) {
+      setSearchTerm("");
+    }
+    setIsOpen(!isOpen);
+  };
+
+  const sortedOptions = useMemo(() => {
+    const mapped = options.map(item => {
+      if (typeof item === "string") {
+        return { value: item, label: item };
+      }
+      return item;
+    });
+
+    mapped.sort((a, b) => {
+      const isOtherA = a.label.toLowerCase() === "other" || a.label.toLowerCase() === "others" || a.value.toLowerCase() === "others" || a.value.toLowerCase() === "other";
+      const isOtherB = b.label.toLowerCase() === "other" || b.label.toLowerCase() === "others" || b.value.toLowerCase() === "others" || b.value.toLowerCase() === "other";
+
+      if (isOtherA && !isOtherB) return 1;
+      if (!isOtherA && isOtherB) return -1;
+
+      return a.label.localeCompare(b.label, undefined, { sensitivity: "base", numeric: true });
+    });
+
+    return mapped;
+  }, [options]);
+
+  const selectedOpt = sortedOptions.find(opt => opt.value === value);
+
+  const filteredOptions = sortedOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    opt.value.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="multi-dropdown" ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        className="multi-dropdown-trigger"
+        disabled={readOnly}
+        onClick={toggleDropdown}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          minHeight: "42px",
+          padding: "10px 14px",
+          border: "1px solid #cbd5e1",
+          borderRadius: "8px",
+          background: readOnly ? "#f8fafc" : "#ffffff",
+          color: readOnly ? "#64748b" : "#1e293b",
+          fontSize: "14px",
+          textAlign: "left",
+          cursor: readOnly ? "not-allowed" : "pointer"
+        }}
+      >
+        <span style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          color: value ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+        }}>
+          {selectedOpt ? selectedOpt.label : placeholder}
+        </span>
+        <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+      </button>
+
+      {/* Hidden select for HTML5 native validation */}
+      <select
+        required={required}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        tabIndex={-1}
+        style={{
+          position: "absolute",
+          opacity: 0,
+          pointerEvents: "none",
+          width: "100%",
+          bottom: 0,
+          left: 0,
+          height: 1
+        }}
+      >
+        <option value="">{placeholder}</option>
+        {sortedOptions.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+
+      {isOpen && !readOnly && (
+        <div
+          className="multi-dropdown-menu"
+          style={{
+            position: "absolute",
+            zIndex: 100,
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: "4px",
+            maxHeight: "280px",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            background: "#ffffff",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+            padding: "6px"
+          }}
+        >
+          {/* Search Input Box */}
+          <div style={{ padding: "4px 4px 8px 4px" }}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: "36px",
+                padding: "8px 12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                fontSize: "13px",
+                outline: "none"
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent closing dropdown when clicking input
+            />
+          </div>
+
+          {/* Scrollable list */}
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filteredOptions.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <div
+                  key={opt.value}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: isSelected ? 600 : 500,
+                    color: isSelected ? "var(--blue)" : "#1e293b",
+                    background: isSelected ? "var(--blue-soft)" : "transparent",
+                    margin: "2px 0",
+                    transition: "background 0.15s, color 0.15s"
+                  }}
+                  onMouseEnter={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = "#f1f5f9";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  {opt.label}
+                </div>
+              );
+            })}
+            {filteredOptions.length === 0 && (
+              <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                No options found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DailyPositionFieldInput({
   field,
   value,
@@ -395,6 +622,8 @@ function DailyPositionFieldInput({
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -405,6 +634,280 @@ function DailyPositionFieldInput({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  if (field.name === "nameOfFault") {
+    const FAULT_OPTIONS = [
+      "MDF Card Fault",
+      "Power Issue",
+      "SIP Down",
+      "VoIP Trunk Down"
+    ];
+
+    const parts = (value || "").split(/,\s*/).map((p: string) => {
+      if (p.startsWith("Other:")) return p;
+      return p.trim();
+    }).filter(Boolean);
+    const selectedOptions = FAULT_OPTIONS.filter(opt => parts.includes(opt));
+    const hasOther = parts.some((p: string) => p === "Other" || p.startsWith("Other:"));
+    const otherPart = parts.find((p: string) => p.startsWith("Other:"));
+    const otherText = otherPart ? otherPart.substring("Other:".length).replace(/^\s/, "") : "";
+
+    const toggleOption = (opt: string) => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (parts.includes(opt)) {
+        nextParts = parts.filter((p: string) => p !== opt);
+      } else {
+        nextParts = [...parts.filter((p: string) => FAULT_OPTIONS.includes(p) || p === "Other" || p.startsWith("Other:")), opt];
+        nextParts.sort((a, b) => {
+          const idxA = FAULT_OPTIONS.indexOf(a);
+          const idxB = FAULT_OPTIONS.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return 0;
+        });
+      }
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const toggleOther = () => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (hasOther) {
+        nextParts = parts.filter((p: string) => p !== "Other" && !p.startsWith("Other:"));
+      } else {
+        const otherVal = otherText ? `Other: ${otherText}` : "Other";
+        nextParts = [...parts, otherVal];
+      }
+      setValue(field.name, nextParts.join(", "));
+      setIsOpen(false);
+    };
+
+    const handleOtherTextChange = (text: string) => {
+      if (readOnly) return;
+      const filteredParts = parts.filter((p: string) => p !== "Other" && !p.startsWith("Other:"));
+      const otherVal = text ? `Other: ${text}` : "Other";
+      const nextParts = [...filteredParts, otherVal];
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const displaySelected = () => {
+      const displayParts = [...selectedOptions];
+      if (hasOther) {
+        displayParts.push("Other");
+      }
+      return displayParts.join(", ") || "Select Name of Fault";
+    };
+
+    const filteredFaultOptions = FAULT_OPTIONS.filter(opt =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const showOther = "other".includes(searchTerm.toLowerCase());
+
+    const toggleDropdown = () => {
+      if (readOnly) return;
+      if (!isOpen) {
+        setSearchTerm("");
+      }
+      setIsOpen(!isOpen);
+    };
+
+    return (
+      <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+        <label>{field.label}{field.required && <span>*</span>}</label>
+        <div className="multi-dropdown" style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="multi-dropdown-trigger"
+            disabled={readOnly}
+            onClick={toggleDropdown}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              minHeight: "42px",
+              padding: "10px 14px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              background: readOnly ? "#f8fafc" : "#ffffff",
+              color: readOnly ? "#64748b" : "#1e293b",
+              fontSize: "14px",
+              textAlign: "left",
+              cursor: readOnly ? "not-allowed" : "pointer"
+            }}
+          >
+            <span style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: (selectedOptions.length || hasOther) ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+            }}>
+              {displaySelected()}
+            </span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+          </button>
+
+          {isOpen && !readOnly && (
+            <div
+              className="multi-dropdown-menu"
+              style={{
+                position: "absolute",
+                zIndex: 100,
+                top: "100%",
+                left: 0,
+                right: 0,
+                marginTop: "4px",
+                maxHeight: "300px",
+                display: "flex",
+                flexDirection: "column",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: "#ffffff",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                padding: "6px"
+              }}
+            >
+              {/* Search input for multi-select */}
+              <div style={{ padding: "4px 4px 8px 4px" }}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search fault..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: "100%",
+                    minHeight: "36px",
+                    padding: "8px 12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    outline: "none"
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {/* Scrollable list */}
+              <div style={{ overflowY: "auto", flex: 1 }}>
+                {filteredFaultOptions.map(opt => {
+                  const checked = selectedOptions.includes(opt);
+                  return (
+                    <div
+                      key={opt}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "#1e293b",
+                        margin: 0,
+                        transition: "background 0.15s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOption(opt);
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        className="dp-checkbox"
+                        checked={checked}
+                        disabled={readOnly}
+                        onChange={() => {}}
+                      />
+                      <span>{opt}</span>
+                    </div>
+                  );
+                })}
+
+                {showOther && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1e293b",
+                      margin: 0,
+                      transition: "background 0.15s",
+                      borderTop: "1px solid #f1f5f9"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOther();
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      className="dp-checkbox"
+                      checked={hasOther}
+                      disabled={readOnly}
+                      onChange={() => {}}
+                    />
+                    <span>Other</span>
+                  </div>
+                )}
+
+                {filteredFaultOptions.length === 0 && !showOther && (
+                  <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                    No faults found
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {hasOther && (
+          <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Specify Other Fault:</label>
+            <input
+              type="text"
+              autoFocus
+              required={field.required && !readOnly}
+              disabled={readOnly}
+              value={otherText}
+              onChange={e => handleOtherTextChange(e.target.value)}
+              placeholder="Type manual fault details..."
+              style={{
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly ? "#f8fafc" : "#ffffff",
+                color: readOnly ? "#64748b" : "#1e293b",
+                fontSize: "14px",
+                cursor: readOnly ? "not-allowed" : "text"
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (field.name === "reason") {
     const REASON_OPTIONS = [
@@ -629,25 +1132,35 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "majorSection") {
+    const options = majorSections.map((item: any) => item.name);
     return (
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
-        <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">{field.placeholder || "Select Major Section"}</option>
-          {majorSections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
-        </select>
+        <SearchableDropdown
+          options={options}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={field.placeholder || "Select Major Section"}
+          required={field.required}
+          readOnly={readOnly}
+        />
       </div>
     );
   }
 
   if (field.name === "section") {
+    const options = sections.map((item: any) => item.name);
     return (
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
-        <select disabled={readOnly || !values.majorSection} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">{field.placeholder || "Select Section"}</option>
-          {sections.map((item: any) => <option key={item.id} value={item.name}>{item.name}</option>)}
-        </select>
+        <SearchableDropdown
+          options={options}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={field.placeholder || "Select Section"}
+          required={field.required}
+          readOnly={readOnly || !values.majorSection}
+        />
       </div>
     );
   }
@@ -698,13 +1211,18 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "assetId") {
+    const options = assets.map((asset: any) => ({ value: asset.id, label: assetLabel(asset) }));
     return (
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
-        <select disabled={readOnly} required={field.required} value={value || ""} onChange={e => setValue(field.name, e.target.value)}>
-          <option value="">{field.placeholder || "No linked asset"}</option>
-          {assets.map((asset: any) => <option key={asset.id} value={asset.id}>{assetLabel(asset)}</option>)}
-        </select>
+        <SearchableDropdown
+          options={options}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={field.placeholder || "No linked asset"}
+          required={field.required}
+          readOnly={readOnly}
+        />
       </div>
     );
   }
@@ -833,7 +1351,7 @@ function DailyPositionFieldInput({
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
       <label>
         {field.label}
-        {field.type === "datetime-local" && (
+        {field.type === "datetime-local" && field.name !== "lastTestingTime" && (
           <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
             (Date, Hours & Min)
           </span>
@@ -841,22 +1359,19 @@ function DailyPositionFieldInput({
         {field.required && <span>*</span>}
       </label>
       {field.type === "select" ? (
-        <select {...commonProps}>
-          <option value="">{field.placeholder || `Select ${field.label}`}</option>
-          {(field.options || []).map((option: string) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
+        <SearchableDropdown
+          options={field.options || []}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={field.placeholder || `Select ${field.label}`}
+          required={field.required}
+          readOnly={readOnly || field.readonly}
+        />
       ) : field.type === "textarea" ? (
         <textarea {...commonProps} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <input type={field.type} {...maxProps} {...commonProps} />
-          {field.type === "datetime-local" && (
-            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "500", paddingLeft: "4px" }}>
-              Time Picker: Left column = Hours (00-23), Right column = Minutes (00-59)
-            </span>
-          )}
         </div>
       )}
     </div>
@@ -1044,6 +1559,53 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       return String(a.id || "").localeCompare(String(b.id || ""));
     });
   }, [recordsQuery.data?.data]);
+
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDivision, setHistoryDivision] = useState("");
+  const [historyCategory, setHistoryCategory] = useState("");
+  const [historyFormType, setHistoryFormType] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("");
+
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.category).filter(Boolean))) as string[];
+  }, [records]);
+
+  const uniqueFormTypes = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.formType).filter(Boolean))) as string[];
+  }, [records]);
+
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.status).filter(Boolean))) as string[];
+  }, [records]);
+
+  const filteredHistoryRecords = useMemo(() => {
+    return records.filter((r: any) => {
+      if (historyDivision && r.division !== historyDivision) return false;
+      if (historyCategory && r.category !== historyCategory) return false;
+      if (historyFormType && r.formType !== historyFormType) return false;
+      if (historyStatus && r.status !== historyStatus) return false;
+      if (historySearch) {
+        const query = historySearch.toLowerCase();
+        const division = String(r.division || "").toLowerCase();
+        const category = String(r.category || "").toLowerCase();
+        const formType = String(r.formType || "").toLowerCase();
+        const station = String(r.stationCode || r.stationName || r.section || "").toLowerCase();
+        const status = String(r.status || "").toLowerCase();
+        const remarks = String(r.remarks || r.reason || "").toLowerCase();
+        const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
+
+        const match = division.includes(query) || 
+                      category.includes(query) || 
+                      formType.includes(query) || 
+                      station.includes(query) || 
+                      status.includes(query) || 
+                      remarks.includes(query) ||
+                      customFields.includes(query);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -1284,6 +1846,83 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           )}
         </div>
       </div>
+
+      <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            value={historySearch} 
+            onChange={e => setHistorySearch(e.target.value)} 
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
+          />
+        </div>
+        {role === "SUPER_ADMIN" && (
+          <div style={{ flex: "1 1 150px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+            <select 
+              value={historyDivision} 
+              onChange={e => setHistoryDivision(e.target.value)}
+              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+            >
+              <option value="">All Divisions</option>
+              <option value="Bilaspur">Bilaspur</option>
+              <option value="Raipur">Raipur</option>
+              <option value="Nagpur">Nagpur</option>
+            </select>
+          </div>
+        )}
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Category</label>
+          <select 
+            value={historyCategory} 
+            onChange={e => setHistoryCategory(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Categories</option>
+            {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Form Type</label>
+          <select 
+            value={historyFormType} 
+            onChange={e => setHistoryFormType(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Form Types</option>
+            {uniqueFormTypes.map(ft => <option key={ft} value={ft}>{ft}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
+          <select 
+            value={historyStatus} 
+            onChange={e => setHistoryStatus(e.target.value)}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+          >
+            <option value="">All Statuses</option>
+            {uniqueStatuses.map(st => <option key={st} value={st}>{st}</option>)}
+          </select>
+        </div>
+        {(historySearch || historyDivision || historyCategory || historyFormType || historyStatus) && (
+          <button 
+            type="button" 
+            onClick={() => {
+              setHistorySearch("");
+              setHistoryDivision("");
+              setHistoryCategory("");
+              setHistoryFormType("");
+              setHistoryStatus("");
+            }}
+            className="action-btn text-red"
+            style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px" }}
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
       <div className="table-scroll-container">
         <table className="data-table dp-history-table">
           <thead>
@@ -1300,7 +1939,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </tr>
           </thead>
           <tbody>
-            {records.map((record: any) => {
+            {filteredHistoryRecords.map((record: any) => {
               const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL";
               const canEdit = canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id);
               return (
@@ -1326,10 +1965,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </tr>
               );
             })}
-            {records.length === 0 && (
+            {filteredHistoryRecords.length === 0 && (
               <tr>
                 <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
-                  {dpHistoryFilter === "active-faults" ? "No active/pending faults found." : "No Daily Position records for this date."}
+                  {historySearch || historyDivision || historyCategory || historyFormType || historyStatus
+                    ? "No Daily Position records found matching current criteria."
+                    : dpHistoryFilter === "active-faults"
+                    ? "No active/pending faults found."
+                    : dpHistoryFilter === "resolved-faults"
+                    ? "No resolved faults found."
+                    : "No Daily Position records for this date."}
                 </td>
               </tr>
             )}
@@ -1341,13 +1986,30 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   return (
     <article className="daily-position-page secr-position-page">
-      <section className="tabular-header dp-page-header">
+      <section className={`tabular-header dp-page-header ${viewMode === "history" ? "history-mode" : ""}`}>
         <div className="header-title-section">
-          <h2>Daily Position</h2>
+          <h2>{viewMode === "history" ? "Daily position History" : "Daily Position"}</h2>
           <RealTimeClock />
         </div>
-        {canChooseDivision && (
-          <div className="header-controls-section">
+        <div className="header-controls-section">
+          {viewMode === "history" && (
+            <label className="division-select">
+              <span>Position Date</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={event => setSelectedDate(event.target.value)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "14px",
+                  background: "#fff"
+                }}
+              />
+            </label>
+          )}
+          {canChooseDivision && (
             <label className="division-select">
               <span>Division</span>
               <select value={selectedDivision} onChange={event => setSelectedDivision(event.target.value)}>
@@ -1355,8 +2017,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {normalizedDivisions.map((item: string) => <option key={item} value={item}>{divisionOptionLabel(item)}</option>)}
               </select>
             </label>
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {canFill && viewMode === "form" && (

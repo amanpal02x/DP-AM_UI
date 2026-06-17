@@ -34,7 +34,10 @@ import {
   SlidersHorizontal,
   Filter,
   Edit,
-  Lock
+  Lock,
+  MessageSquare,
+  UploadCloud,
+  Send
 } from "lucide-react";
 import {
   Cell,
@@ -286,6 +289,8 @@ type NavKey =
   | "Master List"
   | "Assets"
   | "LC Gate"
+  | "Feedback"
+  | "GIS Mapping"
   | "Daily Position"
   | "DP Logs"
   | "Sections"
@@ -299,6 +304,8 @@ const navToHash: Record<NavKey, string> = {
   "Master List": "#/stations",
   "Assets": "#/assets",
   "LC Gate": "#/gates",
+  "Feedback": "#/feedback",
+  "GIS Mapping": "#/gis",
   "Daily Position": "#/daily-position",
   "DP Logs": "#/daily-position-history",
   "Sections": "#/sections",
@@ -313,6 +320,8 @@ const hashToNav: Record<string, NavKey> = {
   "#/stations": "Master List",
   "#/assets": "Assets",
   "#/gates": "LC Gate",
+  "#/feedback": "Feedback",
+  "#/gis": "GIS Mapping",
   "#/daily-position": "Daily Position",
   "#/daily-position-history": "DP Logs",
   "#/sections": "Sections",
@@ -411,18 +420,19 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-    { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-    { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
-    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
-    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-    { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
-  ];
+  { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+  { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
+  { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
+  { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
+  { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM"] },
+  { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+  { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+  { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+  { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
+  { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+  { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+  { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
+];
 
 // Fallback points for Leaflet map if DB is empty
 const defaultStationPoints = [
@@ -1057,6 +1067,8 @@ function App() {
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
         ) : activeNav === "DP Logs" ? (
           <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
+        ) : activeNav === "Feedback" ? (
+          <FeedbackFormView showToast={showToast} />
         ) : activeNav === "Sections" ? (
           <SectionsManagementView showToast={showToast} />
         ) : (
@@ -1402,12 +1414,35 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 
   const visibleNav = navItems.filter((item) => {
     if (!item.roles.includes(role)) return false;
+    if (item.label === "Feedback") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
     const isDpLink = ["DP Dashboard", "Daily Position", "DP Logs"].includes(item.label);
     if (isAssetLink && !hasAccessAssets) return false;
     if (isDpLink && !hasAccessDailyPosition) return false;
     return true;
   });
+
+  const feedbackItem = navItems.find((item) => item.label === "Feedback" && item.roles.includes(role));
+
+  const isFeedbackActive = activeNav === "Feedback";
+  const feedbackStyle = isFeedbackActive
+    ? {
+        background: "linear-gradient(135deg, var(--blue) 0%, #0056cc 100%)",
+        color: "#ffffff",
+        fontWeight: 800,
+        boxShadow: "0 4px 12px rgba(11, 109, 255, 0.25)",
+        border: "none",
+        marginTop: "auto",
+        marginBottom: "0"
+      }
+    : {
+        background: "linear-gradient(135deg, rgba(11, 109, 255, 0.05) 0%, rgba(11, 109, 255, 0.12) 100%)",
+        border: "1px solid rgba(11, 109, 255, 0.25)",
+        color: "var(--blue)",
+        fontWeight: 750,
+        marginTop: "auto",
+        marginBottom: "0"
+      };
 
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
@@ -1468,6 +1503,18 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
           );
         })}
       </nav>
+
+      {feedbackItem && (
+        <button
+          className={`nav-item ${isFeedbackActive ? "active" : ""}`}
+          onClick={() => setActiveNav("Feedback")}
+          style={feedbackStyle}
+          type="button"
+        >
+          <MessageSquare size={20} />
+          <span>Feedback</span>
+        </button>
+      )}
 
       {user && (
         <div
@@ -3142,6 +3189,325 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
           </div>
         </div>
       )}
+    </article>
+  );
+}
+
+function FeedbackFormView({ showToast }: { showToast: (message: string) => void }) {
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const validateAndAddFiles = (selectedFiles: FileList) => {
+    const allowedExtensions = ["pdf", "jpg", "jpeg", "png", "doc", "docx"];
+    const validFiles: File[] = [];
+    
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const selectedFile = selectedFiles[i];
+      const ext = selectedFile.name.split(".").pop()?.toLowerCase();
+      if (!ext || !allowedExtensions.includes(ext)) {
+        showToast(`Unsupported file format for "${selectedFile.name}"! Please select PDF, JPG, PNG, DOC, or DOCX.`);
+        continue;
+      }
+      if (selectedFile.size > 20 * 1024 * 1024) {
+        showToast(`File "${selectedFile.name}" exceeds 20MB limit!`);
+        continue;
+      }
+      validFiles.push(selectedFile);
+    }
+    
+    if (validFiles.length > 0) {
+      setFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      validateAndAddFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      validateAndAddFiles(e.target.files);
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removeFile = (indexToRemove: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      showToast("Feedback submitted successfully! Thank you for your feedback.");
+      setDescription("");
+      setFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }, 1200);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  return (
+    <article className="module-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <section className="tabular-header" style={{ display: "flex", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "14px 24px", margin: "-24px -24px 12px -24px" }}>
+        <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "center" }}>
+            <div 
+              style={{ 
+                width: "32px", 
+                height: "32px", 
+                borderRadius: "50%", 
+                background: "#0b6dff", 
+                display: "grid", 
+                placeItems: "center", 
+                color: "#ffffff",
+                boxShadow: "0 4px 10px rgba(11, 109, 255, 0.2)"
+              }}
+            >
+              <MessageSquare size={16} />
+            </div>
+            <h2 style={{ margin: 0, fontSize: "22px", lineHeight: "1" }}>Feedback Form</h2>
+          </div>
+          <p style={{ margin: "6px 0 0 0", textAlign: "center", fontSize: "13px", color: "var(--muted)", maxWidth: "600px" }}>
+            Submit feedback related to Daily Position entries, form issues, incorrect records, missing information, suggestions for Daily Position workflow, or report-related problems.
+          </p>
+        </div>
+      </section>
+
+      {/* Scrollable Form Body */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0 0 0" }}>
+        <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "32px", borderRadius: "12px 12px 0 0", background: "#ffffff", border: "1px solid var(--line)", borderBottom: "none" }}>
+          <form id="feedback-form-element" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Feedback Description */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+                Feedback Description <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
+              </label>
+              <div style={{ position: "relative" }}>
+                <textarea
+                  disabled={loading}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
+                  placeholder="Enter your feedback here..."
+                  style={{
+                    width: "100%",
+                    height: "200px",
+                    padding: "16px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--line)",
+                    background: "#f8fafc",
+                    fontSize: "14px",
+                    color: "var(--navy)",
+                    outline: "none",
+                    resize: "none",
+                    transition: "all 0.2s ease",
+                    fontFamily: "inherit"
+                  }}
+                  className="feedback-textarea"
+                />
+                <div 
+                  style={{ 
+                    display: "flex", 
+                    justifyContent: "flex-end", 
+                    fontSize: "12px", 
+                    color: "var(--muted)", 
+                    marginTop: "6px",
+                    fontWeight: 600
+                  }}
+                >
+                  {description.length} / 2000
+                </div>
+              </div>
+            </div>
+
+            {/* Upload File */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+                Upload Files <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
+              </label>
+              
+              <div
+                onDragEnter={handleDrag}
+                onDragOver={handleDrag}
+                onDragLeave={handleDrag}
+                onDrop={handleDrop}
+                onClick={triggerFileSelect}
+                style={{
+                  border: dragActive ? "2px dashed #0b6dff" : "1.5px dashed #b3d1ff",
+                  background: dragActive ? "#edf2ff" : "#fcfdfe",
+                  borderRadius: "12px",
+                  padding: "32px 20px",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "12px"
+                }}
+                className="feedback-dropzone"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  disabled={loading}
+                />
+                
+                <div style={{ color: "#0b6dff" }}>
+                  <UploadCloud size={36} />
+                </div>
+
+                <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>
+                  Drag and drop files here or <span style={{ color: "#0b6dff", textDecoration: "underline" }}>click to browse</span>
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, fontWeight: 500 }}>
+                  Supported formats: PDF, JPG, PNG, DOC, DOCX (Max 20MB per file)
+                </p>
+              </div>
+
+              {/* Selected Files List */}
+              {files.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                  {files.map((file, idx) => (
+                    <div 
+                      key={`${file.name}-${idx}`}
+                      style={{ 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "space-between", 
+                        gap: "12px", 
+                        background: "#f1f5f9", 
+                        padding: "8px 16px", 
+                        borderRadius: "8px",
+                        border: "1px solid var(--line)"
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>{file.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>({formatFileSize(file.size)})</span>
+                        <button 
+                          onClick={(e) => removeFile(idx, e)}
+                          style={{
+                            background: "rgba(239, 68, 68, 0.1)",
+                            border: "none",
+                            color: "var(--red)",
+                            borderRadius: "50%",
+                            width: "20px",
+                            height: "20px",
+                            display: "grid",
+                            placeItems: "center",
+                            cursor: "pointer",
+                            fontSize: "11px",
+                            fontWeight: 800
+                          }}
+                          type="button"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Submit Bar */}
+      <div 
+        style={{ 
+          background: "#ffffff", 
+          borderTop: "1px solid var(--line)", 
+          padding: "16px 32px", 
+          display: "flex", 
+          justifyContent: "flex-end",
+          alignItems: "center",
+          borderRadius: "0 0 12px 12px",
+          border: "1px solid var(--line)",
+          boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.02)"
+        }}
+      >
+        <button
+          form="feedback-form-element"
+          type="submit"
+          disabled={loading}
+          style={{
+            background: "#0b6dff",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "8px",
+            padding: "12px 24px",
+            fontSize: "14px",
+            fontWeight: 700,
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 4px 12px rgba(11, 109, 255, 0.2)",
+            transition: "all 0.2s ease"
+          }}
+          className="feedback-submit-btn"
+        >
+          <Send size={16} />
+          <span>{loading ? "Submitting..." : "Submit Feedback"}</span>
+        </button>
+      </div>
+
+      <style>{`
+        .feedback-textarea:focus {
+          border-color: #0b6dff !important;
+          background: #ffffff !important;
+          box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.1);
+        }
+        .feedback-dropzone:hover {
+          border-color: #0b6dff !important;
+          background: #f0f7ff !important;
+        }
+        .feedback-submit-btn:hover:not(:disabled) {
+          background: #0056cc !important;
+          box-shadow: 0 6px 16px rgba(11, 109, 255, 0.3) !important;
+          transform: translateY(-1px);
+        }
+      `}</style>
     </article>
   );
 }
