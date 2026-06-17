@@ -3689,3 +3689,43 @@ textarea {
   }
 }
 
+/* History Mode Page Header alignment overrides */
+.secr-position-page .dp-page-header.history-mode {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  position: relative !important;
+  margin-top: 0px !important;
+  margin-bottom: 16px !important;
+  padding: 16px 24px !important;
+  gap: 16px !important;
+}
+
+.secr-position-page .dp-page-header.history-mode .header-title-section {
+  text-align: center !important;
+}
+
+.secr-position-page .dp-page-header.history-mode .header-controls-section {
+  position: absolute !important;
+  right: 24px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
+
+@media (max-width: 768px) {
+  .secr-position-page .dp-page-header.history-mode {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 12px 16px !important;
+  }
+  .secr-position-page .dp-page-header.history-mode .header-controls-section {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+}
+
