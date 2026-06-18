@@ -1428,6 +1428,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [shouldNavigateToNext, setShouldNavigateToNext] = useState(false);
+  const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
+  const [rectificationTimeInput, setRectificationTimeInput] = useState("");
 
   const moveToNextForm = () => {
     if (!selectedForm) return;
@@ -1537,6 +1539,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       setValues({ failureTime: toLocalDateTimeValue() });
       setEditingRecordId(null);
+      if (role === "SUPER_ADMIN") {
+        setSelectedDivision("");
+      }
       if (mode === "history") {
         setLocalViewMode("history");
       }
@@ -1712,7 +1717,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!canFill || !selectedForm) return;
+    if (!(canFill || (role === "SUPER_ADMIN" && editingRecordId)) || !selectedForm) return;
 
     // Client-side validation to block future dates & times
     const now = new Date();
@@ -1751,6 +1756,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const startEdit = (record: any) => {
+    if (role !== "SUPER_ADMIN") {
+      setRectifyingRecord(record);
+      setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || toLocalDateTimeValue());
+      return;
+    }
+    if (role === "SUPER_ADMIN") {
+      setSelectedDivision(record.division || "");
+    }
     let form = DAILY_POSITION_FORMS.find(item => item.name === record.formType);
     if (!form && record.category === "Exchange") {
       form = DAILY_POSITION_FORMS.find(item => item.name === "Exchange");
@@ -1785,6 +1798,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const handleCancelEdit = () => {
     resetForm();
+    if (role === "SUPER_ADMIN") {
+      setSelectedDivision("");
+    }
     if (mode === "history") {
       setLocalViewMode("history");
     }
@@ -1912,7 +1928,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <tbody>
             {filteredHistoryRecords.map((record: any) => {
               const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL";
-              const canEdit = canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id);
+              const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
               return (
                 <tr key={record.id}>
                   <td>{record.division}</td>
@@ -1980,19 +1996,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               />
             </label>
           )}
-          {canChooseDivision && (
-            <label className="division-select">
-              <span>Division</span>
-              <select value={selectedDivision} onChange={event => setSelectedDivision(event.target.value)}>
-                <option value="">All Divisions</option>
-                {normalizedDivisions.map((item: string) => <option key={item} value={item}>{divisionOptionLabel(item)}</option>)}
-              </select>
-            </label>
-          )}
         </div>
       </section>
 
-      {canFill && viewMode === "form" && (
+      {(canFill || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
         <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
             <form onSubmit={handleSubmit}>
@@ -2228,6 +2235,91 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 )}
               </div>
             </section>
+          </div>
+        </div>
+      )}
+
+      {rectifyingRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)}>
+          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px" }}>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)}>X</button>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "#1e293b" }}>Rectify Fault</h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "#64748b" }}>
+              Update the rectification date and time for <strong>{rectifyingRecord.formType === "Exchange" && rectifyingRecord.formData?.exchangeName ? rectifyingRecord.formData.exchangeName : rectifyingRecord.formType}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
+            </p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!rectificationTimeInput) {
+                showToast("Please enter the rectification date and time.");
+                return;
+              }
+              const nowLocalStr = toLocalDateTimeValue(new Date());
+              if (rectificationTimeInput > nowLocalStr) {
+                showToast("Future date & time is not allowed.");
+                return;
+              }
+              const failureTimeLocalStr = formatDateTimeInput(rectifyingRecord.failureTime);
+              if (failureTimeLocalStr && rectificationTimeInput < failureTimeLocalStr) {
+                showToast("Rectification time cannot be before failure time.");
+                return;
+              }
+
+              const updatedFormData = {
+                ...(rectifyingRecord.formData || {}),
+                rectificationTime: rectificationTimeInput,
+              };
+
+              updateRecord.mutate({
+                id: rectifyingRecord.id,
+                body: {
+                  ...rectifyingRecord,
+                  rectificationTime: rectificationTimeInput,
+                  formData: updatedFormData,
+                }
+              }, {
+                onSuccess: () => {
+                  setRectifyingRecord(null);
+                }
+              });
+            }}>
+              <div className="dp-field" style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                  Rectification Date & Time <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={rectificationTimeInput}
+                  max={toLocalDateTimeValue(new Date())}
+                  onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setRectifyingRecord(null)}
+                  className="export-button"
+                  style={{ background: "transparent", color: "#64748b", borderColor: "#e2e8f0" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="export-button"
+                  disabled={updateRecord.isPending}
+                  style={{ background: "var(--primary)", color: "#fff" }}
+                >
+                  {updateRecord.isPending ? "Saving..." : "Save Rectification"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

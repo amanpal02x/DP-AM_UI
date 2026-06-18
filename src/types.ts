@@ -112,4 +112,5 @@ export interface DashboardSummary {
   dailyPositionStatus?: Array<{ status: string; count: number }>;
   dailyPositionByDivision?: Array<{ division: string; count: number }>;
   dailyPositionByCategory?: Array<{ category: string; count: number }>;
+  monthlyFaultsTrend?: Array<{ month: string; faults: number }>;
 }

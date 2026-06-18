@@ -316,8 +316,8 @@ textarea {
 
 .kpi-card {
   width: 100%;
-  min-height: 122px;
-  padding: 20px;
+  min-height: 92px;
+  padding: 12px 18px;
   text-align: left;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -3829,7 +3829,7 @@ path:focus {
   }
 }
 
-/* Category-wise Fault Distribution Panel hover styles */
+/* Category-wise Fault Panel hover styles */
 .category-distribution-row {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }

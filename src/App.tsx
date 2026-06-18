@@ -44,7 +44,12 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip
+  Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -1494,7 +1499,15 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
                 type="button"
               >
                 <item.icon size={20} />
-                <span>{item.label}</span>
+                <span>
+                  {role === "TESTROOM"
+                    ? item.label === "DP Dashboard"
+                      ? "Dashboard"
+                      : item.label === "Daily Position"
+                        ? "Daily Position Form"
+                        : item.label
+                    : item.label}
+                </span>
                 {hasAccess ? (
                   <>
                     {item.badge ? <b>{item.badge}</b> : null}
@@ -1643,14 +1656,22 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 function PageHeader({ activeNav }: { activeNav: NavKey }) {
   const { division, role } = useAppStore();
 
+  const displayTitle = role === "TESTROOM"
+    ? activeNav === "DP Dashboard"
+      ? "Dashboard"
+      : activeNav === "Daily Position"
+        ? "Daily Position Form"
+        : activeNav
+    : activeNav;
+
   return (
     <section className="page-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
       <div>
-        <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>{activeNav}</h2>
+        <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>{displayTitle}</h2>
         <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "var(--muted)" }}>
           {["Asset Dashboard", "DP Dashboard"].includes(activeNav)
             ? "Overview of Telecom Assets and Operations"
-            : `${activeNav} operations workspace`}
+            : `${displayTitle} operations workspace`}
         </p>
       </div>
 
@@ -1774,7 +1795,7 @@ function DailyPositionSubmissionProgressPanel({ division }: { division: string }
   ];
 
   return (
-    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px" }}>
       <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Today's Submission Progress</h3>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
         <div style={{ width: 140, height: 140, flexShrink: 0, position: "relative" }}>
@@ -1852,8 +1873,8 @@ function DailyPositionDivisionPanel({ divisionData }: { divisionData: any[] }) {
   };
 
   return (
-    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
-      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Division-wise Fault Distribution</h3>
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px" }}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Division-wise Report Submission </h3>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
         <div style={{ width: 140, height: 140, flexShrink: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -1914,29 +1935,108 @@ function DailyPositionDivisionPanel({ divisionData }: { divisionData: any[] }) {
   );
 }
 
-function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
-  const hasData = categoryData.some(d => d.value > 0);
-  const displayData = hasData ? categoryData : [
-    { name: "IPIS", value: 0, color: "#cbd5e1" },
-    { name: "CCTV", value: 0, color: "#cbd5e1" },
-    { name: "PA System", value: 0, color: "#cbd5e1" },
-    { name: "UTS", value: 0, color: "#cbd5e1" },
-    { name: "PRS", value: 0, color: "#cbd5e1" },
+function DailyPositionStatusPanel({
+  monthlyFaultsTrend = []
+}: {
+  monthlyFaultsTrend?: Array<{ month: string; faults: number }>;
+}) {
+  const { setActiveNav } = useAppStore();
+
+  // If no trend data is present, provide a baseline mock for visual preview
+  const data = monthlyFaultsTrend.length > 0 ? monthlyFaultsTrend : [
+    { month: "Jan", faults: 0 },
+    { month: "Feb", faults: 0 },
+    { month: "Mar", faults: 0 },
+    { month: "Apr", faults: 0 },
+    { month: "May", faults: 0 },
+    { month: "Jun", faults: 0 }
   ];
-  const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
+
   return (
-    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "360px" }}>
-      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Category-wise Fault Distribution</h3>
-      <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 14 }}>
-        {displayData.slice(0, 5).map(stat => {
-          const percent = total > 0 && hasData ? Math.round((stat.value / total) * 100) : 0;
+    <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 16px 0", borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 17, color: "var(--navy)", fontWeight: 700 }}>Monthly Faults Trend</h3>
+        <button
+          onClick={() => setActiveNav("DP Logs")}
+          style={{ fontSize: 12, color: "var(--blue)", border: 0, background: "none", fontWeight: 600, padding: 0 }}
+        >
+          View Logs
+        </button>
+      </div>
+
+      <div style={{ flex: 1, width: "100%", height: "100%", minHeight: 220 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="faultsColor" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--red)" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="var(--red)" stopOpacity={0.01} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+            <XAxis
+              dataKey="month"
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+              }}
+              labelStyle={{ fontWeight: 700, color: "var(--navy)" }}
+            />
+            <Area
+              type="monotone"
+              dataKey="faults"
+              stroke="var(--red)"
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#faultsColor)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
+  const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log");
+  const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
+
+  const displayData = displayedCategories.map((cat, idx) => {
+    const found = categoryData.find(d => d.name.toLowerCase() === cat.toLowerCase());
+    const catColors = ["#0b6dff", "#10b981", "#f5b51b", "#7c3aed", "#0f5fbf", "#8b95a8"];
+    return {
+      name: cat,
+      value: found ? found.value : 0,
+      color: found ? found.color : catColors[idx % catColors.length]
+    };
+  });
+
+  return (
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px" }}>
+      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Category-wise Fault</h3>
+      <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 14, paddingRight: 4 }}>
+        {displayData.map(stat => {
+          const percent = total > 0 && stat.value > 0 ? Math.round((stat.value / total) * 100) : 0;
           return (
             <div
               key={stat.name}
               className="category-distribution-row"
-              style={{ display: "grid", gap: 5, cursor: hasData ? "pointer" : "default" }}
+              style={{ display: "grid", gap: 5, cursor: stat.value > 0 ? "pointer" : "default" }}
               onClick={() => {
-                if (!hasData) return;
+                if (stat.value <= 0) return;
                 useAppStore.setState({
                   activeNav: "DP Logs",
                   dpHistoryFilter: "active-faults",
@@ -1946,8 +2046,8 @@ function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
             >
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
                 <span style={{ color: "var(--navy)" }}>{stat.name}</span>
-                <span style={{ color: hasData ? "var(--blue)" : "var(--muted)" }}>
-                  {stat.value} faults {hasData && <span style={{ fontWeight: 500, color: "var(--muted)" }}>({percent}%)</span>}
+                <span style={{ color: stat.value > 0 ? "var(--blue)" : "var(--muted)" }}>
+                  {stat.value} faults {stat.value > 0 && <span style={{ fontWeight: 500, color: "var(--muted)" }}>({percent}%)</span>}
                 </span>
               </div>
               <div style={{ height: 6, background: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
@@ -1976,7 +2076,7 @@ function DailyPositionDashboardView({
 
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
-    if (label === "Active Faults" || label === "Reported Today") {
+    if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
       setActiveNav(data.user.role === "TESTROOM" ? "Daily Position" : "DP Logs");
     } else {
       setActiveNav(label as any);
@@ -1998,9 +2098,9 @@ function DailyPositionDashboardView({
     };
     const reportedKpi = data.kpis.find(k => k.id === "reportedToday") || {
       id: "reportedToday",
-      label: "Reported Today",
+      label: "Rectified Today",
       value: "0",
-      detail: "Daily Position entries",
+      detail: "Faults resolved today",
       tone: "teal",
       series: [0, 0, 0, 0, 0]
     };
@@ -2076,18 +2176,15 @@ function DailyPositionDashboardView({
       </section>
 
       <section className="dashboard-grid">
-        <ChartPanel
-          title="Daily Position Status"
-          total={totalDailyPositions.toString()}
-          metrics={dailyPositionMetrics}
-          openPanel={() => data.user.role === "TESTROOM" ? useAppStore.getState().setActiveNav("Daily Position") : useAppStore.getState().setActiveNav("DP Logs")}
-        />
+        <DailyPositionCategoryPanel categoryData={categoryData} />
         {role === "TESTROOM" ? (
           <DailyPositionSubmissionProgressPanel division={userDivision} />
         ) : (
           <DailyPositionDivisionPanel divisionData={divisionData} />
         )}
-        <DailyPositionCategoryPanel categoryData={categoryData} />
+        <DailyPositionStatusPanel
+          monthlyFaultsTrend={data.monthlyFaultsTrend}
+        />
       </section>
 
       <section className="operations-grid" style={{ gridTemplateColumns: "1fr" }}>
@@ -2113,11 +2210,11 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults") {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
-    } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today") {
+    } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       if (role === "TESTROOM") {
         useAppStore.setState({ activeNav: "Daily Position" });
       } else {
-        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
+        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
       }
     }
   };
@@ -2380,7 +2477,7 @@ function DailyPositionSummaryTable({
           case "Low Insulation":
             totalFaults += Number(fd.balanceInsulationFaults ?? fd.totalInsulationFaults ?? 1);
             break;
-          case "CGDM":
+          case "CGDB":
             totalFaults += Number(fd.faultyGuidanceBoards ?? 1);
             break;
           case "TIB":

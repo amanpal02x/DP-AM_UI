@@ -65,11 +65,11 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     },
     {
       id: "reportedToday",
-      label: "Reported Today",
-      value: (stats.summary.todaySubmissionsCount || 0).toString(),
-      detail: "Daily Position entries",
+      label: "Rectified Today",
+      value: (stats.summary.todayRectifiedCount || 0).toString(),
+      detail: "Faults resolved today",
       tone: "teal",
-      series: [10, 12, 14, 13, 15, 17, 16, 18, 19, 21, 20, stats.summary.todaySubmissionsCount || 0]
+      series: [2, 3, 5, 4, 6, 8, 7, 9, 6, 5, 8, stats.summary.todayRectifiedCount || 0]
     }
   ];
 
@@ -200,6 +200,8 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     bottomStats,
     commissioningSummary: stats.commissioningSummary,
     dailyPositionByDivision: stats.dailyPositionByDivision,
-    dailyPositionByCategory: stats.dailyPositionByCategory
+    dailyPositionByCategory: stats.dailyPositionByCategory,
+    monthlyFaultsTrend: stats.monthlyFaultsTrend || [],
+    dailyPositionStatus: stats.dailyPositionStatus || []
   };
 }

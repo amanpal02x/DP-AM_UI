@@ -325,9 +325,9 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
   },
   {
     category: "Passenger Amenities",
-    name: "CGDM",
-    badge: "CGDM",
-    systemCode: "SECR/TEL/CGDM-16",
+    name: "CGDB",
+    badge: "CGDB",
+    systemCode: "SECR/TEL/CGDB-16",
     description: "Coach Guidance Display System showing coach layouts on platforms.",
     fields: [
       { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
