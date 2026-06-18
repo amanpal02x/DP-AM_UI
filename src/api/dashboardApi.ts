@@ -64,11 +64,19 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
       series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, stats.summary.activeFaultsCount || 0]
     },
     {
-      id: "reportedToday",
-      label: "Rectified Today",
+      id: "faultsToday",
+      label: "Faults Today",
+      value: (stats.summary.todayFaultsCount || 0).toString(),
+      detail: "Faults reported today",
+      tone: "amber",
+      series: [0, 1, 3, 2, 4, 5, 3, 2, 4, 2, 3, stats.summary.todayFaultsCount || 0]
+    },
+    {
+      id: "resolvedToday",
+      label: "Resolved Today",
       value: (stats.summary.todayRectifiedCount || 0).toString(),
       detail: "Faults resolved today",
-      tone: "teal",
+      tone: "green",
       series: [2, 3, 5, 4, 6, 8, 7, 9, 6, 5, 8, stats.summary.todayRectifiedCount || 0]
     }
   ];

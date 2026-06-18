@@ -1026,13 +1026,25 @@ function App() {
 
   const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
   if (isProfileLoading || (["Asset Dashboard", "DP Dashboard"].includes(activeNav) && dashboardLoading)) {
-    return <div className="app-loading">Loading...</div>;
+    return (
+      <div className="app-loading-container">
+        <div className="circular-time-loader">
+          <div className="loader-outer-ring"></div>
+          <div className="loader-inner-track"></div>
+          <div className="loader-spinner-gradient"></div>
+          <div className="loader-clock-hand-minute"></div>
+          <div className="loader-clock-hand-hour"></div>
+          <div className="loader-center-dot"></div>
+        </div>
+        <div className="loading-text">Loading Telecom Dashboard...</div>
+      </div>
+    );
   }
 
   if ((["Asset Dashboard", "DP Dashboard"].includes(activeNav)) && (dashboardError || !dashboardData)) {
     return (
-      <div className="app-loading">
-        <div>
+      <div className="app-loading-container">
+        <div style={{ textAlign: "center" }}>
           <h3>Dashboard API unavailable.</h3>
           <p>Please check backend connections or Supabase configurations.</p>
           <button className="export-button" onClick={() => logout()} style={{ marginTop: 12 }}>Sign Out & Retry</button>
@@ -2083,10 +2095,6 @@ function DailyPositionDashboardView({
     }
   };
 
-  const rectifiedCount = useMemo(() => {
-    return (data.dailyPositionStatus || []).find((item: any) => item.status.toUpperCase() === "RECTIFIED")?.count || 0;
-  }, [data.dailyPositionStatus]);
-
   const dpKpis = useMemo(() => {
     const faultsKpi = data.kpis.find(k => k.id === "activeFaults") || {
       id: "activeFaults",
@@ -2096,24 +2104,24 @@ function DailyPositionDashboardView({
       tone: "red",
       series: [0, 0, 0, 0, 0]
     };
-    const reportedKpi = data.kpis.find(k => k.id === "reportedToday") || {
-      id: "reportedToday",
-      label: "Rectified Today",
+    const faultsTodayKpi = data.kpis.find(k => k.id === "faultsToday") || {
+      id: "faultsToday",
+      label: "Faults Today",
       value: "0",
-      detail: "Faults resolved today",
-      tone: "teal",
+      detail: "Faults reported today",
+      tone: "amber",
       series: [0, 0, 0, 0, 0]
     };
-    const resolvedKpi: KpiMetric = {
+    const resolvedTodayKpi = data.kpis.find(k => k.id === "resolvedToday") || {
       id: "resolvedToday",
-      label: "Resolved Faults",
-      value: rectifiedCount.toString(),
-      detail: "Rectified failure tickets",
+      label: "Resolved Today",
+      value: "0",
+      detail: "Faults resolved today",
       tone: "green",
-      series: [5, 7, 8, 12, 10, 11, 14, 15, 13, 16, 17, rectifiedCount]
+      series: [0, 0, 0, 0, 0]
     };
-    return [faultsKpi, reportedKpi, resolvedKpi];
-  }, [data.kpis, rectifiedCount]);
+    return [faultsKpi, faultsTodayKpi, resolvedTodayKpi];
+  }, [data.kpis]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -2372,6 +2380,186 @@ const summaryDisplayValue = (value: any) => {
   return String(value);
 };
 
+function DailyPositionDetailsModal({
+  detailsRecord,
+  detailsTitle,
+  selectedDate,
+  formatDate,
+  onClose,
+  role,
+  queries,
+}: {
+  detailsRecord: any[];
+  detailsTitle: string;
+  selectedDate: string;
+  formatDate: (dateStr: string) => string;
+  onClose: () => void;
+  role: string;
+  queries?: any;
+}) {
+  const isSuperAdmin = role === "SUPER_ADMIN";
+
+  return (
+    <div className="modal-backdrop dp-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "600px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
+        <button className="modal-close" type="button" onClick={onClose} style={{ top: "14px", right: "16px" }}>X</button>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
+            Daily Position Details
+          </span>
+          <h2 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
+            {detailsTitle || detailsRecord[0]?.formType || "Daily Position"}
+          </h2>
+          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+            {formatDate(selectedDate)} · {detailsRecord.length} {detailsRecord.length === 1 ? "entry" : "entries"} submitted
+          </p>
+        </div>
+
+        {/* Content list */}
+        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
+          {detailsRecord.map((entry: any, index: number) => {
+            const isFault = entry.status !== "OPERATIONAL" && entry.status !== "RECTIFIED";
+            const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
+            const showAsset = entry.assetId && summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data) !== (detailsTitle || entry.formType);
+
+            return (
+              <div key={entry.id} style={{
+                border: "1px solid var(--line)",
+                borderRadius: "10px",
+                padding: "16px 20px",
+                background: "#fff",
+                position: "relative",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+              }}>
+                {detailsRecord.length > 1 && (
+                  <div style={{
+                    position: "absolute", top: "16px", right: "20px",
+                    fontSize: "10px", fontWeight: 700, color: "var(--blue)",
+                    background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                  }}>
+                    Entry #{index + 1}
+                  </div>
+                )}
+
+                {/* Subtitle / Header inside card */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
+                    {isSuperAdmin
+                      ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || "-"}`
+                      : (entry.stationCode || entry.stationName || entry.section || "-")
+                    }
+                  </h4>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center",
+                    padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                    color: "#fff",
+                    background: isFault ? "var(--red)" : "var(--green)"
+                  }}>
+                    {entry.status}
+                  </span>
+                </div>
+
+                {/* Main Information: Fault Timing (Priority 1) */}
+                <div style={{
+                  background: isFault ? "rgba(239, 68, 68, 0.03)" : "rgba(34, 197, 94, 0.03)",
+                  border: `1px solid ${isFault ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)"}`,
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                  marginBottom: "14px"
+                }}>
+                  {isFault ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        <div>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Failure Time</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.failureTime ? new Date(entry.failureTime).toLocaleString() : "-"}</strong>
+                        </div>
+                        <div>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Rectification Time</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.rectificationTime ? new Date(entry.rectificationTime).toLocaleString() : "-"}</strong>
+                        </div>
+                      </div>
+
+                      {entry.durationText && (
+                        <div>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration of Failure</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.durationText}</strong>
+                        </div>
+                      )}
+
+                      <div>
+                        <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Reason / Remarks</span>
+                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>
+                          {entry.reason || entry.remarks || "No reason specified"}
+                          {showRemarks && ` · ${entry.remarks}`}
+                        </strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>✔ System Operational</span>
+                      {(entry.remarks || entry.reason) && (
+                        <div style={{ borderTop: "1px solid rgba(34, 197, 94, 0.08)", paddingTop: "6px" }}>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Remarks</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{entry.remarks || entry.reason}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Form Fields (Priority 2) */}
+                {Object.keys(entry.formData || {}).length > 0 && (
+                  <div style={{ marginBottom: "12px" }}>
+                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Form Fields
+                    </span>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                      {Object.entries(entry.formData || {}).map(([key, value]) => {
+                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return null;
+                        if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return null;
+                        if (key === "stationCode" || key === "assetId") return null;
+                        return (
+                          <div key={key}>
+                            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{summaryHumanizeFieldName(key)}</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{summaryDisplayValue(value)}</strong>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer Metadata (Priority 3) */}
+                <div style={{
+                  borderTop: "1px solid #f1f5f9",
+                  paddingTop: "10px",
+                  marginTop: "12px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px 12px",
+                  fontSize: "11px",
+                  color: "var(--muted)"
+                }}>
+                  <span>Submitted: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"}</span>
+                  {isSuperAdmin && entry.createdByUsername && (
+                    <span>• User: {entry.createdByUsername}</span>
+                  )}
+                  {showAsset && (
+                    <span>• Asset: {summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data)}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Daily Position Summary Table Component
 function DailyPositionSummaryTable({
   user,
@@ -2382,43 +2570,74 @@ function DailyPositionSummaryTable({
   queries?: any;
   showToast: (msg: string) => void;
 }) {
-  const { setActiveNav, setDpSelectedCategory, setDpSelectedFormName, setDpOpenCategory } = useAppStore.getState();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const userDivision = user?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
-  const [selectedDivision, setSelectedDivision] = useState(isSuperAdmin ? "Bilaspur" : userDivision);
   const todayStr = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(todayStr);
-
+  const [selectedDivision, setSelectedDivision] = useState(userDivision);
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
+  const [detailsTitle, setDetailsTitle] = useState("");
 
-  // Fetch all DP entries for the selected division + date
+  // ── Single-division query (non-super-admin) ──────────────────────────
   const dpQuery = useQuery({
     queryKey: ["dp-summary-table", selectedDivision, selectedDate],
     queryFn: () => api.dailyPosition.list({ division: selectedDivision, date: selectedDate, limit: 500 }),
-    enabled: !!selectedDivision,
-    staleTime: 5 * 60 * 1000
+    enabled: !isSuperAdmin && !!selectedDivision,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const entries: any[] = dpQuery.data?.data || [];
+  // ── Three-division queries (super-admin only) ─────────────────────────
+  const bspQuery = useQuery({
+    queryKey: ["dp-summary-table", "Bilaspur", selectedDate],
+    queryFn: () => api.dailyPosition.list({ division: "Bilaspur", date: selectedDate, limit: 500 }),
+    enabled: isSuperAdmin,
+    staleTime: 5 * 60 * 1000,
+  });
+  const rprQuery = useQuery({
+    queryKey: ["dp-summary-table", "Raipur", selectedDate],
+    queryFn: () => api.dailyPosition.list({ division: "Raipur", date: selectedDate, limit: 500 }),
+    enabled: isSuperAdmin,
+    staleTime: 5 * 60 * 1000,
+  });
+  const ngpQuery = useQuery({
+    queryKey: ["dp-summary-table", "Nagpur", selectedDate],
+    queryFn: () => api.dailyPosition.list({ division: "Nagpur", date: selectedDate, limit: 500 }),
+    enabled: isSuperAdmin,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // Group all entries by formType for this division+date
-  const entriesByForm = useMemo(() => {
+  const isLoading = isSuperAdmin
+    ? (bspQuery.isLoading || rprQuery.isLoading || ngpQuery.isLoading)
+    : dpQuery.isLoading;
+
+  // Build entry map helper
+  const buildEntriesMap = (rawEntries: any[]): Record<string, any[]> => {
     const map: Record<string, any[]> = {};
-    for (const entry of entries) {
+    for (const entry of rawEntries) {
       const key = entry.formType || entry.category || "";
       if (key) {
         if (!map[key]) map[key] = [];
         map[key].push(entry);
       }
     }
-    // Sort each form type's entries by createdAt desc
     for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      map[key].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     }
     return map;
-  }, [entries]);
+  };
+
+  const entries: any[] = dpQuery.data?.data || [];
+  const entriesByForm = useMemo(() => buildEntriesMap(entries), [entries]);
+
+  const bspEntries: any[] = bspQuery.data?.data || [];
+  const rprEntries: any[] = rprQuery.data?.data || [];
+  const ngpEntries: any[] = ngpQuery.data?.data || [];
+  const bspMap = useMemo(() => buildEntriesMap(bspEntries), [bspEntries]);
+  const rprMap = useMemo(() => buildEntriesMap(rprEntries), [rprEntries]);
+  const ngpMap = useMemo(() => buildEntriesMap(ngpEntries), [ngpEntries]);
+  const divisionMaps: Record<string, Record<string, any[]>> = { Bilaspur: bspMap, Raipur: rprMap, Nagpur: ngpMap };
 
   const displayedForms = useMemo(() => {
     return DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
@@ -2428,8 +2647,20 @@ function DailyPositionSummaryTable({
     const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
     if (formEntries.length > 0) {
       setDetailsRecord(formEntries);
+      setDetailsTitle(form.name);
     } else {
       showToast(`No entry submitted for "${form.name}" on this date.`);
+    }
+  };
+
+  const handleCellClick = (division: string, form: typeof DAILY_POSITION_FORMS[0]) => {
+    const map = divisionMaps[division] || {};
+    const fe = map[form.name] || map[form.systemCode] || [];
+    if (fe.length > 0) {
+      setDetailsRecord(fe);
+      setDetailsTitle(`${form.name} — ${division}`);
+    } else {
+      showToast(`No entry for "${form.name}" in ${division} on this date.`);
     }
   };
 
@@ -2438,28 +2669,55 @@ function DailyPositionSummaryTable({
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   };
 
-  // Group forms by category
-  const grouped = useMemo(() => {
-    const cats: Record<string, typeof DAILY_POSITION_FORMS> = {};
-    for (const form of displayedForms) {
-      if (!cats[form.category]) cats[form.category] = [];
-      cats[form.category].push(form);
-    }
-    return cats;
-  }, [displayedForms]);
-
-  const getStatus = (form: typeof DAILY_POSITION_FORMS[0]) => {
-    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
-    if (formEntries.length === 0) return null;
-    const hasFault = formEntries.some(entry => {
-      const s = (entry.status || "").toUpperCase();
+  const getStatusFromMap = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]): "FAULT" | "NORMAL" | null => {
+    const fe = map[form.name] || map[form.systemCode] || [];
+    if (fe.length === 0) return null;
+    const hasFault = fe.some((e: any) => {
+      const s = (e.status || "").toUpperCase();
       return s !== "OPERATIONAL" && s !== "RECTIFIED";
     });
     return hasFault ? "FAULT" : "NORMAL";
   };
 
-  const getFaultCount = (form: typeof DAILY_POSITION_FORMS[0]) => {
-    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+  // Group forms by category and extract active faults to a top-level section
+  const grouped = useMemo(() => {
+    const activeFaults: typeof DAILY_POSITION_FORMS = [];
+    const normalCats: Record<string, typeof DAILY_POSITION_FORMS> = {};
+
+    for (const form of displayedForms) {
+      let hasFault = false;
+      if (isSuperAdmin) {
+        hasFault = getStatusFromMap(bspMap, form) === "FAULT" || getStatusFromMap(rprMap, form) === "FAULT" || getStatusFromMap(ngpMap, form) === "FAULT";
+      } else {
+        hasFault = getStatusFromMap(entriesByForm, form) === "FAULT";
+      }
+
+      if (hasFault) {
+        activeFaults.push(form);
+      } else {
+        if (!normalCats[form.category]) normalCats[form.category] = [];
+        normalCats[form.category].push(form);
+      }
+    }
+
+    const result: Record<string, typeof DAILY_POSITION_FORMS> = {};
+    if (activeFaults.length > 0) {
+      result["ACTIVE FAULTS"] = activeFaults;
+    }
+
+    for (const [cat, forms] of Object.entries(normalCats)) {
+      if (forms.length > 0) {
+        result[cat] = forms;
+      }
+    }
+
+    return result;
+  }, [displayedForms, isSuperAdmin, bspMap, rprMap, ngpMap, entriesByForm]);
+
+  const getStatus = (form: typeof DAILY_POSITION_FORMS[0]) => getStatusFromMap(entriesByForm, form);
+
+  const getFaultCount = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = map[form.name] || map[form.systemCode] || [];
     if (formEntries.length === 0) return "-";
 
     let totalFaults = 0;
@@ -2514,14 +2772,39 @@ function DailyPositionSummaryTable({
     return totalFaults > 0 ? totalFaults : "-";
   };
 
-  const getRemark = (form: typeof DAILY_POSITION_FORMS[0]) => {
-    const formEntries = entriesByForm[form.name] || entriesByForm[form.systemCode] || [];
+  const getRemark = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]) => {
+    const formEntries = map[form.name] || map[form.systemCode] || [];
     if (formEntries.length === 0) return "";
     return formEntries
-      .map(entry => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
+      .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
       .filter(Boolean)
       .join(" | ");
   };
+
+  const divisionColors: Record<string, string> = { Bilaspur: "#3b82f6", Raipur: "#ef4444", Nagpur: "#10b981" };
+
+  if (isSuperAdmin) {
+    return (
+      <DailyPositionSummaryTableSuperAdmin
+        grouped={grouped}
+        displayedForms={displayedForms}
+        DIVISIONS={DIVISIONS}
+        divisionMaps={divisionMaps}
+        divisionColors={divisionColors}
+        selectedDate={selectedDate}
+        todayStr={todayStr}
+        formatDate={formatDate}
+        getStatusFromMap={getStatusFromMap}
+        handleCellClick={handleCellClick}
+        isLoading={isLoading}
+        setSelectedDate={setSelectedDate}
+        detailsRecord={detailsRecord}
+        setDetailsRecord={setDetailsRecord}
+        detailsTitle={detailsTitle}
+        queries={queries}
+      />
+    );
+  }
 
   return (
     <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
@@ -2575,8 +2858,15 @@ function DailyPositionSummaryTable({
 
       {/* Loading state */}
       {dpQuery.isLoading && (
-        <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-          Loading summary…
+        <div style={{ padding: "48px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--muted)", fontSize: 13 }}>
+          <div className="inline-spinner">
+            <div className="loader-outer-ring"></div>
+            <div className="loader-spinner-gradient"></div>
+            <div className="loader-clock-hand-minute"></div>
+            <div className="loader-clock-hand-hour"></div>
+            <div className="loader-center-dot"></div>
+          </div>
+          <span>Loading summary…</span>
         </div>
       )}
 
@@ -2616,10 +2906,10 @@ function DailyPositionSummaryTable({
                 {/* Form rows */}
                 {forms.map(form => {
                   const status = getStatus(form);
-                  const remark = getRemark(form);
+                  const remark = getRemark(entriesByForm, form);
                   const isFault = status === "FAULT";
                   const noData = status === null;
-                  const faultCount = isFault ? getFaultCount(form) : "-";
+                  const faultCount = isFault ? getFaultCount(entriesByForm, form) : "-";
 
                   return (
                     <div
@@ -2708,7 +2998,7 @@ function DailyPositionSummaryTable({
               ))}
             </div>
             <span style={{ fontSize: 11, color: "var(--muted)" }}>
-              {formatDate(selectedDate)} · {isSuperAdmin ? selectedDivision : userDivision} Division
+              {formatDate(selectedDate)} · {userDivision} Division
             </span>
           </div>
         </>
@@ -2716,117 +3006,157 @@ function DailyPositionSummaryTable({
 
       {/* Details modal */}
       {detailsRecord && (
-        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)} style={{ zIndex: 9999 }}>
-          <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "750px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
-            <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)}>X</button>
-            <div style={{ padding: "20px 24px 12px", borderBottom: "1px solid var(--line)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.5px" }}>
-                Daily Position Record Details
-              </span>
-              <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
-                {detailsRecord[0]?.formType || "Daily Position"}
-              </h2>
-              <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
-                {formatDate(selectedDate)} · {detailsRecord.length} {detailsRecord.length === 1 ? "entry" : "entries"} submitted
-              </p>
-            </div>
-
-            <div style={{ overflowY: "auto", padding: "16px 24px 24px", display: "flex", flexDirection: "column", gap: "20px", flex: 1 }}>
-              {detailsRecord.map((entry: any, index: number) => (
-                <div key={entry.id} style={{
-                  border: "1px solid var(--line)",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  background: entry.status === "OPERATIONAL" || entry.status === "RECTIFIED" ? "#fff" : "rgba(255,51,40,0.02)",
-                  position: "relative"
-                }}>
-                  {detailsRecord.length > 1 && (
-                    <div style={{
-                      position: "absolute", top: "16px", right: "16px",
-                      fontSize: "11px", fontWeight: 700, color: "var(--blue)",
-                      background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
-                    }}>
-                      Entry #{index + 1}
-                    </div>
-                  )}
-
-                  <div className="dp-details-header" style={{ padding: 0, borderBottom: "none", marginBottom: "16px" }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--navy)" }}>
-                        {entry.division} / {entry.stationCode || entry.stationName || entry.section || "-"}
-                      </h4>
-                      <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                        Submitted by: {entry.createdByUsername || "Test Room"}
-                      </span>
-                    </div>
-                    <em className={`status-chip status-${String(entry.status || "").toLowerCase()}`} style={{ margin: 0 }}>
-                      {entry.status}
-                    </em>
-                  </div>
-
-                  <div className="dp-details-summary" style={{ padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: "16px" }}>
-                    {[
-                      ["Category", entry.category],
-                      ["Action", entry.formData?.actionType || (entry.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                      ["Linked Asset", summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data)],
-                      ["Submitted At", entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"],
-                    ].map(([label, value]) => (
-                      <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase" }}>{label}</span>
-                        <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{value}</strong>
-                      </div>
-                    ))}
-                  </div>
-
-                  <section className="dp-details-section" style={{ marginBottom: "16px" }}>
-                    <h5 style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Fault Timing</h5>
-                    <div className="dp-details-grid">
-                      {[
-                        ["Failure Time", entry.failureTime ? new Date(entry.failureTime).toLocaleString() : "-"],
-                        ["Rectification Time", entry.rectificationTime ? new Date(entry.rectificationTime).toLocaleString() : "-"],
-                        ["Duration of Failure", entry.durationText || "-"],
-                        ["Reason", entry.reason || "-"],
-                        ["Remarks", entry.remarks || "-"],
-                      ].map(([label, value]) => (
-                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>{label}</span>
-                          <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="dp-details-section">
-                    <h5 style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Submitted Form Fields</h5>
-                    <div className="dp-details-grid">
-                      {Object.entries(entry.formData || {}).map(([key, value]) => {
-                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return null;
-                        return (
-                          <div key={key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{summaryHumanizeFieldName(key)}</span>
-                            <strong style={{ fontSize: "13px", color: "var(--navy)" }}>{summaryDisplayValue(value)}</strong>
-                          </div>
-                        );
-                      })}
-                      {Object.keys(entry.formData || {}).filter(k => k !== "actionType" && k !== "checkedAt" && k !== "maintenanceType").length === 0 && (
-                        <div style={{ gridColumn: "span 2" }}>
-                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>Form Data</span>
-                          <strong style={{ fontSize: "13px", color: "var(--navy)" }}>No additional fields submitted.</strong>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <DailyPositionDetailsModal
+          detailsRecord={detailsRecord}
+          detailsTitle={detailsTitle}
+          selectedDate={selectedDate}
+          formatDate={formatDate}
+          onClose={() => setDetailsRecord(null)}
+          role={user?.role}
+          queries={queries}
+        />
       )}
     </article>
   );
 }
 
-// Activity Panel Component
+function DailyPositionSummaryTableSuperAdmin({
+  grouped, displayedForms, DIVISIONS, divisionMaps, divisionColors, selectedDate, todayStr, formatDate,
+  getStatusFromMap, handleCellClick, isLoading, setSelectedDate, detailsRecord, setDetailsRecord, detailsTitle, queries,
+}: any) {
+  return (
+    <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Daily Position Summary</h3>
+        <input type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)}
+          style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
+        />
+      </div>
+
+      {/* Division stat strip */}
+      {!isLoading && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", alignItems: "center", borderBottom: "1px solid var(--line)", gap: 8, padding: "10px 20px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, overflow: "hidden" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+              Division Status Summaries
+            </span>
+            <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+              Real-time status across SECR divisions
+            </span>
+          </div>
+          {DIVISIONS.map((div: string) => {
+            const map = divisionMaps[div] || {};
+            const normal = displayedForms.filter((f: any) => getStatusFromMap(map, f) === "NORMAL").length;
+            const fault = displayedForms.filter((f: any) => getStatusFromMap(map, f) === "FAULT").length;
+            const noEntry = displayedForms.length - normal - fault;
+            const color = divisionColors[div];
+            return (
+              <div key={div} style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "6px 8px 5px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderTop: `3px solid ${color}`,
+                borderRadius: "6px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+              }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--navy)", marginBottom: 3, letterSpacing: "0.3px" }}>{div.toUpperCase()}</span>
+                <div style={{ display: "flex", gap: 6, fontSize: 9, fontWeight: 700 }}>
+                  <span title="Normal" style={{ color: "#22c55e" }}>{normal}N</span>
+                  <span title="Fault" style={{ color: "#ef4444" }}>{fault}F</span>
+                  <span title="No Entry" style={{ color: "#94a3b8" }}>{noEntry}—</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isLoading && (
+        <div style={{ padding: "48px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--muted)", fontSize: 13 }}>
+          <div className="inline-spinner">
+            <div className="loader-outer-ring"></div>
+            <div className="loader-spinner-gradient"></div>
+            <div className="loader-clock-hand-minute"></div>
+            <div className="loader-clock-hand-hour"></div>
+            <div className="loader-center-dot"></div>
+          </div>
+          <span>Loading summary…</span>
+        </div>
+      )}
+
+      {!isLoading && (
+        <>
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", padding: "7px 20px", background: "var(--page)", borderBottom: "1px solid var(--line)", gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>FORM / SECTION</span>
+            {DIVISIONS.map((div: string) => (
+              <span key={div} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: divisionColors[div], textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: divisionColors[div], display: "inline-block", flexShrink: 0 }} />
+              </span>
+            ))}
+          </div>
+
+          {/* Grouped rows */}
+          <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 500 }}>
+            {Object.entries(grouped).map(([category, forms]: [string, any]) => (
+              <div key={category}>
+                <div style={{ padding: "5px 20px", background: "#f4f7fb", borderBottom: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{category}</span>
+                </div>
+                {forms.map((form: any) => (
+                  <div key={form.systemCode} style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", alignItems: "center", padding: "0 20px", height: 44, gap: 8, borderBottom: "1px solid var(--line)", background: "#fff" }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.name}</span>
+                    {DIVISIONS.map((div: string) => {
+                      const map = divisionMaps[div] || {};
+                      const status = getStatusFromMap(map, form);
+                      return (
+                        <div key={div} style={{ display: "flex", justifyContent: "center" }}>
+                          {status === null ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 72, padding: "3px 0", fontSize: 11, color: "#94a3b8", border: "1.5px dashed #e2e8f0", borderRadius: 20 }}>—</span>
+                          ) : (
+                            <button type="button" onClick={() => handleCellClick(div, form)}
+                              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 72, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: status === "FAULT" ? "#ef4444" : "#22c55e", letterSpacing: "0.3px" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.82"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                            >
+                              {status === "FAULT" ? "FAULT" : "NORMAL"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "8px 20px", background: "var(--page)", borderTop: "1px solid var(--line)", display: "flex", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>{formatDate(selectedDate)} · All Divisions</span>
+          </div>
+        </>
+      )}
+
+      {/* Details modal */}
+      {detailsRecord && (
+        <DailyPositionDetailsModal
+          detailsRecord={detailsRecord}
+          detailsTitle={detailsTitle}
+          selectedDate={selectedDate}
+          formatDate={formatDate}
+          onClose={() => setDetailsRecord(null)}
+          role="SUPER_ADMIN"
+          queries={queries}
+        />
+      )}
+    </article>
+  );
+}
 function ActivityPanel({ items }: { items: ActivityItem[] }) {
 
   return (
