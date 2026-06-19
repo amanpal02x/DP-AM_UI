@@ -1435,8 +1435,24 @@ function SidebarDailyPositionAccordion() {
     setDpSelectedCategory,
     setDpSelectedFormName,
     setDpOpenCategory,
-    setDpCircuitSearch
+    setDpCircuitSearch,
+    user
   } = useAppStore();
+
+  const todayStr = (() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
+  })();
+  const completedFormsKey = `dp_completed_${user?.username || "default"}_${todayStr}`;
+  const getCompletedForms = (): string[] => {
+    try {
+      return JSON.parse(localStorage.getItem(completedFormsKey) || "[]");
+    } catch (e) {
+      return [];
+    }
+  };
+  const completedForms = getCompletedForms();
 
   return (
     <div className="dp-circuit-accordion" style={{ paddingLeft: "8px", margin: "4px 0 12px 0", display: "grid", gap: "6px" }}>
@@ -1498,6 +1514,7 @@ function SidebarDailyPositionAccordion() {
                 />
                 {visibleForms.map(form => {
                   const isActive = form.name === dpSelectedFormName || (!dpSelectedFormName && form.name === forms[0].name);
+                  const isCompleted = completedForms.includes(form.name);
                   return (
                     <button
                       key={form.name}
@@ -1521,7 +1538,12 @@ function SidebarDailyPositionAccordion() {
                         setDpSelectedFormName(form.name);
                       }}
                     >
-                      <span>{form.name}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>{form.name}</span>
+                        {isCompleted && (
+                          <span style={{ color: isActive ? "#ffffff" : "var(--green)", fontWeight: 700, fontSize: "12px" }}>✓</span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -2525,7 +2547,7 @@ function DailyPositionDetailsModal({
 
         {/* Content list */}
         <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
-          {detailsRecord.map((entry: any, index: number) => {
+          {detailsRecord.filter((e: any) => e.status !== "DRAFT").map((entry: any, index: number) => {
             const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
             const isFault = entry.status !== "OPERATIONAL" && entry.status !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
@@ -2784,8 +2806,9 @@ function DailyPositionSummaryTable({
 
   const getStatusFromMap = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]): "FAULT" | "NORMAL" | null => {
     const fe = map[form.name] || map[form.systemCode] || [];
-    if (fe.length === 0) return null;
-    const hasFault = fe.some((e: any) => {
+    const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
+    if (activeEntries.length === 0) return null;
+    const hasFault = activeEntries.some((e: any) => {
       const s = (e.status || "").toUpperCase();
       const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
       return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
@@ -2832,12 +2855,13 @@ function DailyPositionSummaryTable({
 
   const getFaultCount = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]) => {
     const formEntries = map[form.name] || map[form.systemCode] || [];
-    if (formEntries.length === 0) return "-";
+    const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+    if (activeEntries.length === 0) return "-";
 
     let totalFaults = 0;
     let hasFaultyState = false;
 
-    for (const entry of formEntries) {
+    for (const entry of activeEntries) {
       const status = (entry.status || "").toUpperCase();
       const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
       if (status !== "OPERATIONAL" && status !== "RECTIFIED" && !isAllOk) {

@@ -135,6 +135,7 @@ export const api = {
     },
     create: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position", body),
     update: (id: string, body: any) => request<ApiResponse<any>>("PATCH", `/api/daily-position/${id}`, body),
+    delete: (id: string) => request<ApiResponse<any>>("DELETE", `/api/daily-position/${id}`),
     sections: () => request<ApiResponse<any[]>>("GET", "/api/daily-position/sections"),
     createMajorSection: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position/major-sections", body),
     createSection: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position/sections", body),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Edit, Eye, Send } from "lucide-react";
+import { CheckCircle2, Edit, Eye, Send, Trash2 } from "lucide-react";
 import { api } from "../../api/apiClient";
 import type { UserRole } from "../../types";
 import {
@@ -1494,6 +1494,26 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
   const [successModal, setSuccessModal] = useState<{ message: React.ReactNode; onOk: () => void } | null>(null);
 
+  // Local completed forms state for today
+  const todayStr = toDateValue();
+  const completedFormsKey = `dp_completed_${user?.username || "default"}_${todayStr}`;
+
+  const [completedFormsLocal, setCompletedFormsLocal] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(completedFormsKey) || "[]");
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const markFormCompleted = (formName: string) => {
+    const updated = Array.from(new Set([...completedFormsLocal, formName]));
+    setCompletedFormsLocal(updated);
+    localStorage.setItem(completedFormsKey, JSON.stringify(updated));
+    // Also invalidate sidebar completed checkmarks
+    queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+  };
+
   const moveToNextForm = () => {
     if (!selectedForm) return;
     const currentIndex = DAILY_POSITION_FORMS.findIndex(f => f.name === selectedForm.name);
@@ -1655,6 +1675,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
   }, [recordsQuery.data?.data]);
 
+  const isCompletedToday = useMemo(() => {
+    const hasLocalCompletion = completedFormsLocal.includes(selectedForm?.name);
+    const hasServerCompletion = records.some(
+      (r: any) => r.formType === selectedForm?.name && r.status !== "DRAFT"
+    );
+    return hasLocalCompletion || hasServerCompletion;
+  }, [completedFormsLocal, records, selectedForm?.name]);
+
+  const isFormEmpty = () => {
+    return !visibleActiveFields.some(field => {
+      if (field.name === "maintenanceType") return false;
+      return !!values[field.name];
+    });
+  };
+
   const [historySearch, setHistorySearch] = useState("");
   const [historyDivision, setHistoryDivision] = useState("");
   const [historyFormType, setHistoryFormType] = useState("");
@@ -1674,6 +1709,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const filteredHistoryRecords = useMemo(() => {
     return records.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
       if (historyDivision && r.division !== historyDivision) return false;
       if (historyCategory && r.category !== historyCategory) return false;
       if (historyFormType && r.formType !== historyFormType) return false;
@@ -1775,9 +1811,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
   };
 
-  const buildPayload = (actionType: "OK" | "FAULT" = "FAULT") => {
+  const buildPayload = (actionType: "OK" | "FAULT" | "DRAFT" = "FAULT") => {
     const station = metadata?.stations?.find((item: any) => item.code === values.stationCode);
     const isOk = actionType === "OK";
+    const isDraft = actionType === "DRAFT";
+    const editingRecord = editingRecordId ? records.find((r: any) => r.id === editingRecordId) : null;
     return {
       division: selectedDivision,
       category: selectedForm.category,
@@ -1789,12 +1827,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : (station?.name || null),
       assetId: values.assetId || null,
       telecomAsset: selectedForm.name,
-      status: isOk ? "OPERATIONAL" : statusFromForm(selectedForm, values),
+      status: isDraft ? "DRAFT" : (isOk ? "OPERATIONAL" : statusFromForm(selectedForm, values)),
       failureTime: isOk ? null : (values.failureTime || null),
       rectificationTime: isOk ? null : (values.rectificationTime || null),
       durationText: isOk ? null : calcDurationText(values.failureTime, values.rectificationTime),
       reason: isOk ? "All OK" : (values.reason || null),
       remarks: isOk ? (values.remarks || "No fault reported.") : (values.remarks || null),
+      date: editingRecord ? (editingRecord.date || selectedDate) : selectedDate,
       formData: {
         ...values,
         actionType,
@@ -1832,19 +1871,138 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     }
 
     if (editingRecordId) {
-      updateRecord.mutate({ id: editingRecordId, body: buildPayload("FAULT") });
+      const editingRecord = records.find((r: any) => r.id === editingRecordId);
+      const isEditingDraft = editingRecord && editingRecord.status === "DRAFT";
+      updateRecord.mutate({ 
+        id: editingRecordId, 
+        body: buildPayload(isEditingDraft ? "DRAFT" : "FAULT") 
+      });
       return;
     }
-    createRecord.mutate(buildPayload("FAULT"));
+    createRecord.mutate(buildPayload("DRAFT"));
   };
 
   const handleOk = () => {
     if (!canFill || !selectedForm) return;
     createRecord.mutate(buildPayload("OK"));
+    markFormCompleted(selectedForm.name);
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this draft?")) return;
+    try {
+      await api.dailyPosition.delete(id);
+      showToast("Draft deleted successfully.");
+      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete draft.");
+    }
+  };
+
+  const handleSaveAndNext = async () => {
+    if (!canFill || !selectedForm) return;
+
+    const drafts = records.filter(r => r.formType === selectedForm.name && r.status === "DRAFT");
+    const isEmpty = isFormEmpty();
+
+    if (!isEmpty) {
+      // Validate current form fields (visible fields only)
+      for (const field of visibleActiveFields) {
+        if (field.required && !values[field.name]) {
+          showToast(`Please fill in all required fields, or click Save to add as draft.`);
+          return;
+        }
+      }
+
+      // Client-side validation to block future dates & times
+      const now = new Date();
+      const nowLocalStr = toLocalDateTimeValue(now);
+      const todayLocalStr = toDateValue(now);
+
+      for (const field of visibleActiveFields) {
+        const val = values[field.name];
+        if (!val) continue;
+
+        if (field.name === "tdc") continue;
+
+        if (field.type === "datetime-local") {
+          if (val > nowLocalStr) {
+            showToast(`Future date & time is not allowed for "${field.label}".`);
+            return;
+          }
+        } else if (field.type === "date") {
+          if (val > todayLocalStr) {
+            showToast(`Future date is not allowed for "${field.label}".`);
+            return;
+          }
+        }
+      }
+
+      // Save current form values as draft first
+      try {
+        const payload = buildPayload("DRAFT");
+        const res = await api.dailyPosition.create(payload);
+        drafts.push(res.data);
+      } catch (err: any) {
+        showToast(err.message || "Failed to save draft.");
+        return;
+      }
+    }
+
+    if (drafts.length === 0) {
+      // No drafts & empty form -> Submit as All OK
+      try {
+        const payload = buildPayload("OK");
+        await api.dailyPosition.create(payload);
+        showToast("No drafts found. Submitted as ALL OK.");
+      } catch (err: any) {
+        showToast(err.message || "Failed to submit All OK.");
+        return;
+      }
+    } else {
+      // Submit all saved drafts by updating their status to final status
+      try {
+        const promises = drafts.map((draft: any) => {
+          const finalStatus = statusFromForm(selectedForm, draft.formData || {});
+          return api.dailyPosition.update(draft.id, {
+            ...draft,
+            status: finalStatus
+          });
+        });
+        await Promise.all(promises);
+      } catch (err: any) {
+        showToast(err.message || "Failed to submit drafts.");
+        return;
+      }
+    }
+
+    // Mark current form as completed for today
+    markFormCompleted(selectedForm.name);
+
+    await queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    await queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+
+    // Show success modal
+    setSuccessModal({
+      message: (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
+          <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+        </div>
+      ),
+      onOk: () => {
+        setSuccessModal(null);
+        resetForm();
+        setEditingRecordId(null);
+        moveToNextForm();
+      }
+    });
   };
 
   const startEdit = (record: any) => {
-    if (role !== "SUPER_ADMIN") {
+    const isDraft = record.status === "DRAFT";
+    if (role !== "SUPER_ADMIN" && !isDraft) {
       setRectifyingRecord(record);
       setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
       return;
@@ -2114,8 +2272,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           fontWeight: 700,
                           padding: "6px 14px",
                           borderRadius: "6px",
-                          fontSize: "13px"
+                          fontSize: "13px",
+                          cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
                         }}
+                        disabled={isCompletedToday && !editingRecordId}
                         onClick={() => {
                           setMaintenanceType("Divisional");
                           setValue("maintenanceType", "Divisional Maintenance");
@@ -2133,8 +2293,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           fontWeight: 700,
                           padding: "6px 14px",
                           borderRadius: "6px",
-                          fontSize: "13px"
+                          fontSize: "13px",
+                          cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
                         }}
+                        disabled={isCompletedToday && !editingRecordId}
                         onClick={() => {
                           setMaintenanceType("HQ");
                           setValue("maintenanceType", "HQ Maintenance");
@@ -2146,6 +2308,27 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   )}
                 </div>
 
+                {isCompletedToday && !editingRecordId && (
+                  <div
+                    style={{
+                      background: "#ecfdf5",
+                      border: "1px solid #10b981",
+                      color: "#065f46",
+                      padding: "12px 16px",
+                      borderRadius: "8px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontWeight: 600,
+                      fontSize: "14px"
+                    }}
+                  >
+                    <CheckCircle2 size={18} style={{ color: "#10b981" }} />
+                    Completed for Today
+                  </div>
+                )}
+
                 <div className="dp-form-grid">
                   {visibleActiveFields.map(field => (
                     <DailyPositionFieldInput
@@ -2156,7 +2339,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={false}
+                      readOnly={isCompletedToday && !editingRecordId}
                     />
                   ))}
                 </div>
@@ -2173,6 +2356,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           {activeFields.map(field => (
                             <th key={field.name}>{field.label}</th>
                           ))}
+                          <th>Status</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2204,11 +2389,70 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                               }
                               return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
                             })}
+                            <td>
+                              {record.status === "DRAFT" ? (
+                                <span style={{
+                                  background: "#fffbeb",
+                                  color: "#d97706",
+                                  border: "1px solid #fde68a",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  display: "inline-block",
+                                  textTransform: "uppercase"
+                                }}>Draft</span>
+                              ) : (() => {
+                                const isOk = record.status === "OPERATIONAL" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                return (
+                                  <span style={{
+                                    background: isOk ? "#ecfdf5" : "#fef2f2",
+                                    color: isOk ? "#059669" : "#dc2626",
+                                    border: `1px solid ${isOk ? "#a7f3d0" : "#fecaca"}`,
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    display: "inline-block",
+                                    textTransform: "uppercase"
+                                  }}>
+                                    Submitted
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td onClick={e => e.stopPropagation()}>
+                              {record.status === "DRAFT" ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDraft(record.id);
+                                  }}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#ef4444",
+                                    cursor: "pointer",
+                                    padding: "4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderRadius: "4px"
+                                  }}
+                                  title="Delete Draft"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
                           </tr>
                         ))}
                         {currentFormRecords.length === 0 && (
                           <tr>
-                            <td colSpan={activeFields.length} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
+                            <td colSpan={activeFields.length + 2} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
                           </tr>
                         )}
                       </tbody>
@@ -2229,7 +2473,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </button>
                 )}
                 {!editingRecordId && (
-                  <button className="export-button ok-button" type="button" onClick={handleOk} disabled={createRecord.isPending}>
+                  <button 
+                    className="export-button ok-button" 
+                    type="button" 
+                    onClick={handleOk} 
+                    disabled={createRecord.isPending || (isCompletedToday && !editingRecordId)}
+                  >
                     <CheckCircle2 size={16} />
                     ALL OK
                   </button>
@@ -2238,7 +2487,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   className="export-button" 
                   type="submit" 
                   onClick={() => setShouldNavigateToNext(false)} 
-                  disabled={createRecord.isPending || updateRecord.isPending}
+                  disabled={createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
                 >
                   <Send size={16} />
                   {editingRecordId ? "Update Daily Position" : "Save"}
@@ -2246,9 +2495,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {!editingRecordId && (
                   <button 
                     className="export-button" 
-                    type="submit" 
-                    onClick={() => setShouldNavigateToNext(true)} 
-                    disabled={createRecord.isPending || updateRecord.isPending}
+                    type="button" 
+                    onClick={handleSaveAndNext} 
+                    disabled={createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
                   >
                     <Send size={16} />
                     Save & Next
