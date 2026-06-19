@@ -1426,6 +1426,11 @@ function EditProfileModal({
   );
 }
 
+const toDateValue = (date = new Date()) => {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+};
+
 function SidebarDailyPositionAccordion() {
   const {
     dpSelectedCategory,
@@ -1439,11 +1444,7 @@ function SidebarDailyPositionAccordion() {
     user
   } = useAppStore();
 
-  const todayStr = (() => {
-    const d = new Date();
-    const offset = d.getTimezoneOffset();
-    return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
-  })();
+  const todayStr = toDateValue();
   const completedFormsKey = `dp_completed_${user?.username || "default"}_${todayStr}`;
   const getCompletedForms = (): string[] => {
     try {
@@ -1907,7 +1908,7 @@ function AssetDashboardView({
 }
 
 function DailyPositionSubmissionProgressPanel({ division }: { division: string }) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toDateValue();
   const dpQuery = useQuery({
     queryKey: ["dp-summary-table", division, todayStr],
     queryFn: () => api.dailyPosition.list({ division, date: todayStr, limit: 500 }),
@@ -2705,7 +2706,7 @@ function DailyPositionSummaryTable({
   const userDivision = currentUser?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toDateValue();
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedDivision, setSelectedDivision] = useState(userDivision);
 
@@ -2913,11 +2914,30 @@ function DailyPositionSummaryTable({
 
   const getRemark = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]) => {
     const formEntries = map[form.name] || map[form.systemCode] || [];
-    if (formEntries.length === 0) return "";
-    return formEntries
-      .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
-      .filter(Boolean)
-      .join(" | ");
+    const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+    if (activeEntries.length === 0) return "";
+
+    const status = getStatusFromMap(map, form);
+    if (status === "FAULT") {
+      const faultRemarks = activeEntries
+        .filter((e: any) => {
+          const s = (e.status || "").toUpperCase();
+          const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+          return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+        })
+        .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
+        .filter(Boolean);
+      return Array.from(new Set(faultRemarks)).join(" | ");
+    } else if (status === "NORMAL") {
+      const remarks = activeEntries
+        .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
+        .filter(r => r && r !== "All OK" && r !== "No fault reported.");
+      if (remarks.length > 0) {
+        return Array.from(new Set(remarks)).join(" | ");
+      }
+      return "";
+    }
+    return "";
   };
 
   const divisionColors: Record<string, string> = { Bilaspur: "#3b82f6", Raipur: "#ef4444", Nagpur: "#10b981" };
@@ -3106,7 +3126,7 @@ function DailyPositionSummaryTable({
                         fontSize: 12, color: remark ? "var(--navy)" : "var(--muted)",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
                       }}>
-                        {remark || (noData ? "—" : "No remarks")}
+                        {remark || "—"}
                       </span>
 
                       {/* Chevron */}
