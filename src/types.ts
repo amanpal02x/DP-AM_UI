@@ -98,6 +98,7 @@ export interface DashboardSummary {
     designation: string;
     avatarUrl: string;
     role: UserRole;
+    division?: string;
   };
   kpis: KpiMetric[];
   categories: CategoryMetric[];

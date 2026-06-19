@@ -195,7 +195,8 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
       name: activeUser.name,
       designation: activeUser.designation || "Telecom Operator",
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(activeUser.name)}`,
-      role: activeUser.role as any
+      role: activeUser.role as any,
+      division: activeUser.division
     },
     kpis,
     categories,

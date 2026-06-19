@@ -247,11 +247,42 @@ function SearchableStationDropdown({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          marginRight: value && !readOnly ? "24px" : "0px",
           color: value ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
         }}>
           {selectedStation ? (selectedStation.code === "Others" ? "Others" : `${selectedStation.name} (${selectedStation.code})`) : placeholder}
         </span>
-        <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={e => e.stopPropagation()}>
+          {value && !readOnly && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+              }}
+              style={{
+                fontSize: "16px",
+                fontWeight: "bold",
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#ef4444";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#94a3b8";
+              }}
+            >
+              ×
+            </span>
+          )}
+          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+        </div>
       </button>
 
       {/* Hidden select for HTML5 native validation */}
@@ -466,11 +497,42 @@ function SearchableDropdown({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          marginRight: value && !readOnly ? "24px" : "0px",
           color: value ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
         }}>
           {selectedOpt ? selectedOpt.label : placeholder}
         </span>
-        <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={e => e.stopPropagation()}>
+          {value && !readOnly && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+              }}
+              style={{
+                fontSize: "16px",
+                fontWeight: "bold",
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#ef4444";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#94a3b8";
+              }}
+            >
+              ×
+            </span>
+          )}
+          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+        </div>
       </button>
 
       {/* Hidden select for HTML5 native validation */}
@@ -1423,13 +1485,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const [selectedDivision, setSelectedDivision] = useState(role === "SUPER_ADMIN" ? "" : (division || ""));
   const [selectedDate, setSelectedDate] = useState(toDateValue());
-  const [values, setValues] = useState<Record<string, any>>({ failureTime: toLocalDateTimeValue() });
+  const [values, setValues] = useState<Record<string, any>>({});
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [shouldNavigateToNext, setShouldNavigateToNext] = useState(false);
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
+  const [successModal, setSuccessModal] = useState<{ message: React.ReactNode; onOk: () => void } | null>(null);
 
   const moveToNextForm = () => {
     if (!selectedForm) return;
@@ -1513,20 +1576,43 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const createRecord = useMutation({
     mutationFn: (body: any) => api.dailyPosition.create(body),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
-      setValues({ failureTime: toLocalDateTimeValue() });
-      setEditingRecordId(null);
-      if (mode === "history") {
-        setLocalViewMode("history");
+      
+      const isAllOk = variables?.formData?.actionType === "OK";
+      const isSaveAndNext = shouldNavigateToNext;
+      
+      let actionMsg: React.ReactNode = null;
+      if (isAllOk) {
+        actionMsg = <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Status Updated Successfully</div>;
+      } else if (isSaveAndNext) {
+        actionMsg = (
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
+            <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+          </div>
+        );
+      } else {
+        actionMsg = <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>;
       }
-      showToast("Daily Position record saved.");
-      if (shouldNavigateToNext) {
-        setShouldNavigateToNext(false);
-        moveToNextForm();
-      }
+
+      setSuccessModal({
+        message: actionMsg,
+        onOk: () => {
+          setSuccessModal(null);
+          resetForm();
+          setEditingRecordId(null);
+          if (mode === "history") {
+            setLocalViewMode("history");
+          }
+          if (isSaveAndNext) {
+            setShouldNavigateToNext(false);
+            moveToNextForm();
+          }
+        }
+      });
     },
     onError: (err: any) => showToast(err.message || "Failed to save Daily Position record."),
   });
@@ -1537,19 +1623,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
-      setValues({ failureTime: toLocalDateTimeValue() });
-      setEditingRecordId(null);
-      if (role === "SUPER_ADMIN") {
-        setSelectedDivision("");
-      }
-      if (mode === "history") {
-        setLocalViewMode("history");
-      }
-      showToast("Daily Position record updated.");
-      if (shouldNavigateToNext) {
-        setShouldNavigateToNext(false);
-        moveToNextForm();
-      }
+      
+      setSuccessModal({
+        message: <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>,
+        onOk: () => {
+          setSuccessModal(null);
+          resetForm();
+          setEditingRecordId(null);
+          if (role === "SUPER_ADMIN") {
+            setSelectedDivision("");
+          }
+          if (mode === "history") {
+            setLocalViewMode("history");
+          }
+        }
+      });
     },
     onError: (err: any) => showToast(err.message || "Failed to update Daily Position record."),
   });
@@ -1758,7 +1846,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const startEdit = (record: any) => {
     if (role !== "SUPER_ADMIN") {
       setRectifyingRecord(record);
-      setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || toLocalDateTimeValue());
+      setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
       return;
     }
     if (role === "SUPER_ADMIN") {
@@ -1808,10 +1896,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const resetForm = () => {
     if (selectedForm?.name === "Railnet / Internet") {
-      setValues({ failureTime: toLocalDateTimeValue(), maintenanceType: "Divisional Maintenance" });
+      setValues({ maintenanceType: "Divisional Maintenance" });
       setMaintenanceType("Divisional");
     } else {
-      setValues({ failureTime: toLocalDateTimeValue() });
+      setValues({});
     }
     setEditingRecordId(null);
   };
@@ -1927,7 +2015,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           </thead>
           <tbody>
             {filteredHistoryRecords.map((record: any) => {
-              const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL";
+              const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+              const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL" || isAllOk;
               const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
               return (
                 <tr key={record.id}>
@@ -1935,7 +2024,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <td>{record.category}</td>
                   <td><strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong></td>
                   <td>{record.stationCode || record.stationName || record.section || "-"}</td>
-                  <td><span className={`pill status-${String(record.status || "").toLowerCase()}`}>{record.status}</span></td>
+                  <td><span className={`pill status-${isAllOk ? "operational" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "OPERATIONAL" : record.status}</span></td>
                   <td>{record.failureTime ? (isTodayRecord(record) ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.failureTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
                   <td>{record.rectificationTime ? (isTodayRecord(record) ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.rectificationTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
                   <td>{record.remarks || record.reason || "-"}</td>
@@ -2173,42 +2262,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
       {viewMode === "history" && renderHistory()}
 
-      {detailsRecord && (
-        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
-          <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()}>
-            <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)}>X</button>
-            <div className="dp-details-header">
-              <div>
-                <span>Daily Position Record</span>
-                <h2>{detailsRecord.formType}</h2>
-                <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "-"}</p>
-              </div>
-              <em className={`status-chip status-${String(detailsRecord.status || "").toLowerCase()}`}>{detailsRecord.status}</em>
-            </div>
-
-            <div className="dp-details-summary">
-              {[
-                ["Category", detailsRecord.category],
-                ["Action", detailsRecord.formData?.actionType || (detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                ["Linked Asset", recordAssetLabel(detailsRecord, metadata)],
-                ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : "-"],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
+      {detailsRecord && (() => {
+        const isAllOk = detailsRecord.reason === "All OK" || (detailsRecord.formData && detailsRecord.formData.actionType === "OK");
+        return (
+          <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
+            <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()}>
+              <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)}>X</button>
+              <div className="dp-details-header">
+                <div>
+                  <span>Daily Position Record</span>
+                  <h2>{detailsRecord.formType}</h2>
+                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "-"}</p>
                 </div>
-              ))}
-            </div>
+                <em className={`status-chip status-${isAllOk ? "operational" : String(detailsRecord.status || "").toLowerCase()}`}>
+                  {isAllOk ? "OPERATIONAL" : detailsRecord.status}
+                </em>
+              </div>
 
-            <section className="dp-details-section">
-              <h3>Fault Timing</h3>
-              <div className="dp-details-grid">
+              <div className="dp-details-summary">
                 {[
-                  ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : "-"],
-                  ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : "-"],
-                  ["Duration of Failure", detailsRecord.durationText || "-"],
-                  ["Reason", detailsRecord.reason || "-"],
-                  ["Remarks", detailsRecord.remarks || "-"],
+                  ["Category", detailsRecord.category],
+                  ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
+                  ["Linked Asset", recordAssetLabel(detailsRecord, metadata)],
+                  ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : "-"],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
@@ -2216,28 +2292,46 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
                 ))}
               </div>
-            </section>
 
-            <section className="dp-details-section">
-              <h3>Submitted Form Fields</h3>
-              <div className="dp-details-grid">
-                {Object.entries(detailsRecord.formData || {}).map(([key, value]) => (
-                  <div key={key}>
-                    <span>{humanizeFieldName(key)}</span>
-                    <strong>{displayValue(value)}</strong>
-                  </div>
-                ))}
-                {Object.keys(detailsRecord.formData || {}).length === 0 && (
-                  <div>
-                    <span>Form Data</span>
-                    <strong>No additional fields submitted.</strong>
-                  </div>
-                )}
-              </div>
-            </section>
+              <section className="dp-details-section">
+                <h3>Fault Timing</h3>
+                <div className="dp-details-grid">
+                  {[
+                    ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : "-"],
+                    ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : "-"],
+                    ["Duration of Failure", detailsRecord.durationText || "-"],
+                    ["Reason", detailsRecord.reason || "-"],
+                    ["Remarks", detailsRecord.remarks || "-"],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="dp-details-section">
+                <h3>Submitted Form Fields</h3>
+                <div className="dp-details-grid">
+                  {Object.entries(detailsRecord.formData || {}).map(([key, value]) => (
+                    <div key={key}>
+                      <span>{humanizeFieldName(key)}</span>
+                      <strong>{displayValue(value)}</strong>
+                    </div>
+                  ))}
+                  {Object.keys(detailsRecord.formData || {}).length === 0 && (
+                    <div>
+                      <span>Form Data</span>
+                      <strong>No additional fields submitted.</strong>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {rectifyingRecord && (
         <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)}>
@@ -2322,6 +2416,101 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </form>
           </div>
         </div>
+      )}
+
+      {successModal && (
+        <>
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes scaleIn {
+              from { transform: scale(0.95); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+          <div
+            className="modal-backdrop"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(15, 23, 42, 0.4)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999999,
+              animation: "fadeIn 0.2s ease-out"
+            }}
+          >
+            <div
+              className="modal-card"
+              style={{
+                background: "#ffffff",
+                padding: "32px 24px",
+                borderRadius: "16px",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                maxWidth: "360px",
+                width: "90%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                gap: "20px",
+                border: "1px solid #e2e8f0",
+                animation: "scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)"
+              }}
+            >
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "#f0fdf4",
+                  border: "4px solid #dcfce7",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#16a34a",
+                  fontSize: "28px",
+                  fontWeight: "bold",
+                  boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
+                }}
+              >
+                ✓
+              </div>
+              <div style={{ margin: 0 }}>
+                {successModal.message}
+              </div>
+              <button
+                type="button"
+                className="export-button"
+                onClick={successModal.onOk}
+                style={{
+                  marginTop: "4px",
+                  minWidth: "110px",
+                  justifyContent: "center",
+                  background: "#1e3a8a",
+                  color: "#ffffff",
+                  border: "none",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  padding: "10px 24px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 6px -1px rgba(30, 58, 138, 0.2)"
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </article>
   );

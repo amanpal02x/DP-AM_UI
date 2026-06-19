@@ -218,11 +218,45 @@ const MultiSelectDropdown = ({
           onClick={() => setOpen(value => !value)}
           aria-haspopup="listbox"
           aria-expanded={open}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}
         >
-          <span className={selected.length ? "multi-dropdown-value" : "multi-dropdown-placeholder"}>
+          <span 
+            className={selected.length ? "multi-dropdown-value" : "multi-dropdown-placeholder"}
+            style={{ marginRight: selected.length ? "24px" : "0px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}
+          >
             {selected.length ? selected.join(", ") : placeholder}
           </span>
-          <ChevronDown size={16} />
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }} onClick={e => e.stopPropagation()}>
+            {selected.length > 0 && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange([]);
+                }}
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#ef4444";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#94a3b8";
+                }}
+              >
+                ×
+              </span>
+            )}
+            <ChevronDown size={16} style={{ color: "#64748b" }} />
+          </div>
         </button>
         {open && (
           <div className="multi-dropdown-menu" role="listbox" aria-multiselectable="true">
@@ -248,6 +282,78 @@ const MultiSelectDropdown = ({
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+const ClearableSelect = ({
+  value,
+  onChange,
+  children,
+  required,
+  style,
+  disabled,
+  ...props
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  children: React.ReactNode;
+  required?: boolean;
+  style?: React.CSSProperties;
+  disabled?: boolean;
+  [key: string]: any;
+}) => {
+  return (
+    <div className="clearable-select-wrapper" style={{ position: "relative", width: "100%", display: "inline-block" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        disabled={disabled}
+        style={{
+          ...style,
+          width: "100%",
+          paddingRight: value && !disabled ? "38px" : style?.paddingRight,
+        }}
+        {...props}
+      >
+        {children}
+      </select>
+      {value && !disabled && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onChange("");
+          }}
+          style={{
+            position: "absolute",
+            right: "32px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: "18px",
+            fontWeight: "bold",
+            color: "#94a3b8",
+            cursor: "pointer",
+            padding: "2px 6px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2,
+            userSelect: "none"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#ef4444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#94a3b8";
+          }}
+        >
+          ×
+        </span>
+      )}
     </div>
   );
 };
@@ -2420,7 +2526,8 @@ function DailyPositionDetailsModal({
         {/* Content list */}
         <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
           {detailsRecord.map((entry: any, index: number) => {
-            const isFault = entry.status !== "OPERATIONAL" && entry.status !== "RECTIFIED";
+            const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
+            const isFault = entry.status !== "OPERATIONAL" && entry.status !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
             const showAsset = entry.assetId && summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data) !== (detailsTitle || entry.formType);
 
@@ -2433,32 +2540,32 @@ function DailyPositionDetailsModal({
                 position: "relative",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
               }}>
-                {detailsRecord.length > 1 && (
-                  <div style={{
-                    position: "absolute", top: "16px", right: "20px",
-                    fontSize: "10px", fontWeight: 700, color: "var(--blue)",
-                    background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
-                  }}>
-                    Entry #{index + 1}
-                  </div>
-                )}
-
-                {/* Subtitle / Header inside card */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
+                 {/* Subtitle / Header inside card */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
                     {isSuperAdmin
                       ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || "-"}`
                       : (entry.stationCode || entry.stationName || entry.section || "-")
                     }
                   </h4>
-                  <span style={{
-                    display: "inline-flex", alignItems: "center",
-                    padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
-                    color: "#fff",
-                    background: isFault ? "var(--red)" : "var(--green)"
-                  }}>
-                    {entry.status}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    {detailsRecord.length > 1 && (
+                      <span style={{
+                        fontSize: "10px", fontWeight: 700, color: "var(--blue)",
+                        background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                      }}>
+                        Entry #{index + 1}
+                      </span>
+                    )}
+                    <span style={{
+                      display: "inline-flex", alignItems: "center",
+                      padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                      color: "#fff",
+                      background: isFault ? "var(--red)" : "var(--green)"
+                    }}>
+                      {isFault ? entry.status : (entry.status === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Main Information: Fault Timing (Priority 1) */}
@@ -2570,13 +2677,19 @@ function DailyPositionSummaryTable({
   queries?: any;
   showToast: (msg: string) => void;
 }) {
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const userDivision = user?.division || "Bilaspur";
+  const { user: storeUser } = useAppStore();
+  const currentUser = user || storeUser;
+  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+  const userDivision = currentUser?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
   const todayStr = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedDivision, setSelectedDivision] = useState(userDivision);
+
+  useEffect(() => {
+    setSelectedDivision(userDivision);
+  }, [userDivision]);
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
 
@@ -2674,7 +2787,8 @@ function DailyPositionSummaryTable({
     if (fe.length === 0) return null;
     const hasFault = fe.some((e: any) => {
       const s = (e.status || "").toUpperCase();
-      return s !== "OPERATIONAL" && s !== "RECTIFIED";
+      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+      return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
     });
     return hasFault ? "FAULT" : "NORMAL";
   };
@@ -2725,7 +2839,8 @@ function DailyPositionSummaryTable({
 
     for (const entry of formEntries) {
       const status = (entry.status || "").toUpperCase();
-      if (status !== "OPERATIONAL" && status !== "RECTIFIED") {
+      const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
+      if (status !== "OPERATIONAL" && status !== "RECTIFIED" && !isAllOk) {
         hasFaultyState = true;
         const fd = entry.formData || {};
         switch (form.name) {
@@ -2820,19 +2935,20 @@ function DailyPositionSummaryTable({
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           {isSuperAdmin && (
-            <select
+            <ClearableSelect
               value={selectedDivision}
-              onChange={e => setSelectedDivision(e.target.value)}
+              onChange={setSelectedDivision}
               style={{
                 border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
                 fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
                 fontFamily: "inherit"
               }}
             >
+              <option value="">Select Division</option>
               {DIVISIONS.map(d => (
                 <option key={d} value={d}>{d}</option>
               ))}
-            </select>
+            </ClearableSelect>
           )}
           {!isSuperAdmin && (
             <span style={{
@@ -3608,9 +3724,10 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
             <form className="section-modal-form" onSubmit={handleCreate}>
               <label>
                 Division
-                <select value={division} onChange={event => setDivision(event.target.value)}>
+                <ClearableSelect value={division} onChange={setDivision}>
+                  <option value="">Select Division</option>
                   {divisionOptions.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
+                </ClearableSelect>
               </label>
               <label>
                 Major Section
@@ -4999,50 +5116,50 @@ function ModuleView({
                 {/* Division Filter */}
                 <div className="filter-group">
                   <label>Division</label>
-                  <select value={filterDivision} onChange={(e) => setFilterDivision(e.target.value)}>
+                  <ClearableSelect value={filterDivision} onChange={setFilterDivision}>
                     <option value="">All Divisions</option>
                     {uniqueDivisions.map((div) => (
                       <option key={div} value={div}>{div}</option>
                     ))}
-                  </select>
+                  </ClearableSelect>
                 </div>
 
                 {/* State Filter */}
                 <div className="filter-group">
                   <label>State</label>
-                  <select value={filterState} onChange={(e) => setFilterState(e.target.value)}>
+                  <ClearableSelect value={filterState} onChange={setFilterState}>
                     <option value="">All States</option>
                     {uniqueStates.map((st) => (
                       <option key={st} value={st}>{st}</option>
                     ))}
-                  </select>
+                  </ClearableSelect>
                 </div>
 
                 {/* Category / Telecom Asset Filter */}
                 <div className="filter-group">
                   <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
-                  <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                  <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
                     <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
                     {categoriesList.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
-                  </select>
+                  </ClearableSelect>
                 </div>
 
                 {/* Status Filter for Assets */}
                 {activeNav === "Assets" && (
                   <div className="filter-group">
                     <label>Status</label>
-                    <select
+                    <ClearableSelect
                       value={assetStatusFilter}
-                      onChange={(e) => setAssetStatusFilter(e.target.value)}
+                      onChange={setAssetStatusFilter}
                     >
                       <option value="">All Statuses</option>
                       <option value="OPERATIONAL">Operational</option>
                       <option value="UNDER_MAINTENANCE">Under Maintenance</option>
                       <option value="FAULTY">Faulty</option>
                       <option value="OBSOLETE">Obsolete</option>
-                    </select>
+                    </ClearableSelect>
                   </div>
                 )}
 
@@ -6374,7 +6491,8 @@ function ActionPanel({
           </label>
           <label>
             System Role
-            <select value={addRole} onChange={e => setAddRole(e.target.value as UserRole)}>
+            <ClearableSelect value={addRole} onChange={val => setAddRole(val as UserRole)}>
+              <option value="">Select Role</option>
               {currentRole === "SUPER_ADMIN" ? (
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
@@ -6390,7 +6508,7 @@ function ActionPanel({
                   <option value="TESTROOM">TESTROOM</option>
                 </>
               )}
-            </select>
+            </ClearableSelect>
           </label>
           {addRole !== "SUPER_ADMIN" && addRole !== "DIVISIONAL_ADMIN" && (
             <label>
@@ -6402,12 +6520,13 @@ function ActionPanel({
             currentRole === "SUPER_ADMIN" ? (
               <label>
                 Division
-                <select value={addDivision} onChange={e => setAddDivision(e.target.value)}>
+                <ClearableSelect value={addDivision} onChange={setAddDivision}>
+                  <option value="">Select Division</option>
                   {uniqueDivisions.length > 0
                     ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
                     : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
                   }
-                </select>
+                </ClearableSelect>
               </label>
             ) : (
               <label>
@@ -6447,26 +6566,28 @@ function ActionPanel({
         <form onSubmit={handleSubmit} className="form-drawer">
           <label>
             {requiredLabel("Telecom Asset")}
-            <select required value={assetCategory} onChange={e => handleCategoryChange(e.target.value)}>
+            <ClearableSelect required value={assetCategory} onChange={handleCategoryChange}>
+              <option value="">Select Asset Category</option>
               {telecomAssetOptions.map(option => <option key={option} value={option}>{option}</option>)}
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             {requiredLabel("Station Code")}
-            <select required value={assetStation} onChange={e => setAssetStation(e.target.value)}>
+            <ClearableSelect required value={assetStation} onChange={setAssetStation}>
               <option value="">Select Station</option>
               {stations.map((s: any) => <option key={s.id} value={s.code}>{s.name} ({s.code})</option>)}
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             {requiredLabel("Mode")}
-            <select required value={assetMode} onChange={e => {
-              setAssetMode(e.target.value);
-              if (e.target.value === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
+            <ClearableSelect required value={assetMode} onChange={val => {
+              setAssetMode(val);
+              if (val === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
             }}>
+              <option value="">Select Mode</option>
               <option value={ASSET_MODE_STANDALONE}>Standalone</option>
               <option value={ASSET_MODE_HAS_EQUIPMENT}>Has Equipment</option>
-            </select>
+            </ClearableSelect>
           </label>
           {assetMode === ASSET_MODE_HAS_EQUIPMENT && (
             <label>
@@ -6515,15 +6636,16 @@ function ActionPanel({
           </label>
           <label>
             {requiredLabel("Maintenance Validity")}
-            <select required value={assetMaintenanceValidity} onChange={e => {
-              setAssetMaintenanceValidity(e.target.value);
-              if (e.target.value === MAINTENANCE_NOT_AVAILABLE) {
+            <ClearableSelect required value={assetMaintenanceValidity} onChange={val => {
+              setAssetMaintenanceValidity(val);
+              if (val === MAINTENANCE_NOT_AVAILABLE) {
                 setAssetMaintenanceFrom("");
                 setAssetMaintenanceTo("");
               }
             }}>
+              <option value="">Select Maintenance Validity</option>
               {MAINTENANCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            </ClearableSelect>
           </label>
           {needsMaintenanceDates && (
             <>
@@ -6543,12 +6665,13 @@ function ActionPanel({
           </label>
           <label>
             {requiredLabel("Status")}
-            <select required value={assetStatus} onChange={e => setAssetStatus(e.target.value)}>
+            <ClearableSelect required value={assetStatus} onChange={setAssetStatus}>
+              <option value="">Select Status</option>
               <option value="OPERATIONAL">OPERATIONAL</option>
               <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
               <option value="FAULTY">FAULTY</option>
               <option value="OBSOLETE">OBSOLETE</option>
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             Remarks
@@ -6633,12 +6756,13 @@ function ActionPanel({
         <form onSubmit={handleSubmit} className="form-drawer">
           <label>
             Division
-            <select value={stationDivision} onChange={e => setStationDivision(e.target.value)}>
+            <ClearableSelect value={stationDivision} onChange={setStationDivision}>
+              <option value="">Select Division</option>
               {uniqueDivisions.length > 0
                 ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
                 : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
               }
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             Station Name
@@ -6650,9 +6774,10 @@ function ActionPanel({
           </label>
           <label>
             State
-            <select value={stationState} onChange={e => setStationState(e.target.value)}>
+            <ClearableSelect value={stationState} onChange={setStationState}>
+              <option value="">Select State</option>
               {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             Category
@@ -6739,12 +6864,13 @@ function ActionPanel({
           <fieldset disabled={!canEditStations} style={{ border: "none", padding: 0, margin: 0, display: "contents" }}>
             <label>
               Division
-              <select value={stationDivision} onChange={e => setStationDivision(e.target.value)}>
+              <ClearableSelect value={stationDivision} onChange={setStationDivision}>
+                <option value="">Select Division</option>
                 {uniqueDivisions.length > 0
                   ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
                   : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
                 }
-              </select>
+              </ClearableSelect>
             </label>
             <label>
               Station Name
@@ -6756,9 +6882,10 @@ function ActionPanel({
             </label>
             <label>
               State
-              <select value={stationState} onChange={e => setStationState(e.target.value)}>
+              <ClearableSelect value={stationState} onChange={setStationState}>
+                <option value="">Select State</option>
                 {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              </ClearableSelect>
             </label>
             <label>
               Category
@@ -6853,9 +6980,10 @@ function ActionPanel({
           <fieldset disabled={!canEditAssets} style={{ border: "none", padding: 0, margin: 0, display: "contents" }}>
             <label>
               {requiredLabel("Telecom Asset")}
-              <select required value={assetCategory} onChange={e => handleCategoryChange(e.target.value)}>
+              <ClearableSelect required value={assetCategory} onChange={handleCategoryChange}>
+                <option value="">Select Asset Category</option>
                 {telecomAssetOptions.map(option => <option key={option} value={option}>{option}</option>)}
-              </select>
+              </ClearableSelect>
             </label>
             <label>
               {requiredLabel("Station Code")} (Read-Only)
@@ -6863,13 +6991,14 @@ function ActionPanel({
             </label>
             <label>
               {requiredLabel("Mode")}
-              <select required value={assetMode} onChange={e => {
-                setAssetMode(e.target.value);
-                if (e.target.value === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
+              <ClearableSelect required value={assetMode} onChange={val => {
+                setAssetMode(val);
+                if (val === ASSET_MODE_STANDALONE) setAssetEquipmentName("");
               }}>
+                <option value="">Select Mode</option>
                 <option value={ASSET_MODE_STANDALONE}>Standalone</option>
                 <option value={ASSET_MODE_HAS_EQUIPMENT}>Has Equipment</option>
-              </select>
+              </ClearableSelect>
             </label>
             {assetMode === ASSET_MODE_HAS_EQUIPMENT && (
               <label>
@@ -6918,15 +7047,16 @@ function ActionPanel({
             </label>
             <label>
               {requiredLabel("Maintenance Validity")}
-              <select required value={assetMaintenanceValidity} onChange={e => {
-                setAssetMaintenanceValidity(e.target.value);
-                if (e.target.value === MAINTENANCE_NOT_AVAILABLE) {
+              <ClearableSelect required value={assetMaintenanceValidity} onChange={val => {
+                setAssetMaintenanceValidity(val);
+                if (val === MAINTENANCE_NOT_AVAILABLE) {
                   setAssetMaintenanceFrom("");
                   setAssetMaintenanceTo("");
                 }
               }}>
+                <option value="">Select Maintenance Validity</option>
                 {MAINTENANCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              </ClearableSelect>
             </label>
             {needsMaintenanceDates && (
               <>
@@ -6946,12 +7076,13 @@ function ActionPanel({
             </label>
             <label>
               {requiredLabel("Status")}
-              <select required value={assetStatus} onChange={e => setAssetStatus(e.target.value)}>
+              <ClearableSelect required value={assetStatus} onChange={setAssetStatus}>
+                <option value="">Select Status</option>
                 <option value="OPERATIONAL">OPERATIONAL</option>
                 <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
                 <option value="FAULTY">FAULTY</option>
                 <option value="OBSOLETE">OBSOLETE</option>
-              </select>
+              </ClearableSelect>
             </label>
             <label>
               Remarks
@@ -7044,11 +7175,12 @@ function ActionPanel({
           </label>
           <label>
             Category
-            <select value={gateCategory} onChange={e => setGateCategory(e.target.value)}>
+            <ClearableSelect value={gateCategory} onChange={setGateCategory}>
+              <option value="">Select Category</option>
               <option value="Interlocked">Interlocked</option>
               <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
               <option value="Special / Other Gates">Special / Other Gates</option>
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             Section
@@ -7064,10 +7196,10 @@ function ActionPanel({
           </label>
           <label>
             Station Link
-            <select value={gateStation} onChange={e => setGateStation(e.target.value)}>
+            <ClearableSelect value={gateStation} onChange={setGateStation}>
               <option value="">No Linking Station</option>
               {stations.map((s: any) => <option key={s.id} value={s.code}>{s.name} ({s.code})</option>)}
-            </select>
+            </ClearableSelect>
           </label>
           <button type="submit" className="export-button">Register LC Gate</button>
         </form>
@@ -7088,11 +7220,12 @@ function ActionPanel({
             </label>
             <label>
               Category
-              <select value={gateCategory} onChange={e => setGateCategory(e.target.value)}>
-                <option value="Interlocked">Interlocked</option>
-                <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
-                <option value="Special / Other Gates">Special / Other Gates</option>
-              </select>
+            <ClearableSelect value={gateCategory} onChange={setGateCategory}>
+              <option value="">Select Category</option>
+              <option value="Interlocked">Interlocked</option>
+              <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
+              <option value="Special / Other Gates">Special / Other Gates</option>
+            </ClearableSelect>
             </label>
             <label>
               Section
@@ -7149,7 +7282,8 @@ function ActionPanel({
           </label>
           <label>
             System Role
-            <select value={newRole} onChange={e => setNewRole(e.target.value)}>
+            <ClearableSelect value={newRole} onChange={setNewRole}>
+              <option value="">Select Role</option>
               {currentRole === "SUPER_ADMIN" ? (
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
@@ -7165,7 +7299,7 @@ function ActionPanel({
                   <option value="TESTROOM">TESTROOM</option>
                 </>
               )}
-            </select>
+            </ClearableSelect>
           </label>
           <label>
             Designation
@@ -7174,12 +7308,13 @@ function ActionPanel({
           {currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && (
             <label>
               Division
-              <select value={stationDivision} onChange={e => setStationDivision(e.target.value)}>
+              <ClearableSelect value={stationDivision} onChange={setStationDivision}>
+                <option value="">Select Division</option>
                 {uniqueDivisions.length > 0
                   ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
                   : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
                 }
-              </select>
+              </ClearableSelect>
             </label>
           )}
           <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
@@ -8039,20 +8174,22 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
               )}
               <label>
                 System Role
-                <select value={roleInput} onChange={e => setRoleInput(e.target.value as UserRole)}>
+                <ClearableSelect value={roleInput} onChange={val => setRoleInput(val as UserRole)}>
+                  <option value="">Select Role</option>
                   <option value="SUPER_ADMIN">Super Admin</option>
                   <option value="DIVISIONAL_ADMIN">Divisional Admin</option>
                   <option value="SSE">SSE (Senior Section Engineer)</option>
                   <option value="TECHNICIAN">Technician</option>
                   <option value="TESTROOM">Testroom</option>
-                </select>
+                </ClearableSelect>
               </label>
               {(roleInput as string) !== "SUPER_ADMIN" && (
                 <label>
                   Division
-                  <select value={divisionInput} onChange={e => setDivisionInput(e.target.value)}>
+                  <ClearableSelect value={divisionInput} onChange={setDivisionInput}>
+                    <option value="">Select Division</option>
                     {["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  </ClearableSelect>
                 </label>
               )}
             </>

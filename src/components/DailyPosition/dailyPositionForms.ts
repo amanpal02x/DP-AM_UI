@@ -61,7 +61,7 @@ const standardFaultFields: DailyPositionField[] = [
 
 const exchangeFields: DailyPositionField[] = [
   { name: "stationCode", label: "Station/Location", type: "select", placeholder: "Select Station/Location" },
-  requiredDocketField,
+  docketField,
   {
     name: "exchangeName",
     label: "Name of Exchange",
