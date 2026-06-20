@@ -37,7 +37,9 @@ import {
   Lock,
   MessageSquare,
   UploadCloud,
-  Send
+  Send,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import {
   Cell,
@@ -7838,6 +7840,7 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [roleInput, setRoleInput] = useState<UserRole>("SSE");
   const [designation, setDesignation] = useState("");
@@ -8244,7 +8247,35 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           </label>
           <label>
             Password
-            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="password"
+                style={{ paddingRight: "44px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "4px"
+                }}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
           <button type="submit" disabled={loading}>
             {loading ? "Please wait..." : isRegister ? "Register & Login" : "Sign In"}
