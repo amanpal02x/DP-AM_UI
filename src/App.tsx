@@ -3290,25 +3290,26 @@ function DailyPositionSummaryTableSuperAdmin({
           <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 500 }}>
             {Object.entries(grouped).map(([category, forms]: [string, any]) => (
               <div key={category}>
-                <div style={{
-                  padding: "6px 20px",
-                  background: category === "ACTIVE FAULTS" ? "rgba(239, 68, 68, 0.08)" : "#f4f7fb",
-                  borderBottom: "1px solid var(--line)",
-                  borderLeft: category === "ACTIVE FAULTS" ? "4px solid var(--red)" : "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: category === "ACTIVE FAULTS" ? "var(--red)" : "var(--muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px"
+                {category !== "ACTIVE FAULTS" && (
+                  <div style={{
+                    padding: "6px 20px",
+                    background: "#f4f7fb",
+                    borderBottom: "1px solid var(--line)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
                   }}>
-                    {category === "ACTIVE FAULTS" ? "⚠️ " + category : category}
-                  </span>
-                </div>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px"
+                    }}>
+                      {category}
+                    </span>
+                  </div>
+                )}
                 {forms.map((form: any) => (
                   <div key={form.systemCode} style={{
                     display: "grid",
