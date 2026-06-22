@@ -2927,7 +2927,43 @@ function DailyPositionSummaryTable({
           const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
           return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
         })
-        .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
+        .map((entry: any) => {
+          let timeStr = "";
+          if (entry.failureTime) {
+            const d = new Date(entry.failureTime);
+            const hrs = String(d.getHours()).padStart(2, '0');
+            const mins = String(d.getMinutes()).padStart(2, '0');
+            timeStr = `${hrs}:${mins}`;
+          }
+          let locLabel = "Station";
+          let locValue = "";
+          if (entry.stationCode || entry.stationName) {
+            locLabel = "Station";
+            locValue = entry.stationCode || entry.stationName;
+          } else if (entry.section) {
+            locLabel = "Section";
+            locValue = entry.section;
+          } else if (entry.location) {
+            locLabel = "Location";
+            locValue = entry.location;
+          }
+          
+          const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
+          let truncatedRemark = "";
+          if (rawRemark) {
+            const words = rawRemark.trim().split(/\s+/);
+            if (words.length <= 5) {
+              truncatedRemark = rawRemark;
+            } else {
+              truncatedRemark = words.slice(0, 5).join(" ") + "...";
+            }
+          }
+          const parts = [];
+          if (timeStr) parts.push(`Time : ${timeStr}`);
+          if (locValue) parts.push(`${locLabel} : ${locValue}`);
+          if (truncatedRemark) parts.push(`Remark : ${truncatedRemark}`);
+          return parts.join(" ");
+        })
         .filter(Boolean);
       return Array.from(new Set(faultRemarks)).join(" | ");
     } else if (status === "NORMAL") {
@@ -2963,6 +2999,7 @@ function DailyPositionSummaryTable({
         setDetailsRecord={setDetailsRecord}
         detailsTitle={detailsTitle}
         queries={queries}
+        getRemark={getRemark}
       />
     );
   }
@@ -3113,7 +3150,7 @@ function DailyPositionSummaryTable({
                             color: "#fff",
                             background: isFault ? "var(--red)" : "var(--green)"
                           }}>
-                            {isFault ? "FAULT" : "NORMAL"}
+                            {isFault ? "FAULT" : "ALL OK"}
                           </span>
                         )}
                       </span>
@@ -3148,7 +3185,7 @@ function DailyPositionSummaryTable({
           }}>
             <div style={{ display: "flex", gap: 12 }}>
               {[
-                { label: "Normal", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
+                { label: "ALL OK", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
                 { label: "Fault", color: "var(--red)", bg: "var(--red-soft)", count: displayedForms.filter(f => getStatus(f) === "FAULT").length },
                 { label: "No Entry", color: "var(--muted)", bg: "var(--line)", count: displayedForms.filter(f => getStatus(f) === null).length },
               ].map(s => (
@@ -3185,6 +3222,7 @@ function DailyPositionSummaryTable({
 function DailyPositionSummaryTableSuperAdmin({
   grouped, displayedForms, DIVISIONS, divisionMaps, divisionColors, selectedDate, todayStr, formatDate,
   getStatusFromMap, handleCellClick, isLoading, setSelectedDate, detailsRecord, setDetailsRecord, detailsTitle, queries,
+  getRemark,
 }: any) {
   return (
     <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
@@ -3198,7 +3236,7 @@ function DailyPositionSummaryTableSuperAdmin({
 
       {/* Division stat strip */}
       {!isLoading && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", alignItems: "center", borderBottom: "1px solid var(--line)", gap: 8, padding: "10px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 280px 280px 280px", alignItems: "center", borderBottom: "1px solid var(--line)", gap: 8, padding: "10px 20px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, overflow: "hidden" }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
               Division Status Summaries
@@ -3216,21 +3254,16 @@ function DailyPositionSummaryTableSuperAdmin({
             return (
               <div key={div} style={{
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
-                padding: "6px 8px 5px",
+                justifyContent: "center",
+                padding: "10px 8px",
                 background: "#f8fafc",
                 border: "1px solid #e2e8f0",
                 borderTop: `3px solid ${color}`,
                 borderRadius: "6px",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
               }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--navy)", marginBottom: 3, letterSpacing: "0.3px" }}>{div.toUpperCase()}</span>
-                <div style={{ display: "flex", gap: 6, fontSize: 9, fontWeight: 700 }}>
-                  <span title="Normal" style={{ color: "#22c55e" }}>{normal}N</span>
-                  <span title="Fault" style={{ color: "#ef4444" }}>{fault}F</span>
-                  <span title="No Entry" style={{ color: "#94a3b8" }}>{noEntry}—</span>
-                </div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--navy)", letterSpacing: "0.5px" }}>{div.toUpperCase()}</span>
               </div>
             );
           })}
@@ -3252,41 +3285,130 @@ function DailyPositionSummaryTableSuperAdmin({
 
       {!isLoading && (
         <>
-          {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", padding: "7px 20px", background: "var(--page)", borderBottom: "1px solid var(--line)", gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>FORM / SECTION</span>
-            {DIVISIONS.map((div: string) => (
-              <span key={div} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: divisionColors[div], textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: divisionColors[div], display: "inline-block", flexShrink: 0 }} />
-              </span>
-            ))}
-          </div>
 
           {/* Grouped rows */}
           <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 500 }}>
             {Object.entries(grouped).map(([category, forms]: [string, any]) => (
               <div key={category}>
-                <div style={{ padding: "5px 20px", background: "#f4f7fb", borderBottom: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{category}</span>
+                <div style={{
+                  padding: "6px 20px",
+                  background: category === "ACTIVE FAULTS" ? "rgba(239, 68, 68, 0.08)" : "#f4f7fb",
+                  borderBottom: "1px solid var(--line)",
+                  borderLeft: category === "ACTIVE FAULTS" ? "4px solid var(--red)" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: category === "ACTIVE FAULTS" ? "var(--red)" : "var(--muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px"
+                  }}>
+                    {category === "ACTIVE FAULTS" ? "⚠️ " + category : category}
+                  </span>
                 </div>
                 {forms.map((form: any) => (
-                  <div key={form.systemCode} style={{ display: "grid", gridTemplateColumns: "1.8fr 170px 170px 170px", alignItems: "center", padding: "0 20px", height: 44, gap: 8, borderBottom: "1px solid var(--line)", background: "#fff" }}>
+                  <div key={form.systemCode} style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 280px 280px 280px",
+                    alignItems: "center",
+                    padding: "6px 20px",
+                    minHeight: 52,
+                    gap: 8,
+                    borderBottom: "1px solid var(--line)",
+                    background: category === "ACTIVE FAULTS" ? "rgba(239, 68, 68, 0.02)" : "#fff",
+                    borderLeft: category === "ACTIVE FAULTS" ? "3px solid var(--red)" : "none"
+                  }}>
                     <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.name}</span>
                     {DIVISIONS.map((div: string) => {
                       const map = divisionMaps[div] || {};
                       const status = getStatusFromMap(map, form);
                       return (
-                        <div key={div} style={{ display: "flex", justifyContent: "center" }}>
+                        <div key={div} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "4px 0", minWidth: 0 }}>
                           {status === null ? (
                             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 72, padding: "3px 0", fontSize: 11, color: "#94a3b8", border: "1.5px dashed #e2e8f0", borderRadius: 20 }}>—</span>
                           ) : (
-                            <button type="button" onClick={() => handleCellClick(div, form)}
-                              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 72, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: status === "FAULT" ? "#ef4444" : "#22c55e", letterSpacing: "0.3px" }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.82"; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-                            >
-                              {status === "FAULT" ? "FAULT" : "NORMAL"}
-                            </button>
+                            <>
+                              <button type="button" onClick={() => handleCellClick(div, form)}
+                                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 72, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: status === "FAULT" ? "#ef4444" : "#22c55e", letterSpacing: "0.3px" }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.82"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                              >
+                                {status === "FAULT" ? "FAULT" : "ALL OK"}
+                              </button>
+                              {status === "FAULT" && (
+                                <div style={{ fontSize: "11px", textAlign: "center", width: "100%", whiteSpace: "normal", wordBreak: "break-word", marginTop: "2px", lineHeight: "1.3" }}>
+                                  {(() => {
+                                    const fe = map[form.name] || map[form.systemCode] || [];
+                                    const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
+                                    const faultDetails = activeEntries
+                                      .filter((e: any) => {
+                                        const s = (e.status || "").toUpperCase();
+                                        const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                                        return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+                                      })
+                                      .map((entry: any) => {
+                                        let timeStr = "";
+                                        if (entry.failureTime) {
+                                          const d = new Date(entry.failureTime);
+                                          const hrs = String(d.getHours()).padStart(2, '0');
+                                          const mins = String(d.getMinutes()).padStart(2, '0');
+                                          timeStr = `${hrs}:${mins}`;
+                                        }
+                                        let locLabel = "Station";
+                                        let locValue = "";
+                                        if (entry.stationCode || entry.stationName) {
+                                          locLabel = "Station";
+                                          locValue = entry.stationCode || entry.stationName;
+                                        } else if (entry.section) {
+                                          locLabel = "Section";
+                                          locValue = entry.section;
+                                        } else if (entry.location) {
+                                          locLabel = "Location";
+                                          locValue = entry.location;
+                                        }
+                                        
+                                        const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
+                                        let truncatedRemark = "";
+                                        if (rawRemark) {
+                                          const words = rawRemark.trim().split(/\s+/);
+                                          if (words.length <= 5) {
+                                            truncatedRemark = rawRemark;
+                                          } else {
+                                            truncatedRemark = words.slice(0, 5).join(" ") + "...";
+                                          }
+                                        }
+                                        return { time: timeStr, locLabel, locValue, remark: truncatedRemark };
+                                      });
+ 
+                                    return faultDetails.map((detail: any, idx: number) => (
+                                      <div key={idx} style={{ display: "inline-block", marginRight: "4px" }}>
+                                        {detail.time && (
+                                          <>
+                                            <span style={{ color: "#64748b", fontWeight: 600 }}>Time : </span>
+                                            <span style={{ color: "#ef4444", fontWeight: 600, marginRight: "5px" }}>{detail.time}</span>
+                                          </>
+                                        )}
+                                        {detail.locValue && (
+                                          <>
+                                            <span style={{ color: "#64748b", fontWeight: 600 }}>{detail.locLabel} : </span>
+                                            <span style={{ color: "#ef4444", fontWeight: 600, marginRight: "5px" }}>{detail.locValue}</span>
+                                          </>
+                                        )}
+                                        {detail.remark && (
+                                          <>
+                                            <span style={{ color: "#64748b", fontWeight: 600 }}>Remark : </span>
+                                            <span style={{ color: "#ef4444", fontWeight: 600 }}>{detail.remark}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       );
