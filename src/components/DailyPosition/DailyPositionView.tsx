@@ -1493,6 +1493,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
   const [successModal, setSuccessModal] = useState<{ message: React.ReactNode; onOk: () => void } | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSavingAndNext, setIsSavingAndNext] = useState(false);
+  const [isSubmittingAllOk, setIsSubmittingAllOk] = useState(false);
 
   // Local completed forms state for today
   const todayStr = toDateValue();
@@ -1633,8 +1636,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           }
         }
       });
+      setIsSavingDraft(false);
+      setIsSubmittingAllOk(false);
     },
-    onError: (err: any) => showToast(err.message || "Failed to save Daily Position record."),
+    onError: (err: any) => {
+      showToast(err.message || "Failed to save Daily Position record.");
+      setIsSavingDraft(false);
+      setIsSubmittingAllOk(false);
+    },
   });
 
   const updateRecord = useMutation({
@@ -1658,8 +1667,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           }
         }
       });
+      setIsSavingDraft(false);
     },
-    onError: (err: any) => showToast(err.message || "Failed to update Daily Position record."),
+    onError: (err: any) => {
+      showToast(err.message || "Failed to update Daily Position record.");
+      setIsSavingDraft(false);
+    },
   });
 
   const metadata = metadataQuery.data?.data;
@@ -1870,6 +1883,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     }
 
+    setIsSavingDraft(true);
     if (editingRecordId) {
       const editingRecord = records.find((r: any) => r.id === editingRecordId);
       const isEditingDraft = editingRecord && editingRecord.status === "DRAFT";
@@ -1884,6 +1898,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const handleOk = () => {
     if (!canFill || !selectedForm) return;
+    setIsSubmittingAllOk(true);
     createRecord.mutate(buildPayload("OK"));
     markFormCompleted(selectedForm.name);
   };
@@ -1902,102 +1917,113 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const handleSaveAndNext = async () => {
     if (!canFill || !selectedForm) return;
 
-    const drafts = records.filter(r => r.formType === selectedForm.name && r.status === "DRAFT");
-    const isEmpty = isFormEmpty();
+    setIsSavingAndNext(true);
+    try {
+      const drafts = records.filter(r => r.formType === selectedForm.name && r.status === "DRAFT");
+      const isEmpty = isFormEmpty();
 
-    if (!isEmpty) {
-      // Validate current form fields (visible fields only)
-      for (const field of visibleActiveFields) {
-        if (field.required && !values[field.name]) {
-          showToast(`Please fill in all required fields, or click Save to add as draft.`);
+      if (!isEmpty) {
+        // Validate current form fields (visible fields only)
+        for (const field of visibleActiveFields) {
+          if (field.required && !values[field.name]) {
+            showToast(`Please fill in all required fields, or click Save to add as draft.`);
+            setIsSavingAndNext(false);
+            return;
+          }
+        }
+
+        // Client-side validation to block future dates & times
+        const now = new Date();
+        const nowLocalStr = toLocalDateTimeValue(now);
+        const todayLocalStr = toDateValue(now);
+
+        for (const field of visibleActiveFields) {
+          const val = values[field.name];
+          if (!val) continue;
+
+          if (field.name === "tdc") continue;
+
+          if (field.type === "datetime-local") {
+            if (val > nowLocalStr) {
+              showToast(`Future date & time is not allowed for "${field.label}".`);
+              setIsSavingAndNext(false);
+              return;
+            }
+          } else if (field.type === "date") {
+            if (val > todayLocalStr) {
+              showToast(`Future date is not allowed for "${field.label}".`);
+              setIsSavingAndNext(false);
+              return;
+            }
+          }
+        }
+
+        // Save current form values as draft first
+        try {
+          const payload = buildPayload("DRAFT");
+          const res = await api.dailyPosition.create(payload);
+          drafts.push(res.data);
+        } catch (err: any) {
+          showToast(err.message || "Failed to save draft.");
+          setIsSavingAndNext(false);
           return;
         }
       }
 
-      // Client-side validation to block future dates & times
-      const now = new Date();
-      const nowLocalStr = toLocalDateTimeValue(now);
-      const todayLocalStr = toDateValue(now);
-
-      for (const field of visibleActiveFields) {
-        const val = values[field.name];
-        if (!val) continue;
-
-        if (field.name === "tdc") continue;
-
-        if (field.type === "datetime-local") {
-          if (val > nowLocalStr) {
-            showToast(`Future date & time is not allowed for "${field.label}".`);
-            return;
-          }
-        } else if (field.type === "date") {
-          if (val > todayLocalStr) {
-            showToast(`Future date is not allowed for "${field.label}".`);
-            return;
-          }
+      if (drafts.length === 0) {
+        // No drafts & empty form -> Submit as All OK
+        try {
+          const payload = buildPayload("OK");
+          await api.dailyPosition.create(payload);
+          showToast("No drafts found. Submitted as ALL OK.");
+        } catch (err: any) {
+          showToast(err.message || "Failed to submit All OK.");
+          setIsSavingAndNext(false);
+          return;
+        }
+      } else {
+        // Submit all saved drafts by updating their status to final status
+        try {
+          const promises = drafts.map((draft: any) => {
+            const finalStatus = statusFromForm(selectedForm, draft.formData || {});
+            return api.dailyPosition.update(draft.id, {
+              ...draft,
+              status: finalStatus
+            });
+          });
+          await Promise.all(promises);
+        } catch (err: any) {
+          showToast(err.message || "Failed to submit drafts.");
+          setIsSavingAndNext(false);
+          return;
         }
       }
 
-      // Save current form values as draft first
-      try {
-        const payload = buildPayload("DRAFT");
-        const res = await api.dailyPosition.create(payload);
-        drafts.push(res.data);
-      } catch (err: any) {
-        showToast(err.message || "Failed to save draft.");
-        return;
-      }
+      // Mark current form as completed for today
+      markFormCompleted(selectedForm.name);
+
+      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+
+      // Show success modal
+      setSuccessModal({
+        message: (
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
+            <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+          </div>
+        ),
+        onOk: () => {
+          setSuccessModal(null);
+          resetForm();
+          setEditingRecordId(null);
+          moveToNextForm();
+        }
+      });
+    } finally {
+      setIsSavingAndNext(false);
     }
-
-    if (drafts.length === 0) {
-      // No drafts & empty form -> Submit as All OK
-      try {
-        const payload = buildPayload("OK");
-        await api.dailyPosition.create(payload);
-        showToast("No drafts found. Submitted as ALL OK.");
-      } catch (err: any) {
-        showToast(err.message || "Failed to submit All OK.");
-        return;
-      }
-    } else {
-      // Submit all saved drafts by updating their status to final status
-      try {
-        const promises = drafts.map((draft: any) => {
-          const finalStatus = statusFromForm(selectedForm, draft.formData || {});
-          return api.dailyPosition.update(draft.id, {
-            ...draft,
-            status: finalStatus
-          });
-        });
-        await Promise.all(promises);
-      } catch (err: any) {
-        showToast(err.message || "Failed to submit drafts.");
-        return;
-      }
-    }
-
-    // Mark current form as completed for today
-    markFormCompleted(selectedForm.name);
-
-    await queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
-    await queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-    await queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
-
-    // Show success modal
-    setSuccessModal({
-      message: (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
-          <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
-        </div>
-      ),
-      onOk: () => {
-        setSuccessModal(null);
-        resetForm();
-        setEditingRecordId(null);
-        moveToNextForm();
-      }
-    });
   };
 
   const startEdit = (record: any) => {
@@ -2220,6 +2246,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   return (
     <article className="daily-position-page secr-position-page">
+      <style>{`
+        @keyframes dpBtnSpinner {
+          to { transform: rotate(360deg); }
+        }
+        .dp-btn-loader {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top-color: #ffffff;
+          animation: dpBtnSpinner 0.6s linear infinite;
+          display: inline-block;
+          margin-right: 6px;
+        }
+      `}</style>
       <section className={`tabular-header dp-page-header ${viewMode === "history" ? "history-mode" : ""}`}>
         <div className="header-title-section">
           <h2>{viewMode === "history" ? "Daily position History" : "Daily Position"}</h2>
@@ -2477,30 +2518,57 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     className="export-button ok-button" 
                     type="button" 
                     onClick={handleOk} 
-                    disabled={createRecord.isPending || (isCompletedToday && !editingRecordId)}
+                    disabled={isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId)}
                   >
-                    <CheckCircle2 size={16} />
-                    ALL OK
+                    {isSubmittingAllOk ? (
+                      <>
+                        <span className="dp-btn-loader" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={16} />
+                        ALL OK
+                      </>
+                    )}
                   </button>
                 )}
                 <button 
                   className="export-button" 
                   type="submit" 
                   onClick={() => setShouldNavigateToNext(false)} 
-                  disabled={createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
+                  disabled={isSavingDraft || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
                 >
-                  <Send size={16} />
-                  {editingRecordId ? "Update Daily Position" : "Save"}
+                  {isSavingDraft ? (
+                    <>
+                      <span className="dp-btn-loader" />
+                      {editingRecordId ? "Updating..." : "Saving..."}
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      {editingRecordId ? "Update Daily Position" : "Save"}
+                    </>
+                  )}
                 </button>
                 {!editingRecordId && (
                   <button 
                     className="export-button" 
                     type="button" 
                     onClick={handleSaveAndNext} 
-                    disabled={createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
+                    disabled={isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId)}
                   >
-                    <Send size={16} />
-                    Save & Next
+                    {isSavingAndNext ? (
+                      <>
+                        <span className="dp-btn-loader" />
+                        Saving & Next...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        Save & Next
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -2532,7 +2600,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Category", detailsRecord.category],
                   ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                  ["Linked Asset", recordAssetLabel(detailsRecord, metadata)],
                   ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : "-"],
                 ].map(([label, value]) => (
                   <div key={label}>
