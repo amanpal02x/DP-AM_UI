@@ -2330,6 +2330,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 type="date"
                 value={selectedDate}
                 onChange={event => setSelectedDate(event.target.value)}
+                onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                 style={{
                   padding: "6px 10px",
                   borderRadius: "6px",
@@ -2457,9 +2458,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         {currentFormRecords.map((record: any) => (
                           <tr
                             key={record.id}
-                            onClick={() => startEdit(record)}
-                            style={{ cursor: "pointer" }}
-                            title="Click to edit record"
+                            onClick={() => {
+                              const isDraft = record.status === "DRAFT";
+                              if (isDraft || role === "SUPER_ADMIN") {
+                                startEdit(record);
+                              }
+                            }}
+                            style={{ 
+                              cursor: (record.status === "DRAFT" || role === "SUPER_ADMIN") ? "pointer" : "default" 
+                            }}
+                            title={
+                              record.status === "DRAFT" 
+                                ? "Click to edit draft" 
+                                : (role === "SUPER_ADMIN" ? "Click to edit record" : "")
+                            }
                             className="dp-recent-row"
                           >
                             {activeFields.map(field => {
@@ -2480,7 +2492,37 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                   val = new Date(val).toLocaleString();
                                 } catch (e) {}
                               }
-                              return <td key={field.name}>{val !== undefined && val !== null ? String(val) : "-"}</td>;
+                              const isRectificationCell = field.name === "rectificationTime";
+                              const isSubmitted = record.status !== "DRAFT";
+                              const isStandardUser = role !== "SUPER_ADMIN";
+                              const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                              const isAlreadyRectified = !!record.rectificationTime;
+                              
+                              const handleCellClick = (e: React.MouseEvent) => {
+                                if (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) {
+                                  e.stopPropagation();
+                                  setRectifyingRecord(record);
+                                  setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
+                                }
+                              };
+
+                              return (
+                                <td 
+                                  key={field.name}
+                                  onClick={handleCellClick}
+                                  style={{
+                                    cursor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "pointer" : "inherit",
+                                    backgroundColor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "rgba(16, 185, 129, 0.05)" : "transparent"
+                                  }}
+                                  title={
+                                    (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified)
+                                      ? "Click to rectify fault"
+                                      : undefined
+                                  }
+                                >
+                                  {val !== undefined && val !== null ? String(val) : "-"}
+                                </td>
+                              );
                             })}
                             <td>
                               {record.status === "DRAFT" ? (
@@ -2566,20 +2608,25 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </button>
                 )}
                 {!editingRecordId && (() => {
+                  const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
+                  const hasDrafts = draftsCount > 0;
                   const isCurrentFormEmpty = isFormEmpty();
                   const showWarning = !isCurrentFormEmpty;
+                  const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts;
+                  
                   return (
                     <button 
                       className="export-button ok-button" 
                       type="button" 
                       onClick={handleOk} 
-                      disabled={isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId)}
+                      disabled={isOkButtonDisabled}
                       onMouseEnter={() => setIsOkHovered(true)}
                       onMouseLeave={() => setIsOkHovered(false)}
                       style={{
-                        opacity: showWarning ? 0.6 : 1,
+                        opacity: (showWarning || hasDrafts) ? 0.6 : 1,
+                        cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
                         transition: "all 0.2s ease-in-out",
-                        ...(showWarning && isOkHovered ? {
+                        ...(showWarning && isOkHovered && !hasDrafts ? {
                           background: "#ef4444",
                           borderColor: "#ef4444",
                           color: "#fff",
@@ -2594,11 +2641,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         </>
                       ) : (
                         <>
-                          {showWarning && isOkHovered ? (
+                          {hasDrafts ? (
+                            <Ban size={16} />
+                          ) : (showWarning && isOkHovered ? (
                             <Ban size={16} />
                           ) : (
                             <CheckCircle2 size={16} />
-                          )}
+                          ))}
                           ALL OK
                         </>
                       )}
@@ -2812,9 +2861,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   type="submit"
                   className="export-button"
                   disabled={updateRecord.isPending}
-                  style={{ background: "var(--primary)", color: "#fff" }}
                 >
-                  {updateRecord.isPending ? "Saving..." : "Save Rectification"}
+                  {updateRecord.isPending ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </form>

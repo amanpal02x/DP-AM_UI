@@ -991,6 +991,12 @@ function App() {
   const [panelItemId, setPanelItemId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [viewCategoryFaults, setViewCategoryFaults] = useState<string | null>(null);
+
+  // Reset category faults page view when activeNav changes
+  useEffect(() => {
+    setViewCategoryFaults(null);
+  }, [activeNav]);
 
   // Synchronize hash routing with store activeNav
   useEffect(() => {
@@ -1190,10 +1196,15 @@ function App() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
-        {activeNav === "Asset Dashboard" ? (
+        {viewCategoryFaults ? (
+          <CategoryFaultsPageView
+            categoryName={viewCategoryFaults}
+            onBack={() => setViewCategoryFaults(null)}
+          />
+        ) : activeNav === "Asset Dashboard" ? (
           <AssetDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
         ) : activeNav === "Daily Position" ? (
-          <DailyPositionDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} showToast={showToast} />
+          <DailyPositionDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
         ) : activeNav === "DP Form" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
         ) : activeNav === "DP Logs" ? (
@@ -2155,7 +2166,110 @@ function DailyPositionStatusPanel({
   );
 }
 
-function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
+function CategoryFaultsPageView({
+  categoryName,
+  onBack
+}: {
+  categoryName: string;
+  onBack: () => void;
+}) {
+  const faultsQuery = useQuery({
+    queryKey: ["daily-position-category-active-faults", categoryName],
+    queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }),
+  });
+
+  const records = (faultsQuery.data?.data || []).filter(
+    (r: any) => r.category?.toLowerCase() === categoryName?.toLowerCase()
+  );
+
+  const formatDateTime = (dateStr?: string) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return Number.isNaN(date.getTime()) ? dateStr : date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+
+  return (
+    <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "500px", padding: "24px" }}>
+      {/* Page Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
+            Category-wise Fault Log
+          </span>
+          <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
+            {categoryName} Faults
+          </h2>
+          <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
+            {faultsQuery.isLoading ? "Loading faults..." : `${records.length} active faults found`}
+          </p>
+        </div>
+        <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
+      {/* Page Body */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {faultsQuery.isLoading ? (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "80px" }}>
+            <div className="dp-btn-loader" style={{ borderTopColor: "var(--blue)", width: "32px", height: "32px" }} />
+            <span style={{ marginLeft: "12px", color: "var(--muted)", fontSize: "14px" }}>Loading records...</span>
+          </div>
+        ) : records.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
+            No active faults found for {categoryName}.
+          </div>
+        ) : (
+          <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Division</th>
+                  <th>Station</th>
+                  <th>Failure Time</th>
+                  <th>Rectification Time</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((record: any) => (
+                  <tr key={record.id}>
+                    <td>{record.division}</td>
+                    <td>{record.stationCode || record.stationName || record.section || "-"}</td>
+                    <td>{formatDateTime(record.failureTime)}</td>
+                    <td>
+                      {record.rectificationTime ? (
+                        formatDateTime(record.rectificationTime)
+                      ) : (
+                        <span style={{ color: "var(--red)", fontWeight: 600 }}>Active</span>
+                      )}
+                    </td>
+                    <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>{record.remarks || record.reason || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionCategoryPanel({
+  categoryData,
+  onCategoryClick
+}: {
+  categoryData: any[];
+  onCategoryClick: (categoryName: string) => void;
+}) {
   const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log");
   const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
 
@@ -2179,14 +2293,9 @@ function DailyPositionCategoryPanel({ categoryData }: { categoryData: any[] }) {
             <div
               key={stat.name}
               className="category-distribution-row"
-              style={{ display: "grid", gap: 5, cursor: stat.value > 0 ? "pointer" : "default" }}
+              style={{ display: "grid", gap: 5, cursor: "pointer" }}
               onClick={() => {
-                if (stat.value <= 0) return;
-                useAppStore.setState({
-                  activeNav: "DP Logs",
-                  dpHistoryFilter: "active-faults",
-                  dpHistoryCategoryFilter: stat.name
-                });
+                onCategoryClick(stat.name);
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
@@ -2210,12 +2319,14 @@ function DailyPositionDashboardView({
   data,
   openPanel,
   queries,
-  showToast
+  showToast,
+  onCategoryClick
 }: {
   data: DashboardSummary;
   openPanel: (title: string, itemId?: string | null) => void;
   queries: any;
   showToast: (msg: string) => void;
+  onCategoryClick: (categoryName: string) => void;
 }) {
   const { role, division: userDivision } = useAppStore();
 
@@ -2317,7 +2428,7 @@ function DailyPositionDashboardView({
       </section>
 
       <section className="dashboard-grid">
-        <DailyPositionCategoryPanel categoryData={categoryData} />
+        <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         {role === "TESTROOM" ? (
           <DailyPositionSubmissionProgressPanel division={userDivision} />
         ) : (
@@ -3069,6 +3180,7 @@ function DailyPositionSummaryTable({
             value={selectedDate}
             max={todayStr}
             onChange={e => setSelectedDate(e.target.value)}
+            onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
             style={{
               border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
               fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
@@ -3285,6 +3397,7 @@ function DailyPositionSummaryTableSuperAdmin({
             <Printer size={14} /> Print Summary
           </button>
           <input type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)}
+            onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
             style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
           />
         </div>
@@ -3382,88 +3495,130 @@ function DailyPositionSummaryTableSuperAdmin({
                     {DIVISIONS.map((div: string) => {
                       const map = divisionMaps[div] || {};
                       const status = getStatusFromMap(map, form);
+                      
+                      // Pre-calculate faultDetails if status is FAULT
+                      let faultDetails: any[] = [];
+                      if (status === "FAULT") {
+                        const fe = map[form.name] || map[form.systemCode] || [];
+                        const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
+                        faultDetails = activeEntries
+                          .filter((e: any) => {
+                            const s = (e.status || "").toUpperCase();
+                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                            return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+                          })
+                          .map((entry: any) => {
+                            let timeStr = "";
+                            if (entry.failureTime) {
+                              const d = new Date(entry.failureTime);
+                              const hrs = String(d.getHours()).padStart(2, '0');
+                              const mins = String(d.getMinutes()).padStart(2, '0');
+                              timeStr = `${hrs}:${mins}`;
+                            }
+                            
+                            // Map location to name/code
+                            let locLabel = "";
+                            let locValue = "";
+                            const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
+                            
+                            if (codeOrName) {
+                              locLabel = "Station/Code";
+                              const sList = queries?.stationsQuery?.data?.data || [];
+                              const found = sList.find(
+                                (s: any) =>
+                                  String(s.code).toLowerCase() === codeOrName.toLowerCase() ||
+                                  String(s.name).toLowerCase() === codeOrName.toLowerCase()
+                              );
+                              if (found) {
+                                locValue = `${found.name}/${found.code}`;
+                              } else {
+                                locValue = codeOrName;
+                              }
+                            } else if (entry.section || entry.formData?.section) {
+                              locLabel = "Section";
+                              locValue = entry.section || entry.formData?.section;
+                            } else if (entry.formData?.majorSection) {
+                              locLabel = "Section";
+                              locValue = entry.formData.majorSection;
+                            } else if (entry.formData?.exchangeName) {
+                              locLabel = "Exchange";
+                              locValue = entry.formData.exchangeName;
+                            }
+                            
+                            const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
+                            let truncatedRemark = "";
+                            if (rawRemark) {
+                              const words = rawRemark.trim().split(/\s+/);
+                              if (words.length <= 5) {
+                                truncatedRemark = rawRemark;
+                              } else {
+                                truncatedRemark = words.slice(0, 5).join(" ") + "...";
+                              }
+                            }
+                            return { time: timeStr, locLabel, locValue, remark: truncatedRemark };
+                          });
+                      }
+
                       return (
                         <div key={div} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "4px 0", minWidth: 0 }}>
                           {status === null ? (
                             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 72, padding: "3px 0", fontSize: 11, color: "#94a3b8", border: "1.5px dashed #e2e8f0", borderRadius: 20 }}>—</span>
                           ) : (
                             <>
-                              <button type="button" onClick={() => handleCellClick(div, form)}
-                                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 72, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: status === "FAULT" ? "#ef4444" : "#22c55e", letterSpacing: "0.3px" }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.82"; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-                              >
-                                {status === "FAULT" ? "FAULT" : "ALL OK"}
-                              </button>
-                              {status === "FAULT" && (
-                                <div style={{ fontSize: "11px", textAlign: "center", width: "100%", whiteSpace: "normal", wordBreak: "break-word", marginTop: "2px", lineHeight: "1.3" }}>
-                                  {(() => {
-                                    const fe = map[form.name] || map[form.systemCode] || [];
-                                    const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
-                                    const faultDetails = activeEntries
-                                      .filter((e: any) => {
-                                        const s = (e.status || "").toUpperCase();
-                                        const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                                        return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
-                                      })
-                                      .map((entry: any) => {
-                                        let timeStr = "";
-                                        if (entry.failureTime) {
-                                          const d = new Date(entry.failureTime);
-                                          const hrs = String(d.getHours()).padStart(2, '0');
-                                          const mins = String(d.getMinutes()).padStart(2, '0');
-                                          timeStr = `${hrs}:${mins}`;
-                                        }
-                                        let locLabel = "Station";
-                                        let locValue = "";
-                                        if (entry.stationCode || entry.stationName) {
-                                          locLabel = "Station";
-                                          locValue = entry.stationCode || entry.stationName;
-                                        } else if (entry.section) {
-                                          locLabel = "Section";
-                                          locValue = entry.section;
-                                        } else if (entry.location) {
-                                          locLabel = "Location";
-                                          locValue = entry.location;
-                                        }
-                                        
-                                        const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
-                                        let truncatedRemark = "";
-                                        if (rawRemark) {
-                                          const words = rawRemark.trim().split(/\s+/);
-                                          if (words.length <= 5) {
-                                            truncatedRemark = rawRemark;
-                                          } else {
-                                            truncatedRemark = words.slice(0, 5).join(" ") + "...";
-                                          }
-                                        }
-                                        return { time: timeStr, locLabel, locValue, remark: truncatedRemark };
-                                      });
- 
-                                    return faultDetails.map((detail: any, idx: number) => (
-                                      <div key={idx} style={{ display: "inline-block", marginRight: "4px" }}>
+                              {status === "FAULT" ? (
+                                <button type="button" onClick={() => handleCellClick(div, form)}
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "flex-start",
+                                    justifyContent: "center",
+                                    padding: "6px 12px",
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: "#ef4444",
+                                    border: "2px dotted #ef4444",
+                                    borderRadius: 8,
+                                    cursor: "pointer",
+                                    background: "#fff",
+                                    textAlign: "left",
+                                    lineHeight: "1.4",
+                                    width: "90%",
+                                    minWidth: "150px",
+                                    boxShadow: "none",
+                                    letterSpacing: "0.2px"
+                                  }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
+                                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                                >
+                                  {faultDetails.length === 0 ? (
+                                    <div style={{ textAlign: "center", width: "100%", fontWeight: 800 }}>FAULT</div>
+                                  ) : (
+                                    faultDetails.map((detail: any, idx: number) => (
+                                      <div key={idx} style={{ width: "100%" }}>
                                         {detail.time && (
-                                          <>
-                                            <span style={{ color: "#64748b", fontWeight: 600 }}>Time : </span>
-                                            <span style={{ color: "#ef4444", fontWeight: 600, marginRight: "5px" }}>{detail.time}</span>
-                                          </>
+                                          <div>
+                                            <span>Failure Time: </span>
+                                            <span style={{ fontWeight: 800 }}>{detail.time}</span>
+                                          </div>
                                         )}
                                         {detail.locValue && (
-                                          <>
-                                            <span style={{ color: "#64748b", fontWeight: 600 }}>{detail.locLabel} : </span>
-                                            <span style={{ color: "#ef4444", fontWeight: 600, marginRight: "5px" }}>{detail.locValue}</span>
-                                          </>
-                                        )}
-                                        {detail.remark && (
-                                          <>
-                                            <span style={{ color: "#64748b", fontWeight: 600 }}>Remark : </span>
-                                            <span style={{ color: "#ef4444", fontWeight: 600 }}>{detail.remark}</span>
-                                          </>
+                                          <div>
+                                            <span>{detail.locLabel}: </span>
+                                            <span style={{ fontWeight: 800 }}>{detail.locValue}</span>
+                                          </div>
                                         )}
                                       </div>
-                                    ));
-                                  })()}
-                                </div>
+                                    ))
+                                  )}
+                                </button>
+                              ) : (
+                                <button type="button" onClick={() => handleCellClick(div, form)}
+                                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 72, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: "#22c55e", letterSpacing: "0.3px" }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.82"; }}
+                                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                                >
+                                  ALL OK
+                                </button>
                               )}
                             </>
                           )}
@@ -6835,7 +6990,7 @@ function ActionPanel({
           </label>
           <label>
             {requiredLabel("Date of Installation")}
-            <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} />
+            <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
           </label>
           <label>
             {requiredLabel("Work Name")}
@@ -6877,11 +7032,11 @@ function ActionPanel({
             <>
               <label>
                 {requiredLabel("Maintenance From")}
-                <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} />
+                <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
               </label>
               <label>
                 {requiredLabel("Maintenance To")}
-                <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} />
+                <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
               </label>
             </>
           )}
@@ -7246,7 +7401,7 @@ function ActionPanel({
             </label>
             <label>
               {requiredLabel("Date of Installation")}
-              <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} />
+              <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
             </label>
             <label>
               {requiredLabel("Work Name")}
@@ -7288,11 +7443,11 @@ function ActionPanel({
               <>
                 <label>
                   {requiredLabel("Maintenance From")}
-                  <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} />
+                  <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
                 </label>
                 <label>
                   {requiredLabel("Maintenance To")}
-                  <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} />
+                  <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
                 </label>
               </>
             )}
