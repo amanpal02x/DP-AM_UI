@@ -1,0 +1,48 @@
+server {
+    listen ${PORT};
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 10240;
+    gzip_proxied any;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/x-javascript application/xml application/json;
+    gzip_disable "MSIE [1-6]\.";
+
+    # Security Headers
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval';" always;
+
+    # Support React Router/SPA routing fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache Control for static assets (Vite hashes assets in dist/assets)
+    location ~* \.(?:css|js)$ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    # Cache Control for media/images
+    location ~* \.(?:jpg|jpeg|gif|png|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1M;
+        add_header Cache-Control "public, max-age=2592000, must-revalidate";
+        access_log off;
+    }
+
+    # Error pages
+    error_page 404 /index.html;
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root /usr/share/nginx/html;
+    }
+}
