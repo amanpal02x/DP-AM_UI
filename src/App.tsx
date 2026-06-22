@@ -39,7 +39,8 @@ import {
   UploadCloud,
   Send,
   Eye,
-  EyeOff
+  EyeOff,
+  Printer
 } from "lucide-react";
 import {
   Cell,
@@ -383,6 +384,7 @@ import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from ".
 import { getDashboardSummary } from "./api/dashboardApi";
 import DailyPositionView from "./components/DailyPosition/DailyPositionView";
 import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./components/DailyPosition/dailyPositionForms";
+import DailyPositionPrintView from "./components/DailyPosition/DailyPositionPrintView";
 import type {
   ActivityItem,
   AlertItem,
@@ -398,13 +400,13 @@ import type {
 
 type NavKey =
   | "Asset Dashboard"
-  | "DP Dashboard"
+  | "Daily Position"
   | "Master List"
   | "Assets"
   | "LC Gate"
   | "Feedback"
   | "GIS Mapping"
-  | "Daily Position"
+  | "DP Form"
   | "DP Logs"
   | "Sections"
   | "Reports & Analytics"
@@ -413,13 +415,13 @@ type NavKey =
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
-  "DP Dashboard": "#/dashboard/daily-position",
+  "Daily Position": "#/dashboard/daily-position",
   "Master List": "#/stations",
   "Assets": "#/assets",
   "LC Gate": "#/gates",
   "Feedback": "#/feedback",
   "GIS Mapping": "#/gis",
-  "Daily Position": "#/daily-position",
+  "DP Form": "#/daily-position",
   "DP Logs": "#/daily-position-history",
   "Sections": "#/sections",
   "Reports & Analytics": "#/reports",
@@ -429,13 +431,13 @@ const navToHash: Record<NavKey, string> = {
 
 const hashToNav: Record<string, NavKey> = {
   "#/dashboard/asset-management": "Asset Dashboard",
-  "#/dashboard/daily-position": "DP Dashboard",
+  "#/dashboard/daily-position": "Daily Position",
   "#/stations": "Master List",
   "#/assets": "Assets",
   "#/gates": "LC Gate",
   "#/feedback": "Feedback",
   "#/gis": "GIS Mapping",
-  "#/daily-position": "Daily Position",
+  "#/daily-position": "DP Form",
   "#/daily-position-history": "DP Logs",
   "#/sections": "Sections",
   "#/reports": "Reports & Analytics",
@@ -475,9 +477,9 @@ type AppState = {
 export const useAppStore = create<AppState>((set) => ({
   activeNav: getCachedUser() && getCachedUser().accessDailyPosition === false && getCachedUser().accessAssets === true
     ? "Asset Dashboard"
-    : "DP Dashboard",
+    : "Daily Position",
   role: getCachedUser() ? getCachedUser().role : "VIEWER",
-  division: getCachedUser() && getCachedUser().role === "SUPER_ADMIN" ? "" : (getCachedUser()?.division || "Raipur"),
+  division: getCachedUser() && (getCachedUser().role === "SUPER_ADMIN" || getCachedUser().role === "ALL_DIVISION_VIEWER") ? "" : (getCachedUser()?.division || "Raipur"),
   sidebarOpen: false,
   token: getAuthToken(),
   user: getCachedUser(),
@@ -501,7 +503,7 @@ export const useAppStore = create<AppState>((set) => ({
   logout: () => {
     setAuthToken(null);
     setCachedUser(null);
-    set({ token: null, user: null, role: "VIEWER", activeNav: "DP Dashboard", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
+    set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
@@ -537,9 +539,9 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-    { label: "DP Dashboard", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER"] },
-    { label: "Daily Position", icon: ClipboardList, roles: ["TESTROOM"] },
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM"] },
     { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
     { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
@@ -1054,7 +1056,7 @@ function App() {
   useEffect(() => {
     if (profileQuery.data) {
       setUser(profileQuery.data);
-      if (profileQuery.data.role === "SUPER_ADMIN") {
+      if (profileQuery.data.role === "SUPER_ADMIN" || profileQuery.data.role === "ALL_DIVISION_VIEWER") {
         setDivision("");
       } else {
         setDivision(profileQuery.data.division || "Raipur");
@@ -1069,11 +1071,11 @@ function App() {
     const hasDailyPositionAccess = user.accessDailyPosition !== false;
 
     const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
-    const dpRoutes: NavKey[] = ["DP Dashboard", "Daily Position", "DP Logs"];
+    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Logs"];
 
     if (assetRoutes.includes(activeNav) && !hasAssetAccess) {
       if (hasDailyPositionAccess) {
-        useAppStore.getState().setActiveNav("DP Dashboard");
+        useAppStore.getState().setActiveNav("Daily Position");
       }
     } else if (dpRoutes.includes(activeNav) && !hasDailyPositionAccess) {
       if (hasAssetAccess) {
@@ -1088,13 +1090,13 @@ function App() {
   const stationsQuery = useQuery({
     queryKey: ["stations-list"],
     queryFn: () => api.stations.list(),
-    enabled: !!token && ["Asset Dashboard", "DP Dashboard", "Master List", "Assets", "LC Gate"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "Daily Position", "Master List", "Assets", "LC Gate"].includes(activeNav)
   });
 
   const assetsQuery = useQuery({
     queryKey: ["assets-list"],
     queryFn: () => api.assets.list(),
-    enabled: !!token && ["Asset Dashboard", "DP Dashboard", "Assets", "Master List"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "Daily Position", "Assets", "Master List"].includes(activeNav)
   });
 
   const gatesQuery = useQuery({
@@ -1119,7 +1121,7 @@ function App() {
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["dashboard-summary", division, token],
     queryFn: () => getDashboardSummary(division),
-    enabled: !!token && ["Asset Dashboard", "DP Dashboard"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "Daily Position"].includes(activeNav)
   });
 
   const showToast = (msg: string) => {
@@ -1139,7 +1141,7 @@ function App() {
   }
 
   const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
-  if (isProfileLoading || (["Asset Dashboard", "DP Dashboard"].includes(activeNav) && dashboardLoading)) {
+  if (isProfileLoading || (["Asset Dashboard", "Daily Position"].includes(activeNav) && dashboardLoading)) {
     return (
       <div className="app-loading-container">
         <div className="circular-time-loader">
@@ -1155,7 +1157,7 @@ function App() {
     );
   }
 
-  if ((["Asset Dashboard", "DP Dashboard"].includes(activeNav)) && (dashboardError || !dashboardData)) {
+  if ((["Asset Dashboard", "Daily Position"].includes(activeNav)) && (dashboardError || !dashboardData)) {
     return (
       <div className="app-loading-container">
         <div style={{ textAlign: "center" }}>
@@ -1201,15 +1203,9 @@ function App() {
           />
         ) : activeNav === "Asset Dashboard" ? (
           <AssetDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
-        ) : activeNav === "DP Dashboard" ? (
-          <DailyPositionDashboardView
-            data={dashboardData!}
-            openPanel={openPanel}
-            queries={queries}
-            showToast={showToast}
-            onCategoryClick={setViewCategoryFaults}
-          />
         ) : activeNav === "Daily Position" ? (
+          <DailyPositionDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
+        ) : activeNav === "DP Form" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
         ) : activeNav === "DP Logs" ? (
           <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
@@ -1589,7 +1585,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     if (!item.roles.includes(role)) return false;
     if (item.label === "Feedback") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-    const isDpLink = ["DP Dashboard", "Daily Position", "DP Logs"].includes(item.label);
+    const isDpLink = ["Daily Position", "DP Form", "DP Logs"].includes(item.label);
     if (isAssetLink && !hasAccessAssets) return false;
     if (isDpLink && !hasAccessDailyPosition) return false;
     return true;
@@ -1632,7 +1628,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
       <nav className="nav-list" aria-label="Primary">
         {visibleNav.map((item) => {
           const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-          const isDpLink = ["DP Dashboard", "Daily Position", "DP Logs"].includes(item.label);
+          const isDpLink = ["Daily Position", "DP Form", "DP Logs"].includes(item.label);
           const hasAccess = (isAssetLink ? hasAccessAssets : true) && (isDpLink ? hasAccessDailyPosition : true);
 
           return (
@@ -1645,8 +1641,8 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
                     alert("Access to this module is not permitted. Please request access from the administrator.");
                     return;
                   }
-                  if (item.label === "Daily Position") {
-                    if (activeNav === "Daily Position") {
+                  if (item.label === "DP Form") {
+                    if (activeNav === "DP Form") {
                       setDpDropdownOpen(!dpDropdownOpen);
                     } else {
                       setActiveNav(item.label);
@@ -1661,9 +1657,9 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
                 <item.icon size={20} />
                 <span>
                   {role === "TESTROOM"
-                    ? item.label === "DP Dashboard"
+                    ? item.label === "Daily Position"
                       ? "Dashboard"
-                      : item.label === "Daily Position"
+                      : item.label === "DP Form"
                         ? "Daily Position Form"
                         : item.label
                     : item.label}
@@ -1677,7 +1673,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
                   <Lock className="nav-caret" size={14} style={{ color: "var(--muted)", marginLeft: "auto" }} />
                 )}
               </button>
-              {item.label === "Daily Position" && activeNav === "Daily Position" && dpDropdownOpen && hasAccess && (
+              {item.label === "DP Form" && activeNav === "DP Form" && dpDropdownOpen && hasAccess && (
                 <SidebarDailyPositionAccordion />
               )}
             </Fragment>
@@ -1817,9 +1813,9 @@ function PageHeader({ activeNav }: { activeNav: NavKey }) {
   const { division, role } = useAppStore();
 
   const displayTitle = role === "TESTROOM"
-    ? activeNav === "DP Dashboard"
+    ? activeNav === "Daily Position"
       ? "Dashboard"
-      : activeNav === "Daily Position"
+      : activeNav === "DP Form"
         ? "Daily Position Form"
         : activeNav
     : activeNav;
@@ -1829,7 +1825,7 @@ function PageHeader({ activeNav }: { activeNav: NavKey }) {
       <div>
         <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>{displayTitle}</h2>
         <p style={{ margin: "4px 0 0 0", fontSize: "14px", color: "var(--muted)" }}>
-          {["Asset Dashboard", "DP Dashboard"].includes(activeNav)
+          {["Asset Dashboard", "Daily Position"].includes(activeNav)
             ? "Overview of Telecom Assets and Operations"
             : `${displayTitle} operations workspace`}
         </p>
@@ -2340,7 +2336,7 @@ function DailyPositionDashboardView({
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
-      setActiveNav(data.user.role === "TESTROOM" ? "Daily Position" : "DP Logs");
+      setActiveNav(data.user.role === "TESTROOM" ? "DP Form" : "DP Logs");
     } else {
       setActiveNav(label as any);
     }
@@ -2471,7 +2467,7 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       if (role === "TESTROOM") {
-        useAppStore.setState({ activeNav: "Daily Position" });
+        useAppStore.setState({ activeNav: "DP Form" });
       } else {
         useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
       }
@@ -2648,7 +2644,7 @@ function DailyPositionDetailsModal({
   role: string;
   queries?: any;
 }) {
-  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isSuperAdmin = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
 
   return (
     <div className="modal-backdrop dp-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
@@ -2824,7 +2820,7 @@ function DailyPositionSummaryTable({
 }) {
   const { user: storeUser } = useAppStore();
   const currentUser = user || storeUser;
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ALL_DIVISION_VIEWER";
   const userDivision = currentUser?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
@@ -2837,6 +2833,7 @@ function DailyPositionSummaryTable({
   }, [userDivision]);
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   // ── Single-division query (non-super-admin) ──────────────────────────
   const dpQuery = useQuery({
@@ -3100,32 +3097,31 @@ function DailyPositionSummaryTable({
 
   const divisionColors: Record<string, string> = { Bilaspur: "#3b82f6", Raipur: "#ef4444", Nagpur: "#10b981" };
 
-  if (isSuperAdmin) {
-    return (
-      <DailyPositionSummaryTableSuperAdmin
-        grouped={grouped}
-        displayedForms={displayedForms}
-        DIVISIONS={DIVISIONS}
-        divisionMaps={divisionMaps}
-        divisionColors={divisionColors}
-        selectedDate={selectedDate}
-        todayStr={todayStr}
-        formatDate={formatDate}
-        getStatusFromMap={getStatusFromMap}
-        handleCellClick={handleCellClick}
-        isLoading={isLoading}
-        setSelectedDate={setSelectedDate}
-        detailsRecord={detailsRecord}
-        setDetailsRecord={setDetailsRecord}
-        detailsTitle={detailsTitle}
-        queries={queries}
-        getRemark={getRemark}
-      />
-    );
-  }
-
   return (
-    <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
+    <>
+      {isSuperAdmin ? (
+        <DailyPositionSummaryTableSuperAdmin
+          grouped={grouped}
+          displayedForms={displayedForms}
+          DIVISIONS={DIVISIONS}
+          divisionMaps={divisionMaps}
+          divisionColors={divisionColors}
+          selectedDate={selectedDate}
+          todayStr={todayStr}
+          formatDate={formatDate}
+          getStatusFromMap={getStatusFromMap}
+          handleCellClick={handleCellClick}
+          isLoading={isLoading}
+          setSelectedDate={setSelectedDate}
+          detailsRecord={detailsRecord}
+          setDetailsRecord={setDetailsRecord}
+          detailsTitle={detailsTitle}
+          queries={queries}
+          getRemark={getRemark}
+          onPrintClick={() => setIsPrintOpen(true)}
+        />
+      ) : (
+        <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "flex-start", justifyContent: "space-between",
@@ -3133,10 +3129,31 @@ function DailyPositionSummaryTable({
       }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
-            Daily Position Summary
+            Daily Position
           </h3>
         </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+          <button
+            onClick={() => setIsPrintOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              border: "1px solid var(--blue)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontSize: 12,
+              color: "#fff",
+              background: "var(--blue)",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "background 0.2s"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--blue-hover)"}
+            onMouseLeave={e => e.currentTarget.style.background = "var(--blue)"}
+          >
+            <Printer size={14} /> Print Summary
+          </button>
           {isSuperAdmin && (
             <ClearableSelect
               value={selectedDivision}
@@ -3336,24 +3353,57 @@ function DailyPositionSummaryTable({
           queries={queries}
         />
       )}
-    </article>
+
+        </article>
+      )}
+
+      {isPrintOpen && (
+        <DailyPositionPrintView
+          selectedDate={selectedDate}
+          onClose={() => setIsPrintOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
 function DailyPositionSummaryTableSuperAdmin({
   grouped, displayedForms, DIVISIONS, divisionMaps, divisionColors, selectedDate, todayStr, formatDate,
   getStatusFromMap, handleCellClick, isLoading, setSelectedDate, detailsRecord, setDetailsRecord, detailsTitle, queries,
-  getRemark,
+  getRemark, onPrintClick,
 }: any) {
   return (
     <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Daily Position Summary</h3>
-        <input type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)}
-          onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-          style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
-        />
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Daily Position</h3>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            onClick={onPrintClick}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              border: "1px solid var(--blue)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontSize: 12,
+              color: "#fff",
+              background: "var(--blue)",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "background 0.2s"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--blue-hover)"}
+            onMouseLeave={e => e.currentTarget.style.background = "var(--blue)"}
+          >
+            <Printer size={14} /> Print Summary
+          </button>
+          <input type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)}
+            onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+            style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
+          />
+        </div>
       </div>
 
       {/* Division stat strip */}
@@ -5400,7 +5450,7 @@ function ModuleView({
       <div className="tabular-header">
         <div className="header-title-section">
           <h2>{activeNav}</h2>
-          <p>{["Asset Dashboard", "DP Dashboard"].includes(activeNav) ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
+          <p>{["Asset Dashboard", "Daily Position"].includes(activeNav) ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
         </div>
         <div className="header-controls-section">
           <div className="action-buttons-group">
@@ -5873,12 +5923,12 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
 
           <div style={{ display: "grid", gap: 16 }}>
             {/* Role and Division */}
-            <div style={{ display: "grid", gridTemplateColumns: userObj.role === "SUPER_ADMIN" ? "1fr" : "1fr 1fr", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: (userObj.role === "SUPER_ADMIN" || userObj.role === "ALL_DIVISION_VIEWER") ? "1fr" : "1fr 1fr", gap: 16 }}>
               <div>
                 <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>System Role</small>
                 <span className="pill info" style={{ display: "inline-block", marginTop: 4, fontSize: 12 }}>{userObj.role}</span>
               </div>
-              {userObj.role !== "SUPER_ADMIN" && (
+              {userObj.role !== "SUPER_ADMIN" && userObj.role !== "ALL_DIVISION_VIEWER" && (
                 <div>
                   <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Division</small>
                   <strong style={{ display: "block", fontSize: 14, color: "var(--navy)", marginTop: 4 }}>{normalizeDivision(userObj.division) || "HQ"}</strong>
@@ -5887,7 +5937,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
             </div>
 
             {/* Designation */}
-            {userObj.role !== "SUPER_ADMIN" && userObj.role !== "DIVISIONAL_ADMIN" && (
+            {userObj.role !== "SUPER_ADMIN" && userObj.role !== "DIVISIONAL_ADMIN" && userObj.role !== "ALL_DIVISION_VIEWER" && (
               <div>
                 <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Designation</small>
                 <strong style={{ display: "block", fontSize: 14, color: "var(--navy)", marginTop: 4 }}>{userObj.designation || "-"}</strong>
@@ -6696,11 +6746,11 @@ function ActionPanel({
       });
 
     } else if (title === "Change User Role" || title === "Manage User") {
-      const isSuper = newRole === "SUPER_ADMIN";
+      const isSuperOrAllDiv = newRole === "SUPER_ADMIN" || newRole === "ALL_DIVISION_VIEWER";
       const updatePayload: any = {
         role: newRole,
-        designation: newDesignation || null,
-        division: isSuper ? null : stationDivision,
+        designation: (newRole === "SUPER_ADMIN" || newRole === "DIVISIONAL_ADMIN" || newRole === "ALL_DIVISION_VIEWER") ? null : (newDesignation || null),
+        division: isSuperOrAllDiv ? null : stationDivision,
         name: editName,
         accessAssets: editAccessAssets,
         accessDailyPosition: editAccessDailyPosition
@@ -6715,15 +6765,14 @@ function ActionPanel({
     } else if (title === "Add User") {
       const currentRole = useAppStore.getState().role;
       const userDiv = useAppStore.getState().user?.division || "Raipur";
-      const isSuper = addRole === "SUPER_ADMIN";
-      const isDivAdmin = addRole === "DIVISIONAL_ADMIN";
+      const isSuperOrAllDiv = addRole === "SUPER_ADMIN" || addRole === "ALL_DIVISION_VIEWER";
       createUser.mutate({
         username: addUsername,
         password: addPassword,
         name: addName,
         role: addRole,
-        designation: (isSuper || isDivAdmin) ? undefined : addDesignation,
-        division: isSuper ? undefined : (currentRole === "SUPER_ADMIN" ? addDivision : userDiv),
+        designation: (addRole === "SUPER_ADMIN" || addRole === "DIVISIONAL_ADMIN" || addRole === "ALL_DIVISION_VIEWER") ? undefined : addDesignation,
+        division: isSuperOrAllDiv ? undefined : (currentRole === "SUPER_ADMIN" ? addDivision : userDiv),
         accessAssets: addAccessAssets,
         accessDailyPosition: addAccessDailyPosition
       });
@@ -6833,6 +6882,8 @@ function ActionPanel({
                   <option value="SSE">SSE</option>
                   <option value="TECHNICIAN">TECHNICIAN</option>
                   <option value="TESTROOM">TESTROOM</option>
+                  <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
+                  <option value="ALL_DIVISION_VIEWER">ALL_DIVISION_VIEWER</option>
                 </>
               ) : (
                 <>
@@ -6843,13 +6894,13 @@ function ActionPanel({
               )}
             </ClearableSelect>
           </label>
-          {addRole !== "SUPER_ADMIN" && addRole !== "DIVISIONAL_ADMIN" && (
+          {addRole !== "SUPER_ADMIN" && addRole !== "DIVISIONAL_ADMIN" && addRole !== "ALL_DIVISION_VIEWER" && (
             <label>
               Designation
               <input placeholder="e.g. SSE/Tele/Raipur" value={addDesignation} onChange={e => setAddDesignation(e.target.value)} />
             </label>
           )}
-          {addRole !== "SUPER_ADMIN" && (
+          {addRole !== "SUPER_ADMIN" && addRole !== "ALL_DIVISION_VIEWER" && (
             currentRole === "SUPER_ADMIN" ? (
               <label>
                 Division
@@ -7624,6 +7675,8 @@ function ActionPanel({
                   <option value="SSE">SSE</option>
                   <option value="TECHNICIAN">TECHNICIAN</option>
                   <option value="TESTROOM">TESTROOM</option>
+                  <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
+                  <option value="ALL_DIVISION_VIEWER">ALL_DIVISION_VIEWER</option>
                 </>
               ) : (
                 <>
@@ -7638,7 +7691,7 @@ function ActionPanel({
             Designation
             <input placeholder="e.g. Sr. DSTE/Raipur" value={newDesignation} onChange={e => setNewDesignation(e.target.value)} />
           </label>
-          {currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && (
+          {currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && newRole !== "ALL_DIVISION_VIEWER" && (
             <label>
               Division
               <ClearableSelect value={stationDivision} onChange={setStationDivision}>

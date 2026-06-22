@@ -4,7 +4,9 @@ export type UserRole =
   | "SSE"
   | "TECHNICIAN"
   | "TESTROOM"
-  | "VIEWER";
+  | "VIEWER"
+  | "DIVISIONAL_VIEWER"
+  | "ALL_DIVISION_VIEWER";
 
 export type AssetStatus = "Operational" | "Under Maintenance" | "Faulty" | "Offline";
 
