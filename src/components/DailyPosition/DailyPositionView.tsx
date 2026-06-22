@@ -1598,6 +1598,37 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     },
   });
 
+  // Reconcile localStorage with live server records:
+  // If records for today were deleted from the DB, remove them from local state
+  // so the form unlocks and the checkmark disappears.
+  useEffect(() => {
+    if (!recordsQuery.isSuccess || recordsQuery.isFetching) return;
+    // Only reconcile when viewing today's records
+    if (selectedDate !== todayStr) return;
+
+    const serverCompletedForms = new Set(
+      (recordsQuery.data?.data || [])
+        .filter((r: any) => r.status !== "DRAFT")
+        .map((r: any) => r.formType as string)
+    );
+
+    const currentLocal: string[] = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(completedFormsKey) || "[]");
+      } catch {
+        return [];
+      }
+    })();
+
+    const reconciled = currentLocal.filter(name => serverCompletedForms.has(name));
+
+    if (reconciled.length !== currentLocal.length) {
+      setCompletedFormsLocal(reconciled);
+      localStorage.setItem(completedFormsKey, JSON.stringify(reconciled));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordsQuery.isSuccess, recordsQuery.isFetching, recordsQuery.data?.data]);
+
   const createRecord = useMutation({
     mutationFn: (body: any) => api.dailyPosition.create(body),
     onSuccess: (data, variables) => {
@@ -1849,7 +1880,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       rectificationTime: isOk ? null : (values.rectificationTime || null),
       durationText: isOk ? null : calcDurationText(values.failureTime, values.rectificationTime),
       reason: isOk ? "All OK" : (values.reason || null),
-      remarks: isOk ? (values.remarks || "No fault reported.") : (values.remarks || null),
+      remarks: values.remarks || null,
       date: editingRecord ? (editingRecord.date || selectedDate) : selectedDate,
       formData: {
         ...values,

@@ -8,29 +8,36 @@ import { DAILY_POSITION_FORMS } from "./dailyPositionForms";
 type DailyPositionPrintViewProps = {
   selectedDate: string;
   onClose: () => void;
+  filterDivision?: string;
 };
 
-export default function DailyPositionPrintView({ selectedDate, onClose }: DailyPositionPrintViewProps) {
-  // Fetch data for all three divisions on the selected date
+export default function DailyPositionPrintView({ selectedDate, onClose, filterDivision }: DailyPositionPrintViewProps) {
+  // Fetch data for the divisions on the selected date
   const bspQuery = useQuery({
     queryKey: ["dp-print-table", "Bilaspur", selectedDate],
     queryFn: () => api.dailyPosition.list({ division: "Bilaspur", date: selectedDate, limit: 500 }),
     staleTime: 30 * 1000,
+    enabled: !filterDivision || filterDivision === "Bilaspur",
   });
 
   const rprQuery = useQuery({
     queryKey: ["dp-print-table", "Raipur", selectedDate],
     queryFn: () => api.dailyPosition.list({ division: "Raipur", date: selectedDate, limit: 500 }),
     staleTime: 30 * 1000,
+    enabled: !filterDivision || filterDivision === "Raipur",
   });
 
   const ngpQuery = useQuery({
     queryKey: ["dp-print-table", "Nagpur", selectedDate],
     queryFn: () => api.dailyPosition.list({ division: "Nagpur", date: selectedDate, limit: 500 }),
     staleTime: 30 * 1000,
+    enabled: !filterDivision || filterDivision === "Nagpur",
   });
 
-  const isLoading = bspQuery.isLoading || rprQuery.isLoading || ngpQuery.isLoading;
+  const isLoading = 
+    ( (!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading ) ||
+    ( (!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading ) ||
+    ( (!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading );
 
   const buildEntriesMap = (rawEntries: any[]): Record<string, any[]> => {
     const map: Record<string, any[]> = {};
@@ -57,7 +64,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
     Nagpur: ngpMap,
   };
 
-  const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
+  const DIVISIONS = filterDivision ? [filterDivision] : ["Bilaspur", "Raipur", "Nagpur"];
 
   const displayedForms = useMemo(() => {
     return DAILY_POSITION_FORMS.filter(
@@ -272,7 +279,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
               PCSTE/SECR POSITION
             </h2>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", fontSize: "13px", fontWeight: "bold" }}>
-              <span>BILASPUR / RAIPUR / NAGPUR DIVISION</span>
+              <span>{filterDivision ? `${filterDivision.toUpperCase()} DIVISION` : "BILASPUR / RAIPUR / NAGPUR DIVISION"}</span>
               <span>DATE: {formatDate(selectedDate)}</span>
             </div>
           </div>
@@ -287,8 +294,10 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
             <thead>
               <tr style={{ background: "#f8fafc" }}>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "4%", textAlign: "center" }}>Sr. No.</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "22%", textAlign: "left" }}>Name of the circuit</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Division</th>
+                <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "32%" : "22%", textAlign: "left" }}>Name of the circuit</th>
+                {!filterDivision && (
+                  <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Division</th>
+                )}
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Failure Time</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Rectified Time</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure Durations</th>
@@ -324,26 +333,30 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
                       const hasRecords = activeEntries.length > 0;
 
                       // Display values variables
-                      let failTimeStr = "NIL";
-                      let rtTimeStr = "NIL";
+                      let failTimeStr = "-";
+                      let rtTimeStr = "-";
                       let durationStr = "-";
-                      let faultySec = "OK";
-                      let actionRemarks = "NIL";
+                      let faultySec = "-";
+                      let actionRemarks = "-";
 
                       if (hasFault) {
                         const latestFault = faultEntries[0];
-                        failTimeStr = formatTime(latestFault.failureTime) || "NIL";
+                        failTimeStr = formatTime(latestFault.failureTime) || "-";
                         rtTimeStr = formatTime(latestFault.rectificationTime) || "-";
                         durationStr = getDurationText(latestFault);
-                        faultySec = latestFault.stationCode || latestFault.stationName || latestFault.section || "FAULTY";
+                        faultySec = latestFault.stationCode || latestFault.stationName || latestFault.section || "-";
                         actionRemarks = latestFault.reason || latestFault.remarks || "Fault Reported";
                       } else if (hasRecords) {
                         const latestRecord = activeEntries[0];
-                        failTimeStr = formatTime(latestRecord.failureTime) || "NIL";
-                        rtTimeStr = formatTime(latestRecord.rectificationTime) || "NIL";
+                        failTimeStr = formatTime(latestRecord.failureTime) || "-";
+                        rtTimeStr = formatTime(latestRecord.rectificationTime) || "-";
                         durationStr = getDurationText(latestRecord);
-                        faultySec = "OK";
+                        faultySec = latestRecord.stationCode || latestRecord.stationName || latestRecord.section || "-";
                         actionRemarks = latestRecord.remarks || latestRecord.reason || "OK";
+                      }
+
+                      if (actionRemarks === "No fault reported.") {
+                        actionRemarks = "-";
                       }
 
                       // Apply customized colSpan render logic for specific WT and Cable maintenance reports
@@ -367,16 +380,16 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
                       } else if (isJoints && hasRecords) {
                         const rec = activeEntries[0];
                         const fd = rec.formData || {};
-                        failTimeStr = formatTime(fd.dateTime) || "NIL";
-                        rtTimeStr = formatTime(fd.rectifiedDateTime) || "NIL";
+                        failTimeStr = formatTime(fd.dateTime) || "-";
+                        rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
                         durationStr = `Total: ${fd.temporaryJointsCount ?? 0}`;
                         faultySec = `Bal: ${Number(fd.temporaryJointsCount || 0) - Number(fd.rectifiedJoints || 0)}`;
                         actionRemarks = fd.actionPlan || rec.remarks || "Joints logged.";
                       } else if (isInsulation && hasRecords) {
                         const rec = activeEntries[0];
                         const fd = rec.formData || {};
-                        failTimeStr = formatTime(rec.failureTime) || "NIL";
-                        rtTimeStr = formatTime(rec.rectificationTime) || "NIL";
+                        failTimeStr = formatTime(rec.failureTime) || "-";
+                        rtTimeStr = formatTime(rec.rectificationTime) || "-";
                         durationStr = `Total: ${fd.totalInsulationFaults ?? 0}`;
                         faultySec = `Bal: ${fd.balanceInsulationFaults ?? 0}`;
                         actionRemarks = fd.actionPlanTdc || rec.remarks || "Insulation faults logged.";
@@ -384,12 +397,12 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
 
                       return (
                         <tr key={div} style={{
-                          borderBottom: divIndex === 2 ? "1.5px solid #000000" : "1px solid #cbd5e1"
+                          borderBottom: divIndex === DIVISIONS.length - 1 ? "1.5px solid #000000" : "1px solid #cbd5e1"
                         }}>
                           {/* Rowspans for first division row */}
                           {divIndex === 0 && (
                             <>
-                              <td rowSpan={3} style={{
+                              <td rowSpan={DIVISIONS.length} style={{
                                 border: "1px solid #000000",
                                 padding: "6px",
                                 textAlign: "center",
@@ -398,7 +411,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
                               }}>
                                 {srNo}
                               </td>
-                              <td rowSpan={3} style={{
+                              <td rowSpan={DIVISIONS.length} style={{
                                 border: "1px solid #000000",
                                 padding: "6px",
                                 fontWeight: "bold",
@@ -408,15 +421,17 @@ export default function DailyPositionPrintView({ selectedDate, onClose }: DailyP
                               </td>
                             </>
                           )}
-                          <td style={{
-                            border: "1px solid #000000",
-                            padding: "6px",
-                            textAlign: "center",
-                            fontWeight: "bold",
-                            color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
-                          }}>
-                            {div}
-                          </td>
+                           {!filterDivision && (
+                             <td style={{
+                               border: "1px solid #000000",
+                               padding: "6px",
+                               textAlign: "center",
+                               fontWeight: "bold",
+                               color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
+                             }}>
+                               {div}
+                             </td>
+                           )}
                           <td style={{ border: "1px solid #000000", padding: "6px", color: hasFault ? "#b91c1c" : "inherit" }}>
                             {failTimeStr}
                           </td>

@@ -1200,6 +1200,8 @@ function App() {
           <CategoryFaultsPageView
             categoryName={viewCategoryFaults}
             onBack={() => setViewCategoryFaults(null)}
+            queries={queries}
+            showToast={showToast}
           />
         ) : activeNav === "Asset Dashboard" ? (
           <AssetDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
@@ -1456,19 +1458,57 @@ function SidebarDailyPositionAccordion() {
     setDpSelectedFormName,
     setDpOpenCategory,
     setDpCircuitSearch,
-    user
+    user,
+    division
   } = useAppStore();
 
   const todayStr = toDateValue();
   const completedFormsKey = `dp_completed_${user?.username || "default"}_${todayStr}`;
-  const getCompletedForms = (): string[] => {
+
+  const [completedForms, setCompletedForms] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(completedFormsKey) || "[]");
-    } catch (e) {
+    } catch {
       return [];
     }
-  };
-  const completedForms = getCompletedForms();
+  });
+
+  // Fetch today's records so we can reconcile with localStorage
+  const sidebarRecordsQuery = useQuery({
+    queryKey: ["daily-position-records", division, todayStr, "date"],
+    queryFn: () => api.dailyPosition.list({ division: division || "", date: todayStr, limit: 500 }),
+    staleTime: 30_000,
+  });
+
+  // Reconcile: if server records were deleted, remove them from local state
+  useEffect(() => {
+    if (!sidebarRecordsQuery.isSuccess || sidebarRecordsQuery.isFetching) return;
+
+    const serverCompletedForms = new Set(
+      (sidebarRecordsQuery.data?.data || [])
+        .filter((r: any) => r.status !== "DRAFT")
+        .map((r: any) => r.formType as string)
+    );
+
+    const currentLocal: string[] = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(completedFormsKey) || "[]");
+      } catch {
+        return [];
+      }
+    })();
+
+    const reconciled = currentLocal.filter(name => serverCompletedForms.has(name));
+
+    if (reconciled.length !== currentLocal.length) {
+      setCompletedForms(reconciled);
+      localStorage.setItem(completedFormsKey, JSON.stringify(reconciled));
+    } else if (reconciled.length !== completedForms.length) {
+      // Also sync state if it's out of date (e.g. after a new submission)
+      setCompletedForms(reconciled);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarRecordsQuery.isSuccess, sidebarRecordsQuery.isFetching, sidebarRecordsQuery.data?.data]);
 
   return (
     <div className="dp-circuit-accordion" style={{ paddingLeft: "8px", margin: "4px 0 12px 0", display: "grid", gap: "6px" }}>
@@ -2168,14 +2208,70 @@ function DailyPositionStatusPanel({
 
 function CategoryFaultsPageView({
   categoryName,
-  onBack
+  onBack,
+  queries,
+  showToast
 }: {
   categoryName: string;
   onBack: () => void;
+  queries?: any;
+  showToast?: (msg: string) => void;
 }) {
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
     queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }),
+  });
+
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+  const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
+  const [rectificationTimeInput, setRectificationTimeInput] = useState("");
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const toLocalDateTimeValue = (date: Date) => {
+    const tzoffset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, -1);
+    return localISOTime.substring(0, 16);
+  };
+
+  const formatDateTimeInput = (dateStr?: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? "" : toLocalDateTimeValue(d);
+  };
+
+  const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
+    if (!failureTime || !rectificationTime) return "";
+    const start = new Date(failureTime);
+    const end = new Date(rectificationTime);
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "0 mins";
+    const diffMins = Math.round(diffMs / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hrs > 0) {
+      return `${hrs} hr${hrs > 1 ? "s" : ""} ${mins} min${mins !== 1 ? "s" : ""}`;
+    }
+    return `${mins} min${mins !== 1 ? "s" : ""}`;
+  };
+
+  const queryClient = useQueryClient();
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: any }) => api.dailyPosition.update(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-position-category-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      showToast?.("Fault rectified successfully.");
+      setRectifyingRecord(null);
+    },
+    onError: (err: any) => {
+      showToast?.(err.message || "Failed to rectify fault.");
+    }
   });
 
   const records = (faultsQuery.data?.data || []).filter((r: any) => {
@@ -2210,7 +2306,7 @@ function CategoryFaultsPageView({
             {categoryName} Faults
           </h2>
           <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
-            {faultsQuery.isLoading ? "Loading faults..." : `${records.length} active faults found`}
+            {faultsQuery.isLoading ? "Loading faults..." : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
           </p>
         </div>
         <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
@@ -2251,10 +2347,58 @@ function CategoryFaultsPageView({
                       {record.rectificationTime ? (
                         formatDateTime(record.rectificationTime)
                       ) : (
-                        <span style={{ color: "var(--red)", fontWeight: 600 }}>Active</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRectifyingRecord(record);
+                            setRectificationTimeInput(toLocalDateTimeValue(new Date()));
+                          }}
+                          style={{
+                            color: "var(--red)",
+                            fontWeight: 700,
+                            background: "rgba(239, 68, 68, 0.08)",
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                            borderRadius: "4px",
+                            padding: "2px 8px",
+                            fontSize: "11px",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center"
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.15)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.08)"; }}
+                          title="Click to rectify fault"
+                        >
+                          Active
+                        </button>
                       )}
                     </td>
-                    <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>{record.remarks || record.reason || "-"}</td>
+                    <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span>{record.remarks || record.reason || "-"}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecord(record)}
+                          style={{
+                            alignSelf: "flex-start",
+                            fontSize: "11px",
+                            color: "var(--blue)",
+                            border: "none",
+                            background: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            fontWeight: 650,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                        >
+                          <Eye size={12} /> View Detail
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2262,6 +2406,103 @@ function CategoryFaultsPageView({
           </div>
         )}
       </div>
+
+      {selectedRecord && (
+        <DailyPositionDetailsModal
+          detailsRecord={[selectedRecord]}
+          detailsTitle={`${selectedRecord.formType || categoryName} — ${selectedRecord.division}`}
+          selectedDate={selectedRecord.createdAt || selectedRecord.failureTime || new Date().toISOString()}
+          formatDate={formatDate}
+          onClose={() => setSelectedRecord(null)}
+          role="SUPER_ADMIN"
+          queries={queries}
+        />
+      )}
+
+      {rectifyingRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)} style={{ zIndex: 9999 }}>
+          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", background: "#fff", position: "relative" }}>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} style={{ top: "14px", right: "16px" }}>X</button>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "var(--navy)" }}>Rectify Fault</h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "var(--muted)" }}>
+              Update the rectification date and time for <strong>{rectifyingRecord.formType || categoryName}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
+            </p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!rectificationTimeInput) {
+                showToast?.("Please enter the rectification date and time.");
+                return;
+              }
+              const nowLocalStr = toLocalDateTimeValue(new Date());
+              if (rectificationTimeInput > nowLocalStr) {
+                showToast?.("Future date & time is not allowed.");
+                return;
+              }
+              const failureTimeLocalStr = formatDateTimeInput(rectifyingRecord.failureTime);
+              if (failureTimeLocalStr && rectificationTimeInput < failureTimeLocalStr) {
+                showToast?.("Rectification time cannot be before failure time.");
+                return;
+              }
+
+              const updatedFormData = {
+                ...(rectifyingRecord.formData || {}),
+                rectificationTime: rectificationTimeInput,
+              };
+
+              updateMutation.mutate({
+                id: rectifyingRecord.id,
+                body: {
+                  ...rectifyingRecord,
+                  rectificationTime: rectificationTimeInput,
+                  durationText: calcDurationText(rectifyingRecord.failureTime, rectificationTimeInput),
+                  status: "RECTIFIED",
+                  formData: updatedFormData,
+                }
+              });
+            }}>
+              <div className="dp-field" style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "var(--navy)", marginBottom: "6px" }}>
+                  Rectification Date & Time <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={rectificationTimeInput}
+                  max={toLocalDateTimeValue(new Date())}
+                  onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--line)",
+                    fontSize: "14px",
+                    fontFamily: "inherit",
+                    color: "var(--navy)"
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setRectifyingRecord(null)}
+                  className="export-button"
+                  style={{ background: "transparent", color: "var(--muted)", borderColor: "var(--line)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="export-button"
+                  disabled={updateMutation.isPending}
+                  style={{ background: "var(--blue)", color: "#fff", border: "none" }}
+                >
+                  {updateMutation.isPending ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -3361,6 +3602,7 @@ function DailyPositionSummaryTable({
         <DailyPositionPrintView
           selectedDate={selectedDate}
           onClose={() => setIsPrintOpen(false)}
+          filterDivision={isSuperAdmin ? undefined : userDivision}
         />
       )}
     </>
