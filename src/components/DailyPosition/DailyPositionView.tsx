@@ -2274,6 +2274,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 type="date"
                 value={selectedDate}
                 onChange={event => setSelectedDate(event.target.value)}
+                onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                 style={{
                   padding: "6px 10px",
                   borderRadius: "6px",
