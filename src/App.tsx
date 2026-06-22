@@ -2182,9 +2182,12 @@ function CategoryFaultsPageView({
     queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }),
   });
 
-  const records = (faultsQuery.data?.data || []).filter(
-    (r: any) => r.category?.toLowerCase() === categoryName?.toLowerCase()
-  );
+  const records = (faultsQuery.data?.data || []).filter((r: any) => {
+    if (r.category?.toLowerCase() !== categoryName?.toLowerCase()) return false;
+    if (r.status === "DRAFT") return false;
+    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+    return !isAllOk;
+  });
 
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return "-";
@@ -2466,11 +2469,11 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults") {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
-    } else if (kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
+    } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       if (role === "TESTROOM") {
         useAppStore.setState({ activeNav: "Daily Position" });
       } else {
-        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
+        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
       }
     }
   };

@@ -1720,6 +1720,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const filteredHistoryRecords = useMemo(() => {
     return records.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+
+      // Filter out All OK records when showing active faults or resolved faults only
+      if (dpHistoryFilter === "active-faults" || dpHistoryFilter === "resolved-faults") {
+        const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+        if (isAllOk) return false;
+      }
+
       if (historyDivision && r.division !== historyDivision) return false;
       if (historyCategory && r.category !== historyCategory) return false;
       if (historyFormType && r.formType !== historyFormType) return false;

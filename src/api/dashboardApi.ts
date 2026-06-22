@@ -12,10 +12,71 @@ import type {
   BottomStat
 } from "../types";
 
+const toDateValue = (date = new Date()) => {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+};
+
 export async function getDashboardSummary(division = ""): Promise<DashboardSummary> {
-  // Fetch only dashboard stats payload from backend in a single request!
-  const statsRes = await api.reports.dashboard(division);
+  const todayStr = toDateValue(new Date());
+
+  // Fetch dashboard stats, active faults, and today's records in parallel
+  const [statsRes, activeFaultsRes, todayRecordsRes] = await Promise.all([
+    api.reports.dashboard(division),
+    api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 1000 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 1000 }).catch(() => ({ data: [] }))
+  ]);
+
   const stats = statsRes.data;
+
+  // 1. Calculate Active Faults Count
+  // Exclude "All OK" daily position submissions (reason: "All OK" or actionType: "OK")
+  const activeFaultsList = (activeFaultsRes.data || []).filter((r: any) => {
+    if (r.status === "DRAFT") return false;
+    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+    return !isAllOk;
+  });
+  const activeFaultsCount = activeFaultsList.length;
+
+  // 2. Calculate Faults Today Count (only today's data, excluding previous days)
+  const faultsTodayList = (todayRecordsRes.data || []).filter((r: any) => {
+    if (r.status === "DRAFT") return false;
+    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+    return !isAllOk;
+  });
+  const faultsTodayCount = faultsTodayList.length;
+
+  // 3. Calculate Resolved Today Count (only today's data, excluding previous days)
+  const resolvedTodayList = (todayRecordsRes.data || []).filter((r: any) => {
+    if (r.status === "DRAFT") return false;
+    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+    return (r.status === "RECTIFIED" || r.status === "OPERATIONAL") && !isAllOk;
+  });
+  const resolvedTodayCount = resolvedTodayList.length;
+
+  // Group active faults by category for Category-wise Fault section
+  // Exclude All OK data (only actual pending faults are in activeFaultsList)
+  const categoryCounts: Record<string, number> = {};
+  for (const r of activeFaultsList) {
+    const cat = r.category || "Others";
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+  }
+  const dailyPositionByCategory = Object.entries(categoryCounts).map(([category, count]) => ({
+    category,
+    count
+  }));
+
+  // Group today's records by division for Division-wise Report Submission (daily basis)
+  const divisionCounts: Record<string, number> = {};
+  for (const r of todayRecordsRes.data || []) {
+    if (r.status === "DRAFT") continue;
+    const div = r.division || "Others";
+    divisionCounts[div] = (divisionCounts[div] || 0) + 1;
+  }
+  const dailyPositionByDivision = Object.entries(divisionCounts).map(([division, count]) => ({
+    division,
+    count
+  }));
 
   // Let's build the stats mapping:
   const totalAssets = stats.summary.assetsCount;
@@ -58,26 +119,26 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     {
       id: "activeFaults",
       label: "Active Faults",
-      value: (stats.summary.activeFaultsCount || 0).toString(),
+      value: activeFaultsCount.toString(),
       detail: "Pending faults",
       tone: "red",
-      series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, stats.summary.activeFaultsCount || 0]
+      series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, activeFaultsCount]
     },
     {
       id: "faultsToday",
       label: "Faults Today",
-      value: (stats.summary.todayFaultsCount || 0).toString(),
+      value: faultsTodayCount.toString(),
       detail: "Faults reported today",
       tone: "amber",
-      series: [0, 1, 3, 2, 4, 5, 3, 2, 4, 2, 3, stats.summary.todayFaultsCount || 0]
+      series: [0, 1, 3, 2, 4, 5, 3, 2, 4, 2, 3, faultsTodayCount]
     },
     {
       id: "resolvedToday",
       label: "Resolved Today",
-      value: (stats.summary.todayRectifiedCount || 0).toString(),
+      value: resolvedTodayCount.toString(),
       detail: "Faults resolved today",
       tone: "green",
-      series: [2, 3, 5, 4, 6, 8, 7, 9, 6, 5, 8, stats.summary.todayRectifiedCount || 0]
+      series: [2, 3, 5, 4, 6, 8, 7, 9, 6, 5, 8, resolvedTodayCount]
     }
   ];
 
@@ -208,8 +269,8 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     alerts,
     bottomStats,
     commissioningSummary: stats.commissioningSummary,
-    dailyPositionByDivision: stats.dailyPositionByDivision,
-    dailyPositionByCategory: stats.dailyPositionByCategory,
+    dailyPositionByDivision,
+    dailyPositionByCategory,
     monthlyFaultsTrend: stats.monthlyFaultsTrend || [],
     dailyPositionStatus: stats.dailyPositionStatus || []
   };
