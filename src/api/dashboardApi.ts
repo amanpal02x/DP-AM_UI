@@ -20,11 +20,12 @@ const toDateValue = (date = new Date()) => {
 export async function getDashboardSummary(division = ""): Promise<DashboardSummary> {
   const todayStr = toDateValue(new Date());
 
-  // Fetch dashboard stats, active faults, and today's records in parallel
-  const [statsRes, activeFaultsRes, todayRecordsRes] = await Promise.all([
+  // Fetch dashboard stats, active faults, today's records, and resolved records in parallel
+  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes] = await Promise.all([
     api.reports.dashboard(division),
     api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 1000 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 1000 }).catch(() => ({ data: [] }))
+    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 1000 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 1000 }).catch(() => ({ data: [] }))
   ]);
 
   const stats = statsRes.data;
@@ -47,10 +48,18 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   const faultsTodayCount = faultsTodayList.length;
 
   // 3. Calculate Resolved Today Count (only today's data, excluding previous days)
-  const resolvedTodayList = (todayRecordsRes.data || []).filter((r: any) => {
+  const resolvedTodayList = (resolvedRecordsRes.data || []).filter((r: any) => {
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    return (r.status === "RECTIFIED" || r.status === "OPERATIONAL") && !isAllOk;
+    if (isAllOk) return false;
+    if (!r.rectificationTime) return false;
+    try {
+      const rectDate = new Date(r.rectificationTime);
+      if (isNaN(rectDate.getTime())) return false;
+      return toDateValue(rectDate) === todayStr;
+    } catch {
+      return false;
+    }
   });
   const resolvedTodayCount = resolvedTodayList.length;
 
@@ -120,23 +129,23 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
       id: "activeFaults",
       label: "Active Faults",
       value: activeFaultsCount.toString(),
-      detail: "Pending faults",
+      detail: "",
       tone: "red",
       series: [18, 20, 22, 21, 25, 27, 23, 24, 22, 19, 21, activeFaultsCount]
     },
     {
       id: "faultsToday",
-      label: "Faults Today",
+      label: "Faults Reported Today",
       value: faultsTodayCount.toString(),
-      detail: "Faults reported today",
+      detail: "",
       tone: "amber",
       series: [0, 1, 3, 2, 4, 5, 3, 2, 4, 2, 3, faultsTodayCount]
     },
     {
       id: "resolvedToday",
-      label: "Resolved Today",
+      label: "Faults Resolved Today",
       value: resolvedTodayCount.toString(),
-      detail: "Faults resolved today",
+      detail: "",
       tone: "green",
       series: [2, 3, 5, 4, 6, 8, 7, 9, 6, 5, 8, resolvedTodayCount]
     }

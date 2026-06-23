@@ -142,8 +142,8 @@ const humanizeFieldName = (key: string) => {
     .trim();
 };
 
-const displayValue = (value: any) => {
-  if (value === undefined || value === null || value === "") return "-";
+const displayValue = (value: any, isAllOk = false) => {
+  if (value === undefined || value === null || value === "") return isAllOk ? "" : "-";
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     const date = new Date(value);
@@ -1548,9 +1548,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const visibleActiveFields = useMemo(() => {
     return activeFields.filter(field => {
-      if (field.name === "cpmsNo") {
-        return values.cpmsEntry === "YES";
-      }
       if (field.name === "cableCutByWhomOther") {
         return values.cableCutByWhom === "Other";
       }
@@ -1559,7 +1556,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return true;
     });
-  }, [activeFields, values.cpmsEntry, values.cableCutByWhom, values.natureOfFault]);
+  }, [activeFields, values.cableCutByWhom, values.natureOfFault]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -1758,6 +1755,17 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         if (isAllOk) return false;
       }
 
+      if (dpHistoryFilter === "resolved-faults") {
+        if (!r.rectificationTime) return false;
+        try {
+          const rectDate = new Date(r.rectificationTime);
+          if (isNaN(rectDate.getTime())) return false;
+          if (toDateValue(rectDate) !== selectedDate) return false;
+        } catch {
+          return false;
+        }
+      }
+
       if (historyDivision && r.division !== historyDivision) return false;
       if (historyCategory && r.category !== historyCategory) return false;
       if (historyFormType && r.formType !== historyFormType) return false;
@@ -1783,7 +1791,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return true;
     });
-  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus]);
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, selectedDate, dpHistoryFilter]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -1841,10 +1849,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         const received = Number(next.caseReceivedOnDate || 0);
         const complied = Number(next.caseCompliedOnDate || 0);
         next.netBalanceCaseOnDate = lastDate + received - complied;
-      }
-
-      if (name === "cpmsEntry" && nextValue !== "YES") {
-        next.cpmsNo = "";
       }
 
       if (name === "cableCutByWhom" && nextValue !== "Other") {
@@ -2300,12 +2304,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <tr key={record.id}>
                   <td>{record.division}</td>
                   <td>{record.category}</td>
-                  <td><strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong></td>
-                  <td>{record.stationCode || record.stationName || record.section || "-"}</td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong>
+                      {!isTodayRecord(record) && (
+                        <span className="pill" style={{ fontSize: "10px", padding: "1px 5px", background: "#f8fafc", color: "#64748b", border: "1px solid #cbd5e1", textTransform: "none", fontWeight: 500, borderRadius: "4px", display: "inline-flex", alignItems: "center" }}>
+                          Historical ({record.date ? new Date(record.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "-"})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
                   <td><span className={`pill status-${isAllOk ? "operational" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "OPERATIONAL" : record.status}</span></td>
-                  <td>{record.failureTime ? (isTodayRecord(record) ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.failureTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
-                  <td>{record.rectificationTime ? (isTodayRecord(record) ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.rectificationTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "-"}</td>
-                  <td>{record.remarks || record.reason || "-"}</td>
+                  <td>{record.failureTime ? (isTodayRecord(record) ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.failureTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.rectificationTime ? (isTodayRecord(record) ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.rectificationTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.remarks || record.reason || (isAllOk ? "" : "-")}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
                       <Eye size={14} /> View Details
@@ -2361,9 +2374,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
-          {viewMode === "history" && dpHistoryFilter === "date" && (
+          {viewMode === "history" && (dpHistoryFilter === "date" || dpHistoryFilter === "resolved-faults") && (
             <label className="division-select">
-              <span>Position Date</span>
+              <span>{dpHistoryFilter === "resolved-faults" ? "Rectification Date" : "Position Date"}</span>
               <input
                 type="date"
                 value={selectedDate}
@@ -2485,7 +2498,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     <table className="data-table dp-recent-table">
                       <thead>
                         <tr>
-                          {activeFields.map(field => (
+                          {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => (
                             <th key={field.name}>{field.label}</th>
                           ))}
                           <th>Status</th>
@@ -2512,8 +2525,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                             }
                             className="dp-recent-row"
                           >
-                            {activeFields.map(field => {
+                            {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => {
                               let val = record.formData?.[field.name];
+                              if (field.name === "natureOfFault" && val === "Other") {
+                                val = record.formData?.natureOfFaultOther || val;
+                              }
+                              if (field.name === "cableCutByWhom" && val === "Other") {
+                                val = record.formData?.cableCutByWhomOther || val;
+                              }
                               if (val === undefined) {
                                 if (field.name === "majorSection") val = record.majorSection;
                                 else if (field.name === "section") val = record.section;
@@ -2558,7 +2577,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                       : undefined
                                   }
                                 >
-                                  {val !== undefined && val !== null ? String(val) : "-"}
+                                  {val !== undefined && val !== null && val !== "" ? String(val) : (isAllOk ? "" : "-")}
                                 </td>
                               );
                             })}
@@ -2764,7 +2783,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <div>
                   <span>Daily Position Record</span>
                   <h2>{detailsRecord.formType}</h2>
-                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "-"}</p>
+                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || (isAllOk ? "" : "-")}</p>
                 </div>
                 <em className={`status-chip status-${isAllOk ? "operational" : String(detailsRecord.status || "").toLowerCase()}`}>
                   {isAllOk ? "OPERATIONAL" : detailsRecord.status}
@@ -2775,7 +2794,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Category", detailsRecord.category],
                   ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                  ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : "-"],
+                  ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : (isAllOk ? "" : "-")],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
@@ -2788,11 +2807,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <h3>Fault Timing</h3>
                 <div className="dp-details-grid">
                   {[
-                    ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : "-"],
-                    ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : "-"],
-                    ["Duration of Failure", detailsRecord.durationText || "-"],
-                    ["Reason", detailsRecord.reason || "-"],
-                    ["Remarks", detailsRecord.remarks || "-"],
+                    ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : (isAllOk ? "" : "-")],
+                    ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : (isAllOk ? "" : "-")],
+                    ["Duration of Failure", detailsRecord.durationText || (isAllOk ? "" : "-")],
+                    ["Reason", detailsRecord.reason || (isAllOk ? "" : "-")],
+                    ["Remarks", detailsRecord.remarks || (isAllOk ? "" : "-")],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <span>{label}</span>
@@ -2805,12 +2824,23 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <section className="dp-details-section">
                 <h3>Submitted Form Fields</h3>
                 <div className="dp-details-grid">
-                  {Object.entries(detailsRecord.formData || {}).map(([key, value]) => (
-                    <div key={key}>
-                      <span>{humanizeFieldName(key)}</span>
-                      <strong>{displayValue(value)}</strong>
-                    </div>
-                  ))}
+                  {Object.entries(detailsRecord.formData || {})
+                    .filter(([key]) => key !== "natureOfFaultOther" && key !== "cableCutByWhomOther")
+                    .map(([key, value]) => {
+                      let displayVal = value;
+                      if (key === "natureOfFault" && value === "Other") {
+                        displayVal = detailsRecord.formData?.natureOfFaultOther || value;
+                      }
+                      if (key === "cableCutByWhom" && value === "Other") {
+                        displayVal = detailsRecord.formData?.cableCutByWhomOther || value;
+                      }
+                      return (
+                        <div key={key}>
+                          <span>{humanizeFieldName(key)}</span>
+                          <strong>{displayValue(displayVal, isAllOk)}</strong>
+                        </div>
+                      );
+                    })}
                   {Object.keys(detailsRecord.formData || {}).length === 0 && (
                     <div>
                       <span>Form Data</span>
