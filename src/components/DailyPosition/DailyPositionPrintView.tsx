@@ -3,33 +3,35 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Printer, X } from "lucide-react";
 import { api } from "../../api/apiClient";
+import { formatDateTime24, formatPositionDate, formatTime24 } from "../../utils/dateTime";
 import { DAILY_POSITION_FORMS } from "./dailyPositionForms";
 
 type DailyPositionPrintViewProps = {
   selectedDate: string;
   onClose: () => void;
   filterDivision?: string;
+  positionType?: "MORNING" | "CURRENT";
 };
 
-export default function DailyPositionPrintView({ selectedDate, onClose, filterDivision }: DailyPositionPrintViewProps) {
+export default function DailyPositionPrintView({ selectedDate, onClose, filterDivision, positionType = "MORNING" }: DailyPositionPrintViewProps) {
   // Fetch data for the divisions on the selected date
   const bspQuery = useQuery({
-    queryKey: ["dp-print-table", "Bilaspur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Bilaspur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-print-table", "Bilaspur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Bilaspur", date: selectedDate, positionType }),
     staleTime: 30 * 1000,
     enabled: !filterDivision || filterDivision === "Bilaspur",
   });
 
   const rprQuery = useQuery({
-    queryKey: ["dp-print-table", "Raipur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Raipur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-print-table", "Raipur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Raipur", date: selectedDate, positionType }),
     staleTime: 30 * 1000,
     enabled: !filterDivision || filterDivision === "Raipur",
   });
 
   const ngpQuery = useQuery({
-    queryKey: ["dp-print-table", "Nagpur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Nagpur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-print-table", "Nagpur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Nagpur", date: selectedDate, positionType }),
     staleTime: 30 * 1000,
     enabled: !filterDivision || filterDivision === "Nagpur",
   });
@@ -54,9 +56,9 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     return map;
   };
 
-  const bspMap = useMemo(() => buildEntriesMap(bspQuery.data?.data || []), [bspQuery.data]);
-  const rprMap = useMemo(() => buildEntriesMap(rprQuery.data?.data || []), [rprQuery.data]);
-  const ngpMap = useMemo(() => buildEntriesMap(ngpQuery.data?.data || []), [ngpQuery.data]);
+  const bspMap = useMemo(() => buildEntriesMap(bspQuery.data?.data?.records || []), [bspQuery.data]);
+  const rprMap = useMemo(() => buildEntriesMap(rprQuery.data?.data?.records || []), [rprQuery.data]);
+  const ngpMap = useMemo(() => buildEntriesMap(ngpQuery.data?.data?.records || []), [ngpQuery.data]);
 
   const divisionMaps: Record<string, Record<string, any[]>> = {
     Bilaspur: bspMap,
@@ -87,19 +89,107 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return "";
     const dateStr = d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, ".");
-    const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const timeStr = formatTime24(d);
     return `${dateStr} ${timeStr}`;
   };
 
+  const positionTitle = positionType === "MORNING"
+    ? `MORNING POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`
+    : `CURRENT POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`;
+
   // Helper to get formatted duration text
   const getDurationText = (entry: any) => {
-    if (entry.durationText) return entry.durationText;
-    if (entry.durationMinutes) {
+    const formData = entry.formData || {};
+    const failureTime = entry.failureTime || formData.dateTime || null;
+    const rectificationTime = entry.rectificationTime || formData.rectifiedDateTime || null;
+    if (failureTime && rectificationTime) {
+      const start = new Date(failureTime);
+      const end = new Date(rectificationTime);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
+        const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+        const hrs = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+      }
+    }
+    if (entry.durationMinutes !== undefined && entry.durationMinutes !== null) {
       const hrs = Math.floor(entry.durationMinutes / 60);
       const mins = entry.durationMinutes % 60;
       return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
     }
     return "-";
+  };
+
+  const actualFailureTime = (entry: any) =>
+    entry.failureTime || entry.formData?.dateTime || null;
+
+  const actualRectificationTime = (entry: any) =>
+    entry.rectificationTime || entry.formData?.rectifiedDateTime || null;
+
+  const actualLocation = (entry: any) =>
+    entry.section
+    || entry.formData?.section
+    || entry.stationCode
+    || entry.stationName
+    || entry.formData?.stationCode
+    || entry.majorSection
+    || entry.formData?.majorSection
+    || entry.formData?.sectionYard
+    || entry.formData?.stationLobby
+    || "-";
+
+  const presentMetric = (label: string, value: any) =>
+    value === undefined || value === null || value === "" ? null : `${label}: ${value}`;
+
+  const actualRemarks = (entry: any, formName: string) => {
+    const fd = entry.formData || {};
+    const details: Array<string | null> = [];
+
+    if (formName === "Temporary Joints") {
+      details.push(
+        presentMetric("Total joints", fd.temporaryJointsCount),
+        presentMetric("Rectified joints", fd.rectifiedJoints),
+        presentMetric(
+          "Balance joints",
+          fd.balanceTemporaryJoints !== undefined
+            ? fd.balanceTemporaryJoints
+            : fd.temporaryJointsCount !== undefined && fd.rectifiedJoints !== undefined
+              ? Number(fd.temporaryJointsCount) - Number(fd.rectifiedJoints)
+              : undefined
+        ),
+        fd.actionPlan ? `Action plan: ${fd.actionPlan}` : null
+      );
+    } else if (formName === "Low Insulation") {
+      details.push(
+        presentMetric("Total faults", fd.totalInsulationFaults),
+        presentMetric("Balance faults", fd.balanceInsulationFaults),
+        fd.actionPlanTdc ? `Action plan: ${fd.actionPlanTdc}` : null
+      );
+    } else if (formName === "Walkie-Talkie Testing") {
+      details.push(
+        presentMetric("To be tested", fd.toBeTestedCount),
+        presentMetric("Tested", fd.testedCount),
+        presentMetric("Balance", fd.balanceWalkieTalkies)
+      );
+    } else if (formName === "Walkie-Talkie Repairing") {
+      details.push(
+        presentMetric("Opening defective", fd.openingDefective),
+        presentMetric("Received", fd.receivedFromUser),
+        presentMetric("Sent for repair", fd.sentToFirm),
+        presentMetric("Repaired received", fd.repairedFromFirm),
+        presentMetric("Returned", fd.returnedToUser),
+        presentMetric("Pending repair", fd.pendingRepair),
+        presentMetric("Condemned", fd.setsCondemned)
+      );
+    }
+
+    const primary = entry.reason === "All OK"
+      ? null
+      : entry.reason || entry.remarks || null;
+    if (entry.remarks && entry.remarks !== primary) details.push(entry.remarks);
+    if (primary) details.unshift(primary);
+
+    return details.filter(Boolean).join(" | ") || "-";
   };
 
   return createPortal(
@@ -278,6 +368,9 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             <h2 style={{ margin: "0 0 10px 0", fontSize: "16px", fontWeight: "bold" }}>
               PCSTE/SECR POSITION
             </h2>
+            <div style={{ marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
+              {positionTitle}
+            </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", fontSize: "13px", fontWeight: "bold" }}>
               <span>{filterDivision ? `${filterDivision.toUpperCase()} DIVISION` : "BILASPUR / RAIPUR / NAGPUR DIVISION"}</span>
               <span>DATE: {formatDate(selectedDate)}</span>
@@ -309,12 +402,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               {displayedForms.map((form, index) => {
                 const srNo = index + 1;
 
-                // Handle Walkie-Talkie Testing, Repairing, Temporary Joints, Low Insulation
-                const isWtRepair = form.name === "Walkie-Talkie Repairing";
-                const isWtTest = form.name === "Walkie-Talkie Testing";
-                const isJoints = form.name === "Temporary Joints";
-                const isInsulation = form.name === "Low Insulation";
-
                 return (
                   <React.Fragment key={form.systemCode}>
                     {DIVISIONS.map((div, divIndex) => {
@@ -324,7 +411,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
                       // Find active faults
                       const faultEntries = activeEntries.filter((e: any) => {
-                        const s = (e.status || "").toUpperCase();
+                        const s = (e.positionStatus || e.status || "").toUpperCase();
                         const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
                         return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
                       });
@@ -341,58 +428,22 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
                       if (hasFault) {
                         const latestFault = faultEntries[0];
-                        failTimeStr = formatTime(latestFault.failureTime) || "-";
-                        rtTimeStr = formatTime(latestFault.rectificationTime) || "-";
+                        failTimeStr = formatTime(actualFailureTime(latestFault)) || "-";
+                        rtTimeStr = formatTime(actualRectificationTime(latestFault)) || "-";
                         durationStr = getDurationText(latestFault);
-                        faultySec = latestFault.stationCode || latestFault.stationName || latestFault.section || "-";
-                        actionRemarks = latestFault.reason || latestFault.remarks || "Fault Reported";
+                        faultySec = actualLocation(latestFault);
+                        actionRemarks = actualRemarks(latestFault, form.name);
                       } else if (hasRecords) {
                         const latestRecord = activeEntries[0];
-                        failTimeStr = formatTime(latestRecord.failureTime) || "-";
-                        rtTimeStr = formatTime(latestRecord.rectificationTime) || "-";
+                        failTimeStr = formatTime(actualFailureTime(latestRecord)) || "-";
+                        rtTimeStr = formatTime(actualRectificationTime(latestRecord)) || "-";
                         durationStr = getDurationText(latestRecord);
-                        faultySec = latestRecord.stationCode || latestRecord.stationName || latestRecord.section || "-";
-                        actionRemarks = latestRecord.remarks || latestRecord.reason || "OK";
+                        faultySec = actualLocation(latestRecord);
+                        actionRemarks = actualRemarks(latestRecord, form.name);
                       }
 
                       if (actionRemarks === "No fault reported.") {
                         actionRemarks = "-";
-                      }
-
-                      // Apply customized colSpan render logic for specific WT and Cable maintenance reports
-                      if (isWtRepair && hasRecords) {
-                        const rec = activeEntries[0];
-                        const fd = rec.formData || {};
-                        const pending = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0) - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
-                        failTimeStr = `Opening Def: ${fd.openingDefective ?? 0} | Recv: ${fd.receivedFromUser ?? 0}`;
-                        rtTimeStr = `Repaired: ${fd.repairedFromFirm ?? 0} | Sent: ${fd.sentToFirm ?? 0}`;
-                        durationStr = `Pend: ${pending}`;
-                        faultySec = `Cond: ${fd.setsCondemned ?? 0}`;
-                        actionRemarks = rec.remarks || "WT Repairing logged.";
-                      } else if (isWtTest && hasRecords) {
-                        const rec = activeEntries[0];
-                        const fd = rec.formData || {};
-                        failTimeStr = `To Test: ${fd.toBeTestedCount ?? 0}`;
-                        rtTimeStr = `Tested: ${fd.testedCount ?? 0}`;
-                        durationStr = `Bal: ${fd.balanceWalkieTalkies ?? 0}`;
-                        faultySec = fd.makeModel || "WT Testing";
-                        actionRemarks = rec.remarks || "WT Testing logged.";
-                      } else if (isJoints && hasRecords) {
-                        const rec = activeEntries[0];
-                        const fd = rec.formData || {};
-                        failTimeStr = formatTime(fd.dateTime) || "-";
-                        rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
-                        durationStr = `Total: ${fd.temporaryJointsCount ?? 0}`;
-                        faultySec = `Bal: ${Number(fd.temporaryJointsCount || 0) - Number(fd.rectifiedJoints || 0)}`;
-                        actionRemarks = fd.actionPlan || rec.remarks || "Joints logged.";
-                      } else if (isInsulation && hasRecords) {
-                        const rec = activeEntries[0];
-                        const fd = rec.formData || {};
-                        failTimeStr = formatTime(rec.failureTime) || "-";
-                        rtTimeStr = formatTime(rec.rectificationTime) || "-";
-                        durationStr = `Total: ${fd.totalInsulationFaults ?? 0}`;
-                        faultySec = `Bal: ${fd.balanceInsulationFaults ?? 0}`;
-                        actionRemarks = fd.actionPlanTdc || rec.remarks || "Insulation faults logged.";
                       }
 
                       return (
@@ -459,7 +510,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           {/* Footer Area */}
           <div style={{ marginTop: "30px", borderTop: "1px solid #000000", paddingTop: "12px", display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#475569" }}>
             <span>SECR Daily Position Summary System</span>
-            <span>Generated on {new Date().toLocaleString("en-IN")}</span>
+            <span>Generated on {formatDateTime24(new Date(), true)} IST</span>
           </div>
         </div>
       )}

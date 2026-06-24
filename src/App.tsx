@@ -1,6 +1,5 @@
-import { useState, useEffect, Fragment, useRef, useMemo } from "react";
+import { useState, useEffect, Fragment, useRef, useMemo, lazy, Suspense } from "react";
 import type { ReactNode } from "react";
-import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
 import {
@@ -382,9 +381,10 @@ const normalizeDivision = (div: any): string => {
 
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
-import DailyPositionView from "./components/DailyPosition/DailyPositionView";
+import { formatDate24, formatDateTime24, formatTime24, shiftDateText } from "./utils/dateTime";
 import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./components/DailyPosition/dailyPositionForms";
-import DailyPositionPrintView from "./components/DailyPosition/DailyPositionPrintView";
+const DailyPositionView = lazy(() => import("./components/DailyPosition/DailyPositionView"));
+const DailyPositionPrintView = lazy(() => import("./components/DailyPosition/DailyPositionPrintView"));
 import type {
   ActivityItem,
   AlertItem,
@@ -621,8 +621,9 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
     }
   };
 
-  // Parse Excel file using SheetJS
-  const parseExcel = (file: File): Promise<{ headers: string[]; rows: any[]; isMasterExcel: boolean }> => {
+  // SheetJS is loaded only when an Excel import is actually used.
+  const parseExcel = async (file: File): Promise<{ headers: string[]; rows: any[]; isMasterExcel: boolean }> => {
+    const XLSX = await import("xlsx");
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -1090,19 +1091,25 @@ function App() {
   const stationsQuery = useQuery({
     queryKey: ["stations-list"],
     queryFn: () => api.stations.list(),
-    enabled: !!token && ["Asset Dashboard", "Daily Position", "Master List", "Assets", "LC Gate"].includes(activeNav)
+    enabled: !!token && ["Master List", "Assets", "LC Gate"].includes(activeNav),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: previousData => previousData,
   });
 
   const assetsQuery = useQuery({
     queryKey: ["assets-list"],
     queryFn: () => api.assets.list(),
-    enabled: !!token && ["Asset Dashboard", "Daily Position", "Assets", "Master List"].includes(activeNav)
+    enabled: !!token && ["Assets", "Master List"].includes(activeNav),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: previousData => previousData,
   });
 
   const gatesQuery = useQuery({
     queryKey: ["gates-list"],
     queryFn: () => api.gates.list(),
-    enabled: !!token && activeNav === "LC Gate"
+    enabled: !!token && activeNav === "LC Gate",
+    staleTime: 5 * 60 * 1000,
+    placeholderData: previousData => previousData,
   });
 
   const usersQuery = useQuery({
@@ -1118,11 +1125,34 @@ function App() {
   });
 
   // Dashboard Aggregated Query
+  const dashboardCacheKey = `telecom_dashboard_${user?.id || user?.username || "user"}_${division || "all"}`;
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["dashboard-summary", division, token],
     queryFn: () => getDashboardSummary(division),
-    enabled: !!token && ["Asset Dashboard", "Daily Position"].includes(activeNav)
+    enabled: !!token && ["Asset Dashboard", "Daily Position"].includes(activeNav),
+    staleTime: 60_000,
+    placeholderData: previousData => previousData,
+    initialData: () => {
+      try {
+        const cached = JSON.parse(localStorage.getItem(dashboardCacheKey) || "null");
+        return cached && Date.now() - cached.savedAt < 10 * 60_000 ? cached.data : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    initialDataUpdatedAt: () => {
+      try {
+        return JSON.parse(localStorage.getItem(dashboardCacheKey) || "null")?.savedAt || 0;
+      } catch {
+        return 0;
+      }
+    },
   });
+
+  useEffect(() => {
+    if (!dashboardData) return;
+    localStorage.setItem(dashboardCacheKey, JSON.stringify({ savedAt: Date.now(), data: dashboardData }));
+  }, [dashboardCacheKey, dashboardData]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -1141,7 +1171,7 @@ function App() {
   }
 
   const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
-  if (isProfileLoading || (["Asset Dashboard", "Daily Position"].includes(activeNav) && dashboardLoading)) {
+  if (isProfileLoading) {
     return (
       <div className="app-loading-container">
         <div className="circular-time-loader">
@@ -1153,18 +1183,6 @@ function App() {
           <div className="loader-center-dot"></div>
         </div>
         <div className="loading-text">Loading Telecom Dashboard...</div>
-      </div>
-    );
-  }
-
-  if ((["Asset Dashboard", "Daily Position"].includes(activeNav)) && (dashboardError || !dashboardData)) {
-    return (
-      <div className="app-loading-container">
-        <div style={{ textAlign: "center" }}>
-          <h3>Dashboard API unavailable.</h3>
-          <p>Please check backend connections or Supabase configurations.</p>
-          <button className="export-button" onClick={() => logout()} style={{ marginTop: 12 }}>Sign Out & Retry</button>
-        </div>
       </div>
     );
   }
@@ -1196,6 +1214,7 @@ function App() {
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
+        <Suspense fallback={<div className="module-loading-skeleton" aria-label="Loading module" />}>
         {viewCategoryFaults ? (
           <CategoryFaultsPageView
             categoryName={viewCategoryFaults}
@@ -1204,9 +1223,26 @@ function App() {
             showToast={showToast}
           />
         ) : activeNav === "Asset Dashboard" ? (
-          <AssetDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} />
+          dashboardData ? (
+            <AssetDashboardView data={dashboardData} openPanel={openPanel} queries={queries} />
+          ) : dashboardError ? (
+            <div className="dashboard-inline-state">
+              <h3>Dashboard API unavailable.</h3>
+              <p>Please check the backend connection.</p>
+            </div>
+          ) : (
+            <div className="dashboard-loading-grid" aria-label={dashboardLoading ? "Loading dashboard" : "Preparing dashboard"}>
+              {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
+            </div>
+          )
         ) : activeNav === "Daily Position" ? (
-          <DailyPositionDashboardView data={dashboardData!} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
+          dashboardData ? (
+            <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
+          ) : (
+            <div className="dashboard-loading-grid" aria-label="Loading daily position dashboard">
+              {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
+            </div>
+          )
         ) : activeNav === "DP Form" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
         ) : activeNav === "DP Logs" ? (
@@ -1222,6 +1258,7 @@ function App() {
         ) : (
           <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} />
         )}
+        </Suspense>
       </main>
       <Toast message={toast} />
       {panel === "Asset Details" ? (
@@ -1614,7 +1651,8 @@ function SidebarDailyPositionAccordion() {
 }
 
 function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
-  const { activeNav, role, sidebarOpen, setActiveNav, logout, user } = useAppStore();
+  const { activeNav, role, sidebarOpen, setActiveNav, logout, user, division, token } = useAppStore();
+  const queryClient = useQueryClient();
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [dpDropdownOpen, setDpDropdownOpen] = useState(true);
 
@@ -1653,6 +1691,33 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
       marginBottom: "8px"
     };
 
+  const prefetchNav = (label: NavKey) => {
+    if (label === "DP Form" || label === "DP Logs") {
+      void import("./components/DailyPosition/DailyPositionView");
+    }
+    if ((label === "Asset Dashboard" || label === "Daily Position") && token) {
+      void queryClient.prefetchQuery({
+        queryKey: ["dashboard-summary", division, token],
+        queryFn: () => getDashboardSummary(division),
+        staleTime: 60_000,
+      });
+    }
+    if ((label === "Master List" || label === "Assets") && token) {
+      void queryClient.prefetchQuery({
+        queryKey: ["stations-list"],
+        queryFn: () => api.stations.list(),
+        staleTime: 5 * 60_000,
+      });
+    }
+    if (label === "Assets" && token) {
+      void queryClient.prefetchQuery({
+        queryKey: ["assets-list"],
+        queryFn: () => api.assets.list(),
+        staleTime: 5 * 60_000,
+      });
+    }
+  };
+
   return (
     <aside className={`sidebar ${sidebarOpen ? "show" : ""}`}>
       <div className="brand">
@@ -1676,6 +1741,8 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
               <button
                 className={`nav-item ${item.label === activeNav ? "active" : ""}`}
                 style={{ opacity: hasAccess ? 1 : 0.6 }}
+                onMouseEnter={() => hasAccess && prefetchNav(item.label)}
+                onFocus={() => hasAccess && prefetchNav(item.label)}
                 onClick={() => {
                   if (!hasAccess) {
                     alert("Access to this module is not permitted. Please request access from the administrator.");
@@ -2284,14 +2351,7 @@ function CategoryFaultsPageView({
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return "-";
     const date = new Date(dateStr);
-    return Number.isNaN(date.getTime()) ? dateStr : date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    });
+    return Number.isNaN(date.getTime()) ? dateStr : formatDateTime24(date);
   };
 
   return (
@@ -2863,7 +2923,7 @@ const summaryDisplayValue = (value: any) => {
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : formatDateTime24(date);
   }
   return String(value);
 };
@@ -2909,9 +2969,9 @@ function DailyPositionDetailsModal({
         <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
           {detailsRecord.filter((e: any) => e.status !== "DRAFT").map((entry: any, index: number) => {
             const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
-            const isFault = entry.status !== "OPERATIONAL" && entry.status !== "RECTIFIED" && !isAllOk;
+            const effectiveStatus = entry.positionStatus || entry.status;
+            const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
-            const showAsset = entry.assetId && summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data) !== (detailsTitle || entry.formType);
 
             return (
               <div key={entry.id} style={{
@@ -2945,7 +3005,7 @@ function DailyPositionDetailsModal({
                       color: "#fff",
                       background: isFault ? "var(--red)" : "var(--green)"
                     }}>
-                      {isFault ? entry.status : (entry.status === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
+                      {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
                     </span>
                   </div>
                 </div>
@@ -2963,11 +3023,11 @@ function DailyPositionDetailsModal({
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                         <div>
                           <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Failure Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.failureTime ? new Date(entry.failureTime).toLocaleString() : "-"}</strong>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.failureTime)}</strong>
                         </div>
                         <div>
                           <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Rectification Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.rectificationTime ? new Date(entry.rectificationTime).toLocaleString() : "-"}</strong>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.rectificationTime)}</strong>
                         </div>
                       </div>
 
@@ -3032,12 +3092,9 @@ function DailyPositionDetailsModal({
                   fontSize: "11px",
                   color: "var(--muted)"
                 }}>
-                  <span>Submitted: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"}</span>
+                  <span>Submitted: {formatDateTime24(entry.createdAt)}</span>
                   {isSuperAdmin && entry.createdByUsername && (
                     <span>• User: {entry.createdByUsername}</span>
-                  )}
-                  {showAsset && (
-                    <span>• Asset: {summaryRecordAssetLabel(entry, queries?.assetsQuery?.data?.data)}</span>
                   )}
                 </div>
               </div>
@@ -3066,8 +3123,10 @@ function DailyPositionSummaryTable({
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
   const todayStr = toDateValue();
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const morningDefaultDate = shiftDateText(todayStr, -1);
+  const [selectedDate, setSelectedDate] = useState(morningDefaultDate);
   const [selectedDivision, setSelectedDivision] = useState(userDivision);
+  const [positionType, setPositionType] = useState<"MORNING" | "CURRENT">("MORNING");
 
   useEffect(() => {
     setSelectedDivision(userDivision);
@@ -3075,38 +3134,53 @@ function DailyPositionSummaryTable({
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const maxPickerDate = positionType === "MORNING" ? morningDefaultDate : todayStr;
+  const selectPositionType = (nextType: "MORNING" | "CURRENT") => {
+    setPositionType(nextType);
+    setSelectedDate(nextType === "MORNING" ? morningDefaultDate : todayStr);
+  };
 
   // ── Single-division query (non-super-admin) ──────────────────────────
   const dpQuery = useQuery({
-    queryKey: ["dp-summary-table", selectedDivision, selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: selectedDivision, date: selectedDate, limit: 500 }),
+    queryKey: ["dp-summary-table", selectedDivision, selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: selectedDivision, date: selectedDate, positionType }),
     enabled: !isSuperAdmin && !!selectedDivision,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: positionType === "CURRENT" ? 60_000 : false,
   });
 
   // ── Three-division queries (super-admin only) ─────────────────────────
   const bspQuery = useQuery({
-    queryKey: ["dp-summary-table", "Bilaspur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Bilaspur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-summary-table", "Bilaspur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Bilaspur", date: selectedDate, positionType }),
     enabled: isSuperAdmin,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: positionType === "CURRENT" ? 60_000 : false,
   });
   const rprQuery = useQuery({
-    queryKey: ["dp-summary-table", "Raipur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Raipur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-summary-table", "Raipur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Raipur", date: selectedDate, positionType }),
     enabled: isSuperAdmin,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: positionType === "CURRENT" ? 60_000 : false,
   });
   const ngpQuery = useQuery({
-    queryKey: ["dp-summary-table", "Nagpur", selectedDate],
-    queryFn: () => api.dailyPosition.list({ division: "Nagpur", date: selectedDate, limit: 500 }),
+    queryKey: ["dp-summary-table", "Nagpur", selectedDate, positionType],
+    queryFn: () => api.dailyPosition.positionSummary({ division: "Nagpur", date: selectedDate, positionType }),
     enabled: isSuperAdmin,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: positionType === "CURRENT" ? 60_000 : false,
   });
 
   const isLoading = isSuperAdmin
     ? (bspQuery.isLoading || rprQuery.isLoading || ngpQuery.isLoading)
     : dpQuery.isLoading;
+  const isFetching = isSuperAdmin
+    ? (bspQuery.isFetching || rprQuery.isFetching || ngpQuery.isFetching)
+    : dpQuery.isFetching;
+  const summaryError = isSuperAdmin
+    ? (bspQuery.error || rprQuery.error || ngpQuery.error)
+    : dpQuery.error;
 
   // Build entry map helper
   const buildEntriesMap = (rawEntries: any[]): Record<string, any[]> => {
@@ -3124,12 +3198,12 @@ function DailyPositionSummaryTable({
     return map;
   };
 
-  const entries: any[] = dpQuery.data?.data || [];
+  const entries: any[] = isFetching ? [] : (dpQuery.data?.data?.records || []);
   const entriesByForm = useMemo(() => buildEntriesMap(entries), [entries]);
 
-  const bspEntries: any[] = bspQuery.data?.data || [];
-  const rprEntries: any[] = rprQuery.data?.data || [];
-  const ngpEntries: any[] = ngpQuery.data?.data || [];
+  const bspEntries: any[] = isFetching ? [] : (bspQuery.data?.data?.records || []);
+  const rprEntries: any[] = isFetching ? [] : (rprQuery.data?.data?.records || []);
+  const ngpEntries: any[] = isFetching ? [] : (ngpQuery.data?.data?.records || []);
   const bspMap = useMemo(() => buildEntriesMap(bspEntries), [bspEntries]);
   const rprMap = useMemo(() => buildEntriesMap(rprEntries), [rprEntries]);
   const ngpMap = useMemo(() => buildEntriesMap(ngpEntries), [ngpEntries]);
@@ -3165,16 +3239,21 @@ function DailyPositionSummaryTable({
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   };
 
-  const getStatusFromMap = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]): "FAULT" | "NORMAL" | null => {
+  const getStatusFromMap = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]): "FAULT" | "RECTIFIED" | "NORMAL" | null => {
     const fe = map[form.name] || map[form.systemCode] || [];
     const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
     if (activeEntries.length === 0) return null;
     const hasFault = activeEntries.some((e: any) => {
-      const s = (e.status || "").toUpperCase();
+      const s = (e.positionStatus || e.status || "").toUpperCase();
       const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
       return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
     });
-    return hasFault ? "FAULT" : "NORMAL";
+    if (hasFault) return "FAULT";
+    const hasRectified = activeEntries.some((e: any) => {
+      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+      return !isAllOk && (e.positionStatus || e.status || "").toUpperCase() === "RECTIFIED";
+    });
+    return hasRectified ? "RECTIFIED" : "NORMAL";
   };
 
   // Group forms by category and extract active faults to a top-level section
@@ -3223,7 +3302,7 @@ function DailyPositionSummaryTable({
     let hasFaultyState = false;
 
     for (const entry of activeEntries) {
-      const status = (entry.status || "").toUpperCase();
+      const status = (entry.positionStatus || entry.status || "").toUpperCase();
       const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
       if (status !== "OPERATIONAL" && status !== "RECTIFIED" && !isAllOk) {
         hasFaultyState = true;
@@ -3281,18 +3360,12 @@ function DailyPositionSummaryTable({
     if (status === "FAULT") {
       const faultRemarks = activeEntries
         .filter((e: any) => {
-          const s = (e.status || "").toUpperCase();
+          const s = (e.positionStatus || e.status || "").toUpperCase();
           const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
           return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
         })
         .map((entry: any) => {
-          let timeStr = "";
-          if (entry.failureTime) {
-            const d = new Date(entry.failureTime);
-            const hrs = String(d.getHours()).padStart(2, '0');
-            const mins = String(d.getMinutes()).padStart(2, '0');
-            timeStr = `${hrs}:${mins}`;
-          }
+          const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
           let locLabel = "Station";
           let locValue = "";
           if (entry.stationCode || entry.stationName) {
@@ -3317,13 +3390,20 @@ function DailyPositionSummaryTable({
             }
           }
           const parts = [];
-          if (timeStr) parts.push(`Time : ${timeStr}`);
+          if (failureText) parts.push(`Failure: ${failureText}`);
           if (locValue) parts.push(`${locLabel} : ${locValue}`);
           if (truncatedRemark) parts.push(`Remark : ${truncatedRemark}`);
           return parts.join(" ");
         })
         .filter(Boolean);
       return Array.from(new Set(faultRemarks)).join(" | ");
+    } else if (status === "RECTIFIED") {
+      const rectifiedEntry = activeEntries
+        .filter((entry: any) => (entry.positionStatus || entry.status) === "RECTIFIED")
+        .sort((a: any, b: any) => new Date(b.rectificationTime || 0).getTime() - new Date(a.rectificationTime || 0).getTime())[0];
+      return rectifiedEntry
+        ? `Rectified ${rectifiedEntry.rectificationTime ? formatDateTime24(rectifiedEntry.rectificationTime) : ""}${rectifiedEntry.remarks ? ` - ${rectifiedEntry.remarks}` : ""}`.trim()
+        : "Rectified";
     } else if (status === "NORMAL") {
       const remarks = activeEntries
         .map((entry: any) => entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "")
@@ -3360,6 +3440,11 @@ function DailyPositionSummaryTable({
           queries={queries}
           getRemark={getRemark}
           onPrintClick={() => setIsPrintOpen(true)}
+          positionType={positionType}
+          setPositionType={selectPositionType}
+          maxPickerDate={maxPickerDate}
+          isFetching={isFetching}
+          summaryError={summaryError}
         />
       ) : (
         <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
@@ -3369,9 +3454,23 @@ function DailyPositionSummaryTable({
         padding: "16px 20px 12px", borderBottom: "1px solid var(--line)"
       }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
-            Daily Position
-          </h3>
+          <div className="position-summary-title-row">
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
+              Position Summary
+            </h3>
+            <input
+              type="date"
+              value={selectedDate}
+              max={maxPickerDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+              className="position-date-picker"
+            />
+          </div>
+          <div className="position-tabs" role="tablist" aria-label="Position period">
+            <button type="button" className={positionType === "MORNING" ? "active" : ""} onClick={() => selectPositionType("MORNING")}>Morning Position</button>
+            <button type="button" className={positionType === "CURRENT" ? "active" : ""} onClick={() => selectPositionType("CURRENT")}>Current Position</button>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
           <button
@@ -3419,18 +3518,6 @@ function DailyPositionSummaryTable({
               📍 {userDivision}
             </span>
           )}
-          <input
-            type="date"
-            value={selectedDate}
-            max={todayStr}
-            onChange={e => setSelectedDate(e.target.value)}
-            onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-            style={{
-              border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
-              fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
-              fontFamily: "inherit"
-            }}
-          />
         </div>
       </div>
 
@@ -3448,6 +3535,10 @@ function DailyPositionSummaryTable({
         </div>
       )}
 
+      {summaryError && (
+        <div className="position-summary-error">Unable to load this position. Please retry or check the backend connection.</div>
+      )}
+
       {!dpQuery.isLoading && (
         <>
           {/* Table header */}
@@ -3459,7 +3550,7 @@ function DailyPositionSummaryTable({
             borderBottom: "1px solid var(--line)",
             gap: 12
           }}>
-            {["FORM / SECTION", "STATUS", "FAULTS", "KEY REMARK", ""].map((col, i) => (
+            {["NAME OF CIRCUIT", "STATUS", "FAULTS", "KEY REMARK", ""].map((col, i) => (
               <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 {col}
               </span>
@@ -3486,6 +3577,7 @@ function DailyPositionSummaryTable({
                   const status = getStatus(form);
                   const remark = getRemark(entriesByForm, form);
                   const isFault = status === "FAULT";
+                  const isRectified = status === "RECTIFIED";
                   const noData = status === null;
                   const faultCount = isFault ? getFaultCount(entriesByForm, form) : "-";
 
@@ -3501,7 +3593,7 @@ function DailyPositionSummaryTable({
                         height: 44,
                         gap: 12,
                         cursor: "pointer",
-                        borderLeft: `3px solid ${isFault ? "var(--red)" : noData ? "var(--line)" : "var(--green)"}`,
+                        borderLeft: `3px solid ${isFault ? "var(--red)" : isRectified ? "var(--blue)" : noData ? "var(--line)" : "var(--green)"}`,
                         background: isFault ? "rgba(255,51,40,0.04)" : "#fff",
                         borderBottom: "1px solid var(--line)",
                         transition: "background 0.15s"
@@ -3527,9 +3619,9 @@ function DailyPositionSummaryTable({
                             display: "inline-flex", alignItems: "center", gap: 4,
                             padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700,
                             color: "#fff",
-                            background: isFault ? "var(--red)" : "var(--green)"
+                            background: isFault ? "var(--red)" : isRectified ? "var(--blue)" : "var(--green)"
                           }}>
-                            {isFault ? "FAULT" : "ALL OK"}
+                            {isFault ? "FAULTY" : isRectified ? "RECTIFIED" : "ALL OK"}
                           </span>
                         )}
                       </span>
@@ -3566,6 +3658,7 @@ function DailyPositionSummaryTable({
               {[
                 { label: "ALL OK", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
                 { label: "Fault", color: "var(--red)", bg: "var(--red-soft)", count: displayedForms.filter(f => getStatus(f) === "FAULT").length },
+                { label: "Rectified", color: "var(--blue)", bg: "var(--blue-soft)", count: displayedForms.filter(f => getStatus(f) === "RECTIFIED").length },
                 { label: "No Entry", color: "var(--muted)", bg: "var(--line)", count: displayedForms.filter(f => getStatus(f) === null).length },
               ].map(s => (
                 <span key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
@@ -3603,6 +3696,7 @@ function DailyPositionSummaryTable({
           selectedDate={selectedDate}
           onClose={() => setIsPrintOpen(false)}
           filterDivision={isSuperAdmin ? undefined : userDivision}
+          positionType={positionType}
         />
       )}
     </>
@@ -3612,13 +3706,29 @@ function DailyPositionSummaryTable({
 function DailyPositionSummaryTableSuperAdmin({
   grouped, displayedForms, DIVISIONS, divisionMaps, divisionColors, selectedDate, todayStr, formatDate,
   getStatusFromMap, handleCellClick, isLoading, setSelectedDate, detailsRecord, setDetailsRecord, detailsTitle, queries,
-  getRemark, onPrintClick,
+  getRemark, onPrintClick, positionType, setPositionType, maxPickerDate, isFetching, summaryError,
 }: any) {
   return (
     <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Daily Position</h3>
+        <div>
+          <div className="position-summary-title-row">
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Position Summary</h3>
+            <input
+              type="date"
+              value={selectedDate}
+              max={maxPickerDate}
+              onChange={(event: any) => setSelectedDate(event.target.value)}
+              onClick={(event: any) => { try { event.currentTarget.showPicker(); } catch (err) {} }}
+              className="position-date-picker"
+            />
+          </div>
+          <div className="position-tabs" role="tablist" aria-label="Position period">
+            <button type="button" className={positionType === "MORNING" ? "active" : ""} onClick={() => setPositionType("MORNING")}>Morning Position</button>
+            <button type="button" className={positionType === "CURRENT" ? "active" : ""} onClick={() => setPositionType("CURRENT")}>Current Position</button>
+          </div>
+        </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <button
             onClick={onPrintClick}
@@ -3641,10 +3751,6 @@ function DailyPositionSummaryTableSuperAdmin({
           >
             <Printer size={14} /> Print Summary
           </button>
-          <input type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)}
-            onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-            style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}
-          />
         </div>
       </div>
 
@@ -3663,7 +3769,8 @@ function DailyPositionSummaryTableSuperAdmin({
             const map = divisionMaps[div] || {};
             const normal = displayedForms.filter((f: any) => getStatusFromMap(map, f) === "NORMAL").length;
             const fault = displayedForms.filter((f: any) => getStatusFromMap(map, f) === "FAULT").length;
-            const noEntry = displayedForms.length - normal - fault;
+            const rectified = displayedForms.filter((f: any) => getStatusFromMap(map, f) === "RECTIFIED").length;
+            const noEntry = displayedForms.length - normal - fault - rectified;
             const color = divisionColors[div];
             return (
               <div key={div} style={{
@@ -3696,6 +3803,9 @@ function DailyPositionSummaryTableSuperAdmin({
           <span>Loading summary…</span>
         </div>
       )}
+
+      {isFetching && !isLoading && <div className="position-refreshing">Refreshing selected position...</div>}
+      {summaryError && <div className="position-summary-error">Unable to load this position. Please retry or check the backend connection.</div>}
 
       {!isLoading && (
         <>
@@ -3748,18 +3858,12 @@ function DailyPositionSummaryTableSuperAdmin({
                         const activeEntries = fe.filter((e: any) => e.status !== "DRAFT");
                         faultDetails = activeEntries
                           .filter((e: any) => {
-                            const s = (e.status || "").toUpperCase();
+                            const s = (e.positionStatus || e.status || "").toUpperCase();
                             const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
                             return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
                           })
                           .map((entry: any) => {
-                            let timeStr = "";
-                            if (entry.failureTime) {
-                              const d = new Date(entry.failureTime);
-                              const hrs = String(d.getHours()).padStart(2, '0');
-                              const mins = String(d.getMinutes()).padStart(2, '0');
-                              timeStr = `${hrs}:${mins}`;
-                            }
+                            const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
                             
                             // Map location to name/code
                             let locLabel = "";
@@ -3800,7 +3904,7 @@ function DailyPositionSummaryTableSuperAdmin({
                                 truncatedRemark = words.slice(0, 5).join(" ") + "...";
                               }
                             }
-                            return { time: timeStr, locLabel, locValue, remark: truncatedRemark };
+                            return { failureText, locLabel, locValue, remark: truncatedRemark };
                           });
                       }
 
@@ -3840,10 +3944,10 @@ function DailyPositionSummaryTableSuperAdmin({
                                   ) : (
                                     faultDetails.map((detail: any, idx: number) => (
                                       <div key={idx} style={{ width: "100%" }}>
-                                        {detail.time && (
+                                        {detail.failureText && (
                                           <div>
-                                            <span>Failure Time: </span>
-                                            <span style={{ fontWeight: 800 }}>{detail.time}</span>
+                                            <span>Failure: </span>
+                                            <span style={{ fontWeight: 800 }}>{detail.failureText}</span>
                                           </div>
                                         )}
                                         {detail.locValue && (
@@ -3855,6 +3959,12 @@ function DailyPositionSummaryTableSuperAdmin({
                                       </div>
                                     ))
                                   )}
+                                </button>
+                              ) : status === "RECTIFIED" ? (
+                                <button type="button" onClick={() => handleCellClick(div, form)}
+                                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 82, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", background: "var(--blue)", letterSpacing: "0.3px" }}
+                                >
+                                  RECTIFIED
                                 </button>
                               ) : (
                                 <button type="button" onClick={() => handleCellClick(div, form)}
@@ -4120,10 +4230,23 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
   const [searchTerm, setSearchTerm] = useState("");
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const pageSize = 10;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
   const sectionsQuery = useQuery({
-    queryKey: ["daily-position-sections"],
-    queryFn: () => api.dailyPosition.sections(),
+    queryKey: ["daily-position-sections", currentPage, debouncedSearch],
+    queryFn: () => api.dailyPosition.sections({
+      page: String(currentPage),
+      pageSize: String(pageSize),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    }),
+    placeholderData: previousData => previousData,
+    staleTime: 60_000,
   });
 
   const rows = sectionsQuery.data?.data || [];
@@ -4175,13 +4298,9 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
     onError: (err: any) => showToast(err.message || "Failed to import sections."),
   });
 
-  const filteredRows = rows.filter((row: any) => {
-    const text = `${row.division} ${row.majorSection} ${row.section}`.toLowerCase();
-    return text.includes(searchTerm.toLowerCase());
-  });
-  const pageSize = 10;
-  const totalPages = Math.ceil(filteredRows.length / pageSize);
-  const paginatedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagination = sectionsQuery.data?.pagination;
+  const totalRows = pagination?.total || 0;
+  const totalPages = pagination?.totalPages || 1;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -4200,15 +4319,16 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
     const file = event.target.files?.[0];
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase();
+    const XLSX = (ext === "xlsx" || ext === "xls") ? await import("xlsx") : null;
     const rowsFromFile = await new Promise<any[]>((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Unable to read file"));
       reader.onload = (loadEvent) => {
         try {
           if (ext === "xlsx" || ext === "xls") {
-            const workbook = XLSX.read(loadEvent.target?.result, { type: "array" });
+            const workbook = XLSX!.read(loadEvent.target?.result, { type: "array" });
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            resolve(XLSX.utils.sheet_to_json(sheet, { defval: "" }));
+            resolve(XLSX!.utils.sheet_to_json(sheet, { defval: "" }));
           } else {
             const parsed = parseCSV(String(loadEvent.target?.result || ""));
             resolve(parsed.rows);
@@ -4242,7 +4362,7 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
     return (
       <div className="pagination-bar section-pagination">
         <div className="pagination-info">
-          Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredRows.length)} of {filteredRows.length} sections
+          Showing {totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalRows)} of {totalRows} sections
         </div>
         <div className="pagination-controls">
           <button
@@ -4315,7 +4435,7 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
             </tr>
           </thead>
           <tbody>
-            {paginatedRows.map((row: any, idx: number) => (
+            {rows.map((row: any, idx: number) => (
               <tr key={`${row.id}-${idx}`}>
                 <td>{(currentPage - 1) * pageSize + idx + 1}</td>
                 <td>{row.division}</td>
@@ -4331,7 +4451,7 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
                 </td>
               </tr>
             ))}
-            {filteredRows.length === 0 && (
+            {!sectionsQuery.isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={5} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No sections found.</td>
               </tr>
@@ -4883,7 +5003,7 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
                             </div>
                           )}
                         </td>
-                        <td>{new Date(fb.createdAt).toLocaleString()}</td>
+                        <td>{formatDateTime24(fb.createdAt)}</td>
                       </tr>
                     );
                   })}
@@ -5572,7 +5692,7 @@ function ModuleView({
                   {paginatedList.map((l: any, idx: number) => (
                     <tr key={l.id}>
                       <td>{(currentPage - 1) * 50 + idx + 1}</td>
-                      <td><small>{new Date(l.createdAt).toLocaleString()}</small></td>
+                      <td><small>{formatDateTime24(l.createdAt)}</small></td>
                       <td><strong>{l.user?.name}</strong> <small>({l.user?.role})</small></td>
                       <td><span className="pill info">{l.action}</span></td>
                       <td>{l.details}</td>
@@ -6190,7 +6310,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
             <div>
               <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Account Created On</small>
               <strong style={{ display: "block", fontSize: 14, color: "var(--navy)", marginTop: 4 }}>
-                {new Date(userObj.createdAt).toLocaleDateString()} at {new Date(userObj.createdAt).toLocaleTimeString()}
+                {formatDate24(userObj.createdAt)} at {formatTime24(userObj.createdAt)}
               </strong>
             </div>
           </div>

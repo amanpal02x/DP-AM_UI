@@ -31,6 +31,9 @@ export function setCachedUser(user: any | null) {
     localStorage.setItem("telecom_user", JSON.stringify(user));
   } else {
     localStorage.removeItem("telecom_user");
+    Object.keys(localStorage)
+      .filter(key => key.startsWith("telecom_dashboard_"))
+      .forEach(key => localStorage.removeItem(key));
   }
 }
 
@@ -40,6 +43,7 @@ async function request<T>(
   path: string,
   body?: any
 ): Promise<T> {
+  const startedAt = performance.now();
   const token = getAuthToken();
   const headers: HeadersInit = {};
 
@@ -77,6 +81,13 @@ async function request<T>(
     throw error;
   }
 
+  if (import.meta.env.DEV) {
+    const duration = performance.now() - startedAt;
+    if (duration >= 500) {
+      console.info(`[API] ${method} ${path} completed in ${duration.toFixed(0)}ms`);
+    }
+  }
+
   return resJson;
 }
 
@@ -86,6 +97,12 @@ export interface ApiResponse<T> {
   message?: string;
   data: T;
   count?: number;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export const api = {
@@ -136,7 +153,18 @@ export const api = {
     create: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position", body),
     update: (id: string, body: any) => request<ApiResponse<any>>("PATCH", `/api/daily-position/${id}`, body),
     delete: (id: string) => request<ApiResponse<any>>("DELETE", `/api/daily-position/${id}`),
-    sections: () => request<ApiResponse<any[]>>("GET", "/api/daily-position/sections"),
+    sections: (params?: any) => {
+      const q = new URLSearchParams(params).toString();
+      return request<ApiResponse<any[]>>("GET", `/api/daily-position/sections${q ? `?${q}` : ""}`);
+    },
+    positionSummary: (params?: any) => {
+      const q = new URLSearchParams(params).toString();
+      return request<ApiResponse<any>>("GET", `/api/daily-position/position-summary${q ? `?${q}` : ""}`);
+    },
+    activeFaults: (params?: any) => {
+      const q = new URLSearchParams(params).toString();
+      return request<ApiResponse<any[]>>("GET", `/api/daily-position/active-faults${q ? `?${q}` : ""}`);
+    },
     createMajorSection: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position/major-sections", body),
     createSection: (body: any) => request<ApiResponse<any>>("POST", "/api/daily-position/sections", body),
     updateSection: (id: string, body: any) => request<ApiResponse<any>>("PATCH", `/api/daily-position/sections/${id}`, body),
