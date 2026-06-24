@@ -1595,8 +1595,19 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const params: any = {
         division: selectedDivision || "",
         limit: "500",
+<<<<<<< HEAD
         date: selectedDate,
       };
+=======
+      };clear
+      if (dpHistoryFilter === "active-faults") {
+        params.isFaulty = "true";
+      } else if (dpHistoryFilter === "resolved-faults") {
+        params.isResolved = "true";
+      } else {
+        params.date = selectedDate;
+      }
+>>>>>>> e80e8034dd07778fe64a87254027bfd7cfb0b230
       return api.dailyPosition.list(params);
     },
   });
