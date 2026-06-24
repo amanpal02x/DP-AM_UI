@@ -1597,7 +1597,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const params: any = {
         division: selectedDivision || "",
         limit: "500",
-      };
+      };clear
       if (dpHistoryFilter === "active-faults") {
         params.isFaulty = "true";
       } else if (dpHistoryFilter === "resolved-faults") {

@@ -438,6 +438,16 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               actionRemarks = "-";
                             }
                           }
+                          const isAllOk = !entry.isPlaceholder && 
+                                         (entry.reason === "All OK" || 
+                                          (entry.formData && entry.formData.actionType === "OK"));
+                         if (isAllOk) {
+                           if (failTimeStr === "-") failTimeStr = "";
+                           if (rtTimeStr === "-") rtTimeStr = "";
+                           if (durationStr === "-") durationStr = "";
+                           if (faultySec === "-") faultySec = "";
+                           if (actionRemarks === "-") actionRemarks = "";
+                         }
                         }
 
                         return (
