@@ -3170,7 +3170,7 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
       useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "UNDER_MAINTENANCE" });
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "" });
-    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults") {
+    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved Today" || kpi.label === "Resolved Today") {
       useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       if (role === "TESTROOM") {

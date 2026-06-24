@@ -1494,7 +1494,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const viewMode = localViewMode || mode || (canFill ? "form" : "history");
   const canChooseDivision = role === "SUPER_ADMIN";
 
-  const [selectedDivision, setSelectedDivision] = useState(role === "SUPER_ADMIN" ? "" : (division || ""));
+  const [selectedDivision, setSelectedDivision] = useState(division || "");
   const [selectedDate, setSelectedDate] = useState(toDateValue());
   const [values, setValues] = useState<Record<string, any>>({});
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -1777,6 +1777,18 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const isActive = !isAllOk && (r.status === "ACTIVE" || r.status === "PENDING" || (!r.rectificationTime && !isAllOk));
       const isFault = !isAllOk && !!r.failureTime && (r.status === "FAULT" || r.status === "ACTIVE" || r.status === "PENDING" || r.status === "RECTIFIED" || r.status === "OPERATIONAL");
 
+      // Tab filter
+      if (dpHistoryFilter === "active-faults" && !isActive) return false;
+      if (dpHistoryFilter === "resolved-faults") {
+        if (!r.rectificationTime) return false;
+        try {
+          const rectDate = new Date(r.rectificationTime);
+          if (isNaN(rectDate.getTime()) || toDateValue(rectDate) !== selectedDate) return false;
+        } catch {
+          return false;
+        }
+      }
+
       // Status-wise filter
       if (historyStatus === "active") {
         if (!isActive) return false;
@@ -1810,7 +1822,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return true;
     });
-  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, selectedDate]);
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, selectedDate, dpHistoryFilter]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
