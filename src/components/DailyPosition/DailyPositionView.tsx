@@ -1413,7 +1413,7 @@ function DailyPositionFieldInput({
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
       <label>
         {field.label}
-        {field.type === "datetime-local" && field.name !== "lastTestingTime" && (
+        {field.type === "datetime-local" && field.name !== "lastTestingTime" && !/date|time/i.test(field.label) && (
           <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
             (Date, Hours & Min)
           </span>
@@ -1433,7 +1433,21 @@ function DailyPositionFieldInput({
         <textarea {...commonProps} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <input type={field.type} {...maxProps} {...commonProps} />
+          <input
+            type={field.type}
+            {...maxProps}
+            {...commonProps}
+            onClick={(e) => {
+              if (field.type === "date" || field.type === "datetime-local") {
+                try {
+                  e.currentTarget.showPicker();
+                } catch (err) {}
+              }
+            }}
+            style={{
+              cursor: (field.type === "date" || field.type === "datetime-local") ? "pointer" : "text"
+            }}
+          />
         </div>
       )}
     </div>
@@ -2899,7 +2913,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             }}>
               <div className="dp-field" style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-                  Rectification Date & Time <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                  Rectification Date & Time
                 </label>
                 <input
                   type="datetime-local"
@@ -2907,12 +2921,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "1px solid #cbd5e1",
                     fontSize: "14px",
+                    cursor: "pointer"
                   }}
                 />
               </div>

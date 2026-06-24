@@ -2462,7 +2462,7 @@ function CategoryFaultsPageView({
             }}>
               <div className="dp-field" style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "var(--navy)", marginBottom: "6px" }}>
-                  Rectification Date & Time <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                  Rectification Date & Time
                 </label>
                 <input
                   type="datetime-local"
@@ -2470,6 +2470,7 @@ function CategoryFaultsPageView({
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
@@ -2477,7 +2478,8 @@ function CategoryFaultsPageView({
                     border: "1px solid var(--line)",
                     fontSize: "14px",
                     fontFamily: "inherit",
-                    color: "var(--navy)"
+                    color: "var(--navy)",
+                    cursor: "pointer"
                   }}
                 />
               </div>
