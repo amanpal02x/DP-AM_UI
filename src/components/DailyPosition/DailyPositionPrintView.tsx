@@ -36,7 +36,13 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     enabled: !filterDivision || filterDivision === "Nagpur",
   });
 
+  const stationsQuery = useQuery({
+    queryKey: ["stations-list"],
+    queryFn: () => api.stations.list(),
+  });
+
   const isLoading = 
+    stationsQuery.isLoading ||
     ( (!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading ) ||
     ( (!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading ) ||
     ( (!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading );
@@ -402,30 +408,84 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               {displayedForms.map((form, index) => {
                 const srNo = index + 1;
 
+<<<<<<< HEAD
+=======
+                // Handle Walkie-Talkie Testing, Repairing, Temporary Joints, Low Insulation
+                const isWtRepair = form.name === "Walkie-Talkie Repairing";
+                const isWtTest = form.name === "Walkie-Talkie Testing";
+                const isJoints = form.name === "Temporary Joints";
+                const isInsulation = form.name === "Low Insulation";
+
+                // Prepare rendering data for each division
+                const divisionRenderData = DIVISIONS.map((div) => {
+                  const map = divisionMaps[div] || {};
+                  const formEntries = map[form.name] || map[form.systemCode] || [];
+                  const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+
+                  // Find active faults
+                  const faultEntries = activeEntries.filter((e: any) => {
+                    const s = (e.status || "").toUpperCase();
+                    const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                    return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+                  });
+
+                  let entries: any[] = [];
+                  if (faultEntries.length > 0) {
+                    entries = faultEntries;
+                  } else if (activeEntries.length > 0) {
+                    // Show the latest entry (typically an OK/Operational/Rectified state)
+                    entries = [activeEntries[0]];
+                  } else {
+                    // Show a placeholder empty row
+                    entries = [{ isPlaceholder: true }];
+                  }
+
+                  return {
+                    div,
+                    entries,
+                  };
+                });
+
+                // Calculate the total number of rows across all divisions for this form
+                const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
+
+                let formRowIndex = 0;
+
+>>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
                 return (
                   <React.Fragment key={form.systemCode}>
-                    {DIVISIONS.map((div, divIndex) => {
-                      const map = divisionMaps[div] || {};
-                      const formEntries = map[form.name] || map[form.systemCode] || [];
-                      const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                    {divisionRenderData.map((divData, divIndex) => {
+                      const { div, entries } = divData;
 
+<<<<<<< HEAD
                       // Find active faults
                       const faultEntries = activeEntries.filter((e: any) => {
                         const s = (e.positionStatus || e.status || "").toUpperCase();
                         const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
                         return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
                       });
+=======
+                      return entries.map((entry, entryIndex) => {
+                        const isFirstFormRow = formRowIndex === 0;
+                        const isFirstDivRow = entryIndex === 0;
+                        formRowIndex++;
+>>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
 
-                      const hasFault = faultEntries.length > 0;
-                      const hasRecords = activeEntries.length > 0;
+                        // Display values variables
+                        let failTimeStr = "-";
+                        let rtTimeStr = "-";
+                        let durationStr = "-";
+                        let faultySec = "-";
+                        let actionRemarks = "-";
 
-                      // Display values variables
-                      let failTimeStr = "-";
-                      let rtTimeStr = "-";
-                      let durationStr = "-";
-                      let faultySec = "-";
-                      let actionRemarks = "-";
+                        const hasFault = !entry.isPlaceholder && 
+                                         !entry.rectificationTime && 
+                                         entry.status !== "OPERATIONAL" && 
+                                         entry.status !== "RECTIFIED" && 
+                                         entry.reason !== "All OK" &&
+                                         !(entry.formData && entry.formData.actionType === "OK");
 
+<<<<<<< HEAD
                       if (hasFault) {
                         const latestFault = faultEntries[0];
                         failTimeStr = formatTime(actualFailureTime(latestFault)) || "-";
@@ -441,11 +501,79 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         faultySec = actualLocation(latestRecord);
                         actionRemarks = actualRemarks(latestRecord, form.name);
                       }
+=======
+                        if (!entry.isPlaceholder) {
+                          if (isWtRepair) {
+                            const fd = entry.formData || {};
+                            const pending = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0) - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
+                            failTimeStr = `Opening Def: ${fd.openingDefective ?? 0} | Recv: ${fd.receivedFromUser ?? 0}`;
+                            rtTimeStr = `Repaired: ${fd.repairedFromFirm ?? 0} | Sent: ${fd.sentToFirm ?? 0}`;
+                            durationStr = `Pend: ${pending}`;
+                            faultySec = `Cond: ${fd.setsCondemned ?? 0}`;
+                            actionRemarks = entry.remarks || "WT Repairing logged.";
+                          } else if (isWtTest) {
+                            const fd = entry.formData || {};
+                            failTimeStr = `To Test: ${fd.toBeTestedCount ?? 0}`;
+                            rtTimeStr = `Tested: ${fd.testedCount ?? 0}`;
+                            durationStr = `Bal: ${fd.balanceWalkieTalkies ?? 0}`;
+                            faultySec = fd.makeModel || "WT Testing";
+                            actionRemarks = entry.remarks || "WT Testing logged.";
+                          } else if (isJoints) {
+                            const fd = entry.formData || {};
+                            failTimeStr = formatTime(fd.dateTime) || "-";
+                            rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
+                            durationStr = `Total: ${fd.temporaryJointsCount ?? 0}`;
+                            faultySec = `Bal: ${Number(fd.temporaryJointsCount || 0) - Number(fd.rectifiedJoints || 0)}`;
+                            actionRemarks = fd.actionPlan || entry.remarks || "Joints logged.";
+                          } else if (isInsulation) {
+                            const fd = entry.formData || {};
+                            failTimeStr = formatTime(entry.failureTime) || "-";
+                            rtTimeStr = formatTime(entry.rectificationTime) || "-";
+                            durationStr = `Total: ${fd.totalInsulationFaults ?? 0}`;
+                            faultySec = `Bal: ${fd.balanceInsulationFaults ?? 0}`;
+                            actionRemarks = fd.actionPlanTdc || entry.remarks || "Insulation faults logged.";
+                          } else {
+                            failTimeStr = formatTime(entry.failureTime) || "-";
+                            rtTimeStr = formatTime(entry.rectificationTime) || "-";
+                            durationStr = getDurationText(entry);
+                            
+                            // Map location to name/code
+                            const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
+                            if (codeOrName) {
+                              const sList = stationsQuery.data?.data || [];
+                              const found = sList.find(
+                                (s: any) =>
+                                  String(s.code).toLowerCase() === codeOrName.toLowerCase() ||
+                                  String(s.name).toLowerCase() === codeOrName.toLowerCase()
+                              );
+                              faultySec = found ? `${found.name}/${found.code}` : codeOrName;
+                            } else if (entry.section || entry.formData?.section) {
+                              faultySec = entry.section || entry.formData?.section;
+                            } else if (entry.formData?.majorSection) {
+                              faultySec = entry.formData.majorSection;
+                            } else if (entry.formData?.exchangeName) {
+                              faultySec = entry.formData.exchangeName;
+                            }
+>>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
 
-                      if (actionRemarks === "No fault reported.") {
-                        actionRemarks = "-";
-                      }
+                            actionRemarks = entry.remarks || entry.reason || "OK";
+                            if (actionRemarks === "No fault reported.") {
+                              actionRemarks = "-";
+                            }
+                          }
+                          const isAllOk = !entry.isPlaceholder && 
+                                         (entry.reason === "All OK" || 
+                                          (entry.formData && entry.formData.actionType === "OK"));
+                         if (isAllOk) {
+                           if (failTimeStr === "-") failTimeStr = "";
+                           if (rtTimeStr === "-") rtTimeStr = "";
+                           if (durationStr === "-") durationStr = "";
+                           if (faultySec === "-") faultySec = "";
+                           if (actionRemarks === "-") actionRemarks = "";
+                         }
+                        }
 
+<<<<<<< HEAD
                       return (
                         <tr key={div} style={{
                           borderBottom: divIndex === DIVISIONS.length - 1 ? "1.5px solid #000000" : "1px solid #cbd5e1"
@@ -454,52 +582,64 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           {divIndex === 0 && (
                             <>
                               <td rowSpan={DIVISIONS.length} style={{
+=======
+                        return (
+                          <tr key={`${div}-${entry.id || entryIndex}`} style={{
+                            borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
+                          }}>
+                            {/* Rowspans for first division row */}
+                            {isFirstFormRow && (
+                              <>
+                                <td rowSpan={totalRows} style={{
+                                  border: "1px solid #000000",
+                                  padding: "6px",
+                                  textAlign: "center",
+                                  fontWeight: "bold",
+                                  verticalAlign: "middle"
+                                }}>
+                                  {srNo}
+                                </td>
+                                <td rowSpan={totalRows} style={{
+                                  border: "1px solid #000000",
+                                  padding: "6px",
+                                  fontWeight: "bold",
+                                  verticalAlign: "middle"
+                                }}>
+                                  {form.name}
+                                </td>
+                              </>
+                            )}
+                            {!filterDivision && isFirstDivRow && (
+                              <td rowSpan={entries.length} style={{
+>>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
                                 border: "1px solid #000000",
                                 padding: "6px",
                                 textAlign: "center",
                                 fontWeight: "bold",
-                                verticalAlign: "middle"
+                                verticalAlign: "middle",
+                                color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
                               }}>
-                                {srNo}
+                                {div}
                               </td>
-                              <td rowSpan={DIVISIONS.length} style={{
-                                border: "1px solid #000000",
-                                padding: "6px",
-                                fontWeight: "bold",
-                                verticalAlign: "middle"
-                              }}>
-                                {form.name}
-                              </td>
-                            </>
-                          )}
-                           {!filterDivision && (
-                             <td style={{
-                               border: "1px solid #000000",
-                               padding: "6px",
-                               textAlign: "center",
-                               fontWeight: "bold",
-                               color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
-                             }}>
-                               {div}
-                             </td>
-                           )}
-                          <td style={{ border: "1px solid #000000", padding: "6px", color: hasFault ? "#b91c1c" : "inherit" }}>
-                            {failTimeStr}
-                          </td>
-                          <td style={{ border: "1px solid #000000", padding: "6px" }}>
-                            {rtTimeStr}
-                          </td>
-                          <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
-                            {durationStr}
-                          </td>
-                          <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal", color: hasFault ? "#b91c1c" : "inherit" }}>
-                            {faultySec}
-                          </td>
-                          <td style={{ border: "1px solid #000000", padding: "6px" }}>
-                            {actionRemarks}
-                          </td>
-                        </tr>
-                      );
+                            )}
+                            <td style={{ border: "1px solid #000000", padding: "6px", color: hasFault ? "#b91c1c" : "inherit" }}>
+                              {failTimeStr}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
+                              {rtTimeStr}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
+                              {durationStr}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal", color: hasFault ? "#b91c1c" : "inherit" }}>
+                              {faultySec}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
+                              {actionRemarks}
+                            </td>
+                          </tr>
+                        );
+                      });
                     })}
                   </React.Fragment>
                 );

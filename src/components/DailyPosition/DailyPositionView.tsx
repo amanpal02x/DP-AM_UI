@@ -143,8 +143,8 @@ const humanizeFieldName = (key: string) => {
     .trim();
 };
 
-const displayValue = (value: any) => {
-  if (value === undefined || value === null || value === "") return "-";
+const displayValue = (value: any, isAllOk = false) => {
+  if (value === undefined || value === null || value === "") return isAllOk ? "" : "-";
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     const date = new Date(value);
@@ -1414,7 +1414,7 @@ function DailyPositionFieldInput({
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
       <label>
         {field.label}
-        {field.type === "datetime-local" && field.name !== "lastTestingTime" && (
+        {field.type === "datetime-local" && field.name !== "lastTestingTime" && !/date|time/i.test(field.label) && (
           <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "normal", marginLeft: "6px" }}>
             (Date, Hours & Min)
           </span>
@@ -1434,7 +1434,21 @@ function DailyPositionFieldInput({
         <textarea {...commonProps} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <input type={field.type} {...maxProps} {...commonProps} />
+          <input
+            type={field.type}
+            {...maxProps}
+            {...commonProps}
+            onClick={(e) => {
+              if (field.type === "date" || field.type === "datetime-local") {
+                try {
+                  e.currentTarget.showPicker();
+                } catch (err) {}
+              }
+            }}
+            style={{
+              cursor: (field.type === "date" || field.type === "datetime-local") ? "pointer" : "text"
+            }}
+          />
         </div>
       )}
     </div>
@@ -1475,8 +1489,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpSelectedFormName: setSelectedFormName,
     setDpOpenCategory: setOpenCategory,
     setDpCircuitSearch: setSearchTerm,
-    dpHistoryFilter,
-    setDpHistoryFilter,
     dpHistoryCategoryFilter: historyCategory,
     setDpHistoryCategoryFilter: setHistoryCategory
   } = useAppStore();
@@ -1550,9 +1562,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const visibleActiveFields = useMemo(() => {
     return activeFields.filter(field => {
-      if (field.name === "cpmsNo") {
-        return values.cpmsEntry === "YES";
-      }
       if (field.name === "cableCutByWhomOther") {
         return values.cableCutByWhom === "Other";
       }
@@ -1561,7 +1570,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return true;
     });
-  }, [activeFields, values.cpmsEntry, values.cableCutByWhom, values.natureOfFault]);
+  }, [activeFields, values.cableCutByWhom, values.natureOfFault]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -1771,16 +1780,22 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     return records.filter((r: any) => {
       if (r.status === "DRAFT") return false;
 
-      // Filter out All OK records when showing active faults or resolved faults only
-      if (dpHistoryFilter === "active-faults" || dpHistoryFilter === "resolved-faults") {
-        const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isActive = !isAllOk && (r.status === "ACTIVE" || r.status === "PENDING" || (!r.rectificationTime && !isAllOk));
+      const isFault = !isAllOk && !!r.failureTime && (r.status === "FAULT" || r.status === "ACTIVE" || r.status === "PENDING" || r.status === "RECTIFIED" || r.status === "OPERATIONAL");
+
+      // Status-wise filter
+      if (historyStatus === "active") {
+        if (!isActive) return false;
+      } else if (historyStatus === "allok") {
+        if (!isAllOk) return false;
+      } else if (historyStatus === "fault") {
         if (isAllOk) return false;
       }
 
       if (historyDivision && r.division !== historyDivision) return false;
       if (historyCategory && r.category !== historyCategory) return false;
       if (historyFormType && r.formType !== historyFormType) return false;
-      if (historyStatus && r.status !== historyStatus) return false;
       if (historySearch) {
         const query = historySearch.toLowerCase();
         const division = String(r.division || "").toLowerCase();
@@ -1791,18 +1806,18 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         const remarks = String(r.remarks || r.reason || "").toLowerCase();
         const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
 
-        const match = division.includes(query) || 
-                      category.includes(query) || 
-                      formType.includes(query) || 
-                      station.includes(query) || 
-                      status.includes(query) || 
+        const match = division.includes(query) ||
+                      category.includes(query) ||
+                      formType.includes(query) ||
+                      station.includes(query) ||
+                      status.includes(query) ||
                       remarks.includes(query) ||
                       customFields.includes(query);
         if (!match) return false;
       }
       return true;
     });
-  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus]);
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, selectedDate]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -1860,10 +1875,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         const received = Number(next.caseReceivedOnDate || 0);
         const complied = Number(next.caseCompliedOnDate || 0);
         next.netBalanceCaseOnDate = lastDate + received - complied;
-      }
-
-      if (name === "cpmsEntry" && nextValue !== "YES") {
-        next.cpmsNo = "";
       }
 
       if (name === "cableCutByWhom" && nextValue !== "Other") {
@@ -2208,88 +2219,62 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const renderHistory = () => (
     <section className="dp-history-panel">
       <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
-        <div style={{ flex: "1 1 180px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Filter Type</label>
+        {/* Division filter */}
+        <div style={{ flex: "1 1 150px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
           <select
-            value={dpHistoryFilter}
-            onChange={event => setDpHistoryFilter(event.target.value as any)}
+            value={historyDivision}
+            onChange={e => setHistoryDivision(e.target.value)}
             style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
           >
-            <option value="date">Filter by Date</option>
-            <option value="active-faults">Active/Pending Faults Only</option>
-            <option value="resolved-faults">Resolved Faults Only</option>
+            <option value="">All Divisions</option>
+            <option value="Bilaspur">Bilaspur</option>
+            <option value="Raipur">Raipur</option>
+            <option value="Nagpur">Nagpur</option>
           </select>
         </div>
-        <div style={{ flex: "1 1 200px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            value={historySearch} 
-            onChange={e => setHistorySearch(e.target.value)} 
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
-          />
-        </div>
-        {role === "SUPER_ADMIN" && (
-          <div style={{ flex: "1 1 150px" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-            <select 
-              value={historyDivision} 
-              onChange={e => setHistoryDivision(e.target.value)}
-              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-            >
-              <option value="">All Divisions</option>
-              <option value="Bilaspur">Bilaspur</option>
-              <option value="Raipur">Raipur</option>
-              <option value="Nagpur">Nagpur</option>
-            </select>
-          </div>
-        )}
-        <div style={{ flex: "1 1 150px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Category</label>
-          <select 
-            value={historyCategory} 
-            onChange={e => setHistoryCategory(e.target.value)}
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-          >
-            <option value="">All Categories</option>
-            {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-        </div>
-        <div style={{ flex: "1 1 150px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Form Type</label>
-          <select 
-            value={historyFormType} 
-            onChange={e => setHistoryFormType(e.target.value)}
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-          >
-            <option value="">All Form Types</option>
-            {uniqueFormTypes.map(ft => <option key={ft} value={ft}>{ft}</option>)}
-          </select>
-        </div>
-        <div style={{ flex: "1 1 150px" }}>
+        {/* Status-wise filter */}
+        <div style={{ flex: "1 1 160px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
-          <select 
-            value={historyStatus} 
+          <select
+            value={historyStatus}
             onChange={e => setHistoryStatus(e.target.value)}
             style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
           >
-            <option value="">All Statuses</option>
-            {uniqueStatuses.map(st => <option key={st} value={st}>{st}</option>)}
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="allok">ALL OK</option>
+            <option value="fault">Fault</option>
           </select>
         </div>
-        {(historySearch || historyDivision || historyCategory || historyFormType || historyStatus) && (
-          <button 
-            type="button" 
+        {/* Spacer pushes search to right */}
+        <div style={{ flex: "1 1 0" }} />
+        {/* Search bar on right */}
+        <div style={{ flex: "0 1 260px" }}>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
+          <div style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={historySearch}
+              onChange={e => setHistorySearch(e.target.value)}
+              style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+            />
+          </div>
+        </div>
+        {(historySearch || historyDivision || historyStatus) && (
+          <button
+            type="button"
             onClick={() => {
               setHistorySearch("");
               setHistoryDivision("");
-              setHistoryCategory("");
-              setHistoryFormType("");
               setHistoryStatus("");
             }}
             className="action-btn text-red"
-            style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px" }}
+            style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
           >
             Clear Filters
           </button>
@@ -2319,12 +2304,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <tr key={record.id}>
                   <td>{record.division}</td>
                   <td>{record.category}</td>
-                  <td><strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong></td>
-                  <td>{record.stationCode || record.stationName || record.section || "-"}</td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong>
+                      {!isTodayRecord(record) && (
+                        <span className="pill" style={{ fontSize: "10px", padding: "1px 5px", background: "#f8fafc", color: "#64748b", border: "1px solid #cbd5e1", textTransform: "none", fontWeight: 500, borderRadius: "4px", display: "inline-flex", alignItems: "center" }}>
+                          Historical ({record.date ? new Date(record.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "-"})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
                   <td><span className={`pill status-${isAllOk ? "operational" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "OPERATIONAL" : record.status}</span></td>
-                  <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : "-"}</td>
-                  <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : "-"}</td>
-                  <td>{record.remarks || record.reason || "-"}</td>
+                  <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.remarks || record.reason || (isAllOk ? "" : "-")}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
                       <Eye size={14} /> View Details
@@ -2341,12 +2335,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             {filteredHistoryRecords.length === 0 && (
               <tr>
                 <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
-                  {historySearch || historyDivision || historyCategory || historyFormType || historyStatus
+                  {historySearch || historyDivision || historyStatus
                     ? "No Daily Position records found matching current criteria."
-                    : dpHistoryFilter === "active-faults"
-                    ? "No active/pending faults found."
-                    : dpHistoryFilter === "resolved-faults"
-                    ? "No resolved faults found."
                     : "No Daily Position records for this date."}
                 </td>
               </tr>
@@ -2380,7 +2370,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
-          {viewMode === "history" && dpHistoryFilter === "date" && (
+          {viewMode === "history" && (
             <label className="division-select">
               <span>Position Date</span>
               <input
@@ -2557,7 +2547,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     <table className="data-table dp-recent-table">
                       <thead>
                         <tr>
-                          {activeFields.map(field => (
+                          {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => (
                             <th key={field.name}>{field.label}</th>
                           ))}
                           <th>Status</th>
@@ -2584,8 +2574,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                             }
                             className="dp-recent-row"
                           >
-                            {activeFields.map(field => {
+                            {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => {
                               let val = record.formData?.[field.name];
+                              if (field.name === "natureOfFault" && val === "Other") {
+                                val = record.formData?.natureOfFaultOther || val;
+                              }
+                              if (field.name === "cableCutByWhom" && val === "Other") {
+                                val = record.formData?.cableCutByWhomOther || val;
+                              }
                               if (val === undefined) {
                                 if (field.name === "majorSection") val = record.majorSection;
                                 else if (field.name === "section") val = record.section;
@@ -2630,7 +2626,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                       : undefined
                                   }
                                 >
-                                  {val !== undefined && val !== null ? String(val) : "-"}
+                                  {val !== undefined && val !== null && val !== "" ? String(val) : (isAllOk ? "" : "-")}
                                 </td>
                               );
                             })}
@@ -2836,7 +2832,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <div>
                   <span>Daily Position Record</span>
                   <h2>{detailsRecord.formType}</h2>
-                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "-"}</p>
+                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || (isAllOk ? "" : "-")}</p>
                 </div>
                 <em className={`status-chip status-${isAllOk ? "operational" : String(detailsRecord.status || "").toLowerCase()}`}>
                   {isAllOk ? "OPERATIONAL" : detailsRecord.status}
@@ -2847,7 +2843,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Category", detailsRecord.category],
                   ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                  ["Submitted", formatDateTime24(detailsRecord.date)],
+                  ["Submitted", detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
@@ -2860,11 +2856,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <h3>Fault Timing</h3>
                 <div className="dp-details-grid">
                   {[
-                    ["Failure Time", formatDateTime24(detailsRecord.failureTime)],
-                    ["Rectification Time", formatDateTime24(detailsRecord.rectificationTime)],
-                    ["Duration of Failure", detailsRecord.durationText || "-"],
-                    ["Reason", detailsRecord.reason || "-"],
-                    ["Remarks", detailsRecord.remarks || "-"],
+                    ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : (isAllOk ? "" : "-")],
+                    ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : (isAllOk ? "" : "-")],
+                    ["Duration of Failure", detailsRecord.durationText || (isAllOk ? "" : "-")],
+                    ["Reason", detailsRecord.reason || (isAllOk ? "" : "-")],
+                    ["Remarks", detailsRecord.remarks || (isAllOk ? "" : "-")],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <span>{label}</span>
@@ -2877,12 +2873,23 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <section className="dp-details-section">
                 <h3>Submitted Form Fields</h3>
                 <div className="dp-details-grid">
-                  {Object.entries(detailsRecord.formData || {}).map(([key, value]) => (
-                    <div key={key}>
-                      <span>{humanizeFieldName(key)}</span>
-                      <strong>{displayValue(value)}</strong>
-                    </div>
-                  ))}
+                  {Object.entries(detailsRecord.formData || {})
+                    .filter(([key]) => key !== "natureOfFaultOther" && key !== "cableCutByWhomOther")
+                    .map(([key, value]) => {
+                      let displayVal = value;
+                      if (key === "natureOfFault" && value === "Other") {
+                        displayVal = detailsRecord.formData?.natureOfFaultOther || value;
+                      }
+                      if (key === "cableCutByWhom" && value === "Other") {
+                        displayVal = detailsRecord.formData?.cableCutByWhomOther || value;
+                      }
+                      return (
+                        <div key={key}>
+                          <span>{humanizeFieldName(key)}</span>
+                          <strong>{displayValue(displayVal, isAllOk)}</strong>
+                        </div>
+                      );
+                    })}
                   {Object.keys(detailsRecord.formData || {}).length === 0 && (
                     <div>
                       <span>Form Data</span>
@@ -2941,7 +2948,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             }}>
               <div className="dp-field" style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-                  Rectification Date & Time <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                  Rectification Date & Time
                 </label>
                 <input
                   type="datetime-local"
@@ -2949,12 +2956,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "1px solid #cbd5e1",
                     fontSize: "14px",
+                    cursor: "pointer"
                   }}
                 />
               </div>

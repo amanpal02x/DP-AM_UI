@@ -2522,7 +2522,7 @@ function CategoryFaultsPageView({
             }}>
               <div className="dp-field" style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "var(--navy)", marginBottom: "6px" }}>
-                  Rectification Date & Time <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: "normal" }}>(Date, Hours & Min)</span>
+                  Rectification Date & Time
                 </label>
                 <input
                   type="datetime-local"
@@ -2530,6 +2530,7 @@ function CategoryFaultsPageView({
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
@@ -2537,7 +2538,8 @@ function CategoryFaultsPageView({
                     border: "1px solid var(--line)",
                     fontSize: "14px",
                     fontFamily: "inherit",
-                    color: "var(--navy)"
+                    color: "var(--navy)",
+                    cursor: "pointer"
                   }}
                 />
               </div>
@@ -2918,8 +2920,8 @@ const summaryHumanizeFieldName = (key: string) => {
     .trim();
 };
 
-const summaryDisplayValue = (value: any) => {
-  if (value === undefined || value === null || value === "") return "-";
+const summaryDisplayValue = (value: any, isAllOk = false) => {
+  if (value === undefined || value === null || value === "") return isAllOk ? "" : "-";
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     const date = new Date(value);
@@ -2986,8 +2988,8 @@ function DailyPositionDetailsModal({
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
                   <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
                     {isSuperAdmin
-                      ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || "-"}`
-                      : (entry.stationCode || entry.stationName || entry.section || "-")
+                      ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
+                      : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
                     }
                   </h4>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
@@ -3070,10 +3072,20 @@ function DailyPositionDetailsModal({
                         if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return null;
                         if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return null;
                         if (key === "stationCode" || key === "assetId") return null;
+                        if (key === "natureOfFaultOther" || key === "cableCutByWhomOther") return null;
+
+                        let displayVal = value;
+                        if (key === "natureOfFault" && value === "Other") {
+                          displayVal = entry.formData?.natureOfFaultOther || value;
+                        }
+                        if (key === "cableCutByWhom" && value === "Other") {
+                          displayVal = entry.formData?.cableCutByWhomOther || value;
+                        }
+
                         return (
                           <div key={key}>
                             <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{summaryHumanizeFieldName(key)}</span>
-                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{summaryDisplayValue(value)}</strong>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{summaryDisplayValue(displayVal, isAllOk)}</strong>
                           </div>
                         );
                       })}
