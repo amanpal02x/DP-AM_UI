@@ -2273,6 +2273,413 @@ function DailyPositionStatusPanel({
   );
 }
 
+function DailyPositionHighPriorityFaultsPanel({
+  userDivision,
+  showToast,
+  queries
+}: {
+  userDivision: string;
+  showToast: (msg: string) => void;
+  queries: any;
+}) {
+  const { role, setActiveNav, setDpHistoryFilter, setDpHistoryCategoryFilter } = useAppStore();
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+  const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
+  const [rectificationTimeInput, setRectificationTimeInput] = useState("");
+
+  const activeFaultsQuery = useQuery({
+    queryKey: ["daily-position-dashboard-active-faults", userDivision],
+    queryFn: () => api.dailyPosition.list({ division: userDivision || "", isFaulty: "true", limit: 500 }),
+  });
+
+  const queryClient = useQueryClient();
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: any }) => api.dailyPosition.update(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-position-dashboard-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-category-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      showToast?.("Fault rectified successfully.");
+      setRectifyingRecord(null);
+    },
+    onError: (err: any) => {
+      showToast?.(err.message || "Failed to rectify fault.");
+    }
+  });
+
+  const getPriorityInfo = (category = "", name = "") => {
+    const catLower = (category || "").toLowerCase();
+    const nameLower = (name || "").toLowerCase();
+
+    // High Priority: Cable Infrastructure, Control & ICMS Position and FOIS (VSAT)
+    if (
+      catLower.includes("cable infrastructure") ||
+      catLower.includes("cable infrasturucture") ||
+      nameLower.includes("cable infrastructure") ||
+      nameLower.includes("cable infrasturucture") ||
+      nameLower.includes("cable cut") ||
+      nameLower.includes("control & icms") ||
+      nameLower.includes("fois") ||
+      nameLower.includes("vsat")
+    ) {
+      return { label: "High", color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)", border: "rgba(239, 68, 68, 0.2)" };
+    }
+
+    // Median Priority: Video Conferencing with Divisions and hotline
+    if (
+      nameLower.includes("video conferencing") ||
+      nameLower.includes("hotline") ||
+      catLower.includes("video conferencing") ||
+      catLower.includes("hotline")
+    ) {
+      return { label: "Median", color: "#f97316", bg: "rgba(249, 115, 22, 0.1)", border: "rgba(249, 115, 22, 0.2)" };
+    }
+
+    // Low Priority: wifi and Network&internet (and default fallback)
+    return { label: "Low", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", border: "rgba(59, 130, 246, 0.2)" };
+  };
+
+  const getPriorityWeight = (category = "", name = "") => {
+    const info = getPriorityInfo(category, name);
+    if (info.label === "High") return 1;
+    if (info.label === "Median") return 2;
+    return 3;
+  };
+
+  const records = useMemo(() => {
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      return !isAllOk;
+    });
+
+    // Sort by priority weight first (High=1, Median=2, Low=3), then by failureTime ascending (oldest first)
+    return [...filtered].sort((a: any, b: any) => {
+      const weightA = getPriorityWeight(a.category, a.formType || a.name);
+      const weightB = getPriorityWeight(b.category, b.formType || b.name);
+      
+      if (weightA !== weightB) {
+        return weightA - weightB;
+      }
+      
+      const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
+      const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
+      return timeA - timeB;
+    });
+  }, [activeFaultsQuery.data]);
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const toLocalDateTimeValue = (date: Date) => {
+    const tzoffset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, -1);
+    return localISOTime.substring(0, 16);
+  };
+
+  const formatDateTimeInput = (dateStr?: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? "" : toLocalDateTimeValue(d);
+  };
+
+  const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
+    if (!failureTime || !rectificationTime) return "";
+    const start = new Date(failureTime);
+    const end = new Date(rectificationTime);
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "0 mins";
+    const diffMins = Math.round(diffMs / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hrs > 0) {
+      return `${hrs} hr${hrs > 1 ? "s" : ""} ${mins} min${mins !== 1 ? "s" : ""}`;
+    }
+    return `${mins} min${mins !== 1 ? "s" : ""}`;
+  };
+
+  const getFailureDurationText = (failureTime?: string) => {
+    if (!failureTime) return "N/A";
+    const start = new Date(failureTime);
+    if (isNaN(start.getTime())) return "N/A";
+    const diffMs = Date.now() - start.getTime();
+    if (diffMs <= 0) return "Just reported";
+    const diffMins = Math.round(diffMs / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hrs / 24);
+
+    if (days > 0) {
+      return `${days}d ${hrs % 24}h ${mins}m`;
+    }
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  // Limit to top 5 for premium dashboard representation
+  const displayRecords = records.slice(0, 5);
+
+  const handleViewAllClick = () => {
+    setActiveNav("DP Logs");
+    setDpHistoryFilter("active-faults");
+    setDpHistoryCategoryFilter("");
+  };
+
+  return (
+    <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px", gridColumn: "span 2", padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <AlertTriangle size={18} style={{ color: "var(--red)" }} />
+          <h3 style={{ margin: 0, fontSize: "17px", color: "var(--navy)", fontWeight: 700 }}>
+            Priority Active Faults
+          </h3>
+          {records.length > 0 && (
+            <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", borderRadius: "12px" }}>
+              {records.length} Pending
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleViewAllClick}
+          style={{ fontSize: "12px", color: "var(--blue)", border: 0, background: "none", fontWeight: 600, padding: 0, cursor: "pointer" }}
+        >
+          View All Active Faults
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "220px" }}>
+        {activeFaultsQuery.isLoading ? (
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <div className="dp-btn-loader" style={{ borderTopColor: "var(--blue)", width: "24px", height: "24px" }} />
+            <span style={{ marginLeft: "8px", color: "var(--muted)", fontSize: "13px" }}>Loading priority list...</span>
+          </div>
+        ) : records.length === 0 ? (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "10px", color: "var(--muted)", textAlign: "center" }}>
+            <ShieldCheck size={40} style={{ color: "var(--green)" }} />
+            <div>
+              <strong style={{ color: "var(--navy)", display: "block", fontSize: "15px" }}>All Operations Normal</strong>
+              <span style={{ fontSize: "12px" }}>No pending telecom faults found.</span>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+            <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff", flex: 1 }}>
+              <table className="data-table" style={{ fontSize: "12.5px" }}>
+                <thead>
+                  <tr>
+                    <th>Priority</th>
+                    <th>Category / Name</th>
+                    <th>Location</th>
+                    <th>Duration</th>
+                    <th style={{ textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRecords.map((r: any) => {
+                    const priority = getPriorityInfo(r.category, r.formType || r.name);
+                    return (
+                      <tr key={r.id} style={{ transition: "background 0.2s" }} className="hover-row">
+                        <td>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "2px 8px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            borderRadius: "12px",
+                            color: priority.color,
+                            backgroundColor: priority.bg,
+                            border: `1px solid ${priority.border}`
+                          }}>
+                            {priority.label}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <strong style={{ color: "var(--navy)" }}>{r.formType || r.name}</strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{r.category}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span>{r.stationCode || r.stationName || r.section || "-"}</span>
+                            <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase" }}>{r.division} Division</span>
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 600, color: "var(--navy)" }}>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span>{getFailureDurationText(r.failureTime)}</span>
+                            <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: "normal" }}>
+                              {r.failureTime ? new Date(r.failureTime).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }) : ""}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: "8px", justifyContent: "flex-end", width: "100%" }}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRecord(r)}
+                              style={{
+                                color: "var(--blue)",
+                                fontWeight: 600,
+                                background: "none",
+                                border: "none",
+                                padding: "4px 8px",
+                                fontSize: "12px",
+                                cursor: "pointer"
+                              }}
+                            >
+                              Detail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRectifyingRecord(r);
+                                setRectificationTimeInput(toLocalDateTimeValue(new Date()));
+                              }}
+                              style={{
+                                color: "var(--red)",
+                                fontWeight: 700,
+                                background: "rgba(239, 68, 68, 0.08)",
+                                border: "1px solid rgba(239, 68, 68, 0.2)",
+                                borderRadius: "4px",
+                                padding: "3px 10px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                                transition: "all 0.2s"
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.15)"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.08)"; }}
+                              title="Click to rectify fault"
+                            >
+                              Rectify
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {records.length > 5 && (
+              <div style={{ textAlign: "center", fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
+                Showing 5 of {records.length} active faults. <span style={{ color: "var(--blue)", cursor: "pointer", fontWeight: 600 }} onClick={handleViewAllClick}>View all faults</span> to see the rest.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {selectedRecord && (
+        <DailyPositionDetailsModal
+          detailsRecord={[selectedRecord]}
+          detailsTitle={`${selectedRecord.formType || selectedRecord.name} — ${selectedRecord.division}`}
+          selectedDate={selectedRecord.createdAt || selectedRecord.failureTime || new Date().toISOString()}
+          formatDate={formatDate}
+          onClose={() => setSelectedRecord(null)}
+          role="SUPER_ADMIN"
+          queries={queries}
+        />
+      )}
+
+      {rectifyingRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)} style={{ zIndex: 9999 }}>
+          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", background: "#fff", position: "relative" }}>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} style={{ top: "14px", right: "16px" }}>X</button>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "var(--navy)" }}>Rectify Fault</h3>
+            <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "var(--muted)" }}>
+              Update the rectification date and time for <strong>{rectifyingRecord.formType || rectifyingRecord.name}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
+            </p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!rectificationTimeInput) {
+                showToast("Please enter the rectification date and time.");
+                return;
+              }
+              const nowLocalStr = toLocalDateTimeValue(new Date());
+              if (rectificationTimeInput > nowLocalStr) {
+                showToast("Future date & time is not allowed.");
+                return;
+              }
+              const failureTimeLocalStr = formatDateTimeInput(rectifyingRecord.failureTime);
+              if (failureTimeLocalStr && rectificationTimeInput < failureTimeLocalStr) {
+                showToast("Rectification time cannot be before failure time.");
+                return;
+              }
+
+              const updatedFormData = {
+                ...(rectifyingRecord.formData || {}),
+                rectificationTime: rectificationTimeInput,
+              };
+
+              updateMutation.mutate({
+                id: rectifyingRecord.id,
+                body: {
+                  ...rectifyingRecord,
+                  rectificationTime: rectificationTimeInput,
+                  durationText: calcDurationText(rectifyingRecord.failureTime, rectificationTimeInput),
+                  status: "RECTIFIED",
+                  formData: updatedFormData,
+                }
+              });
+            }}>
+              <div className="dp-field" style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "var(--navy)", marginBottom: "6px" }}>
+                  Rectification Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={rectificationTimeInput}
+                  max={toLocalDateTimeValue(new Date())}
+                  onChange={(e) => setRectificationTimeInput(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--line)",
+                    fontSize: "14px",
+                    fontFamily: "inherit",
+                    color: "var(--navy)",
+                    cursor: "pointer"
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setRectifyingRecord(null)}
+                  className="export-button"
+                  style={{ background: "transparent", color: "var(--muted)", borderColor: "var(--line)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="export-button"
+                  disabled={updateMutation.isPending}
+                  style={{ background: "var(--blue)", color: "#fff", border: "none" }}
+                >
+                  {updateMutation.isPending ? "Submitting..." : "Rectify Fault"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function CategoryFaultsPageView({
   categoryName,
   onBack,
@@ -2735,13 +3142,10 @@ function DailyPositionDashboardView({
 
       <section className="dashboard-grid">
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
-        {role === "TESTROOM" ? (
-          <DailyPositionSubmissionProgressPanel division={userDivision} />
-        ) : (
-          <DailyPositionDivisionPanel divisionData={divisionData} />
-        )}
-        <DailyPositionStatusPanel
-          monthlyFaultsTrend={data.monthlyFaultsTrend}
+        <DailyPositionHighPriorityFaultsPanel
+          userDivision={userDivision}
+          showToast={showToast}
+          queries={queries}
         />
       </section>
 

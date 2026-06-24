@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2 } from "lucide-react";
+import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDate24, formatDateTime24, formatTime24 } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
@@ -263,8 +263,6 @@ function SearchableStationDropdown({
                 onChange("");
               }}
               style={{
-                fontSize: "16px",
-                fontWeight: "bold",
                 color: "#94a3b8",
                 cursor: "pointer",
                 padding: "2px 6px",
@@ -279,10 +277,10 @@ function SearchableStationDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ├ù
+              <X size={14} />
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
+          <ChevronDown size={16} style={{ color: "#64748b" }} />
         </div>
       </button>
 
@@ -513,8 +511,6 @@ function SearchableDropdown({
                 onChange("");
               }}
               style={{
-                fontSize: "16px",
-                fontWeight: "bold",
                 color: "#94a3b8",
                 cursor: "pointer",
                 padding: "2px 6px",
@@ -529,10 +525,10 @@ function SearchableDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ├ù
+              <X size={14} />
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
+          <ChevronDown size={16} style={{ color: "#64748b" }} />
         </div>
       </button>
 
@@ -816,7 +812,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
+            <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
           </button>
 
           {isOpen && !readOnly && (
@@ -1071,7 +1067,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
+            <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
           </button>
 
           {isOpen && !readOnly && (
@@ -1512,6 +1508,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSavingAndNext, setIsSavingAndNext] = useState(false);
   const [isSubmittingAllOk, setIsSubmittingAllOk] = useState(false);
+  const [isAddingRecord, setIsAddingRecord] = useState(false);
 
   // Local completed forms state for today
   const todayStr = toDateValue();
@@ -1745,13 +1742,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
   }, [recordsQuery.data?.data]);
 
-  const isCompletedToday = useMemo(() => {
-    const hasLocalCompletion = completedFormsLocal.includes(selectedForm?.name);
-    const hasServerCompletion = records.some(
-      (r: any) => r.formType === selectedForm?.name && r.status !== "DRAFT"
-    );
-    return hasLocalCompletion || hasServerCompletion;
-  }, [completedFormsLocal, records, selectedForm?.name]);
+  // Do not disable form once submitted, so the user can fill and submit it multiple times
+  const isCompletedToday = false;
 
   const isFormEmpty = () => {
     return !visibleActiveFields.some(field => {
@@ -2160,7 +2152,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const handleAddRecord = async () => {
-    if (!canFill || !selectedForm) return;
+    if (!canFill || !selectedForm || isAddingRecord) return;
 
     const isEmpty = isFormEmpty();
     if (isEmpty) {
@@ -2200,6 +2192,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     }
 
+    setIsAddingRecord(true);
     try {
       const payload = buildPayload("DRAFT");
       await api.dailyPosition.create(payload);
@@ -2210,6 +2203,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       resetForm();
     } catch (err: any) {
       showToast(err.message || "Failed to add record.");
+    } finally {
+      setIsAddingRecord(false);
     }
   };
 
@@ -2456,58 +2451,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
 
 
-                {activeCircuitFaults.length > 0 && !editingRecordId && (
-                  <section className="active-circuit-desk" aria-label={`Active faults for ${selectedForm.name}`}>
-                    <div className="active-circuit-desk-head">
-                      <div>
-                        <strong>Active Faults - {selectedForm.name}</strong>
-                        <span>These faults carry forward automatically until they are rectified.</span>
-                      </div>
-                      <b>{activeCircuitFaults.length}</b>
-                    </div>
-                    <div className="active-circuit-list">
-                      {activeCircuitFaults.map((record: any) => {
-                        const startedAt = record.failureTime || record.date;
-                        const durationHours = startedAt
-                          ? Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 3_600_000))
-                          : null;
-                        return (
-                          <article key={record.id} className="active-circuit-row">
-                            <div>
-                              <strong>{record.formType}</strong>
-                              <span>{record.stationCode || record.stationName || record.section || record.majorSection || "Location not specified"}</span>
-                            </div>
-                            <div>
-                              <small>Failure</small>
-                              <span>{formatDateTime24(startedAt)}</span>
-                            </div>
-                            <div>
-                              <small>Open for</small>
-                              <span>{durationHours === null ? "-" : `${Math.floor(durationHours / 24)}d ${durationHours % 24}h`}</span>
-                            </div>
-                            <div className="active-circuit-reason">
-                              <small>Fault details</small>
-                              <span>{record.reason || record.remarks || "Fault reported"}</span>
-                            </div>
-                            <div className="active-circuit-actions">
-                              <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>View</button>
-                              <button
-                                type="button"
-                                className="export-button"
-                                onClick={() => {
-                                  setRectifyingRecord(record);
-                                  setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
-                                }}
-                              >
-                                Mark Rectified
-                              </button>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
+
 
                 <div className="dp-form-grid">
                   {visibleActiveFields.map(field => (
@@ -2529,13 +2473,22 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     type="button"
                     className="export-button"
                     onClick={handleAddRecord}
-                    disabled={isCompletedToday || !!editingRecordId}
+                    disabled={isCompletedToday || !!editingRecordId || isAddingRecord}
                     style={{
-                      cursor: (isCompletedToday || editingRecordId) ? "not-allowed" : "pointer"
+                      cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer"
                     }}
                   >
-                    <Plus size={16} />
-                    Add Record
+                    {isAddingRecord ? (
+                      <>
+                        <span className="dp-btn-loader" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} />
+                        Add Record
+                      </>
+                    )}
                   </button>
                 </div>
 
