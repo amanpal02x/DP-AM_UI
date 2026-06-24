@@ -1487,6 +1487,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpSelectedFormName: setSelectedFormName,
     setDpOpenCategory: setOpenCategory,
     setDpCircuitSearch: setSearchTerm,
+    dpHistoryFilter,
     dpHistoryCategoryFilter: historyCategory,
     setDpHistoryCategoryFilter: setHistoryCategory
   } = useAppStore();
@@ -1595,15 +1596,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const params: any = {
         division: selectedDivision || "",
         limit: "500",
-<<<<<<< HEAD
       };
-=======
-<<<<<<< HEAD
-        date: selectedDate,
-      };
-=======
-      };clear
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
+
       if (dpHistoryFilter === "active-faults") {
         params.isFaulty = "true";
       } else if (dpHistoryFilter === "resolved-faults") {
@@ -1611,7 +1605,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       } else {
         params.date = selectedDate;
       }
->>>>>>> e80e8034dd07778fe64a87254027bfd7cfb0b230
+
       return api.dailyPosition.list(params);
     },
   });
