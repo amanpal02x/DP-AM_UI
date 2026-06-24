@@ -151,35 +151,35 @@ export const mockDashboard: DashboardSummary = {
       type: "approved",
       title: "Preventive maintenance approved",
       detail: "IPIS-X2 • Raipur Jn. • By R. K. Sharma",
-      time: "10:24 AM"
+      time: "10:24"
     },
     {
       id: "a2",
       type: "ticket",
       title: "New fault ticket created",
       detail: "CCTV Camera not working • Durg",
-      time: "09:58 AM"
+      time: "09:58"
     },
     {
       id: "a3",
       type: "maintenance",
       title: "Maintenance completed",
       detail: "PA System • Bhatapara",
-      time: "09:42 AM"
+      time: "09:42"
     },
     {
       id: "a4",
       type: "user",
       title: "New user added",
       detail: "Amit Patel (Technician) • Durg",
-      time: "09:15 AM"
+      time: "09:15"
     },
     {
       id: "a5",
       type: "asset",
       title: "Asset updated",
       detail: "VHF Set • Durg (Outer)",
-      time: "08:50 AM"
+      time: "08:50"
     }
   ],
   alerts: [

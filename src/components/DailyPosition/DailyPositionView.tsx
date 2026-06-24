@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2 } from "lucide-react";
 import { api } from "../../api/apiClient";
+import { formatDate24, formatDateTime24, formatTime24 } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
 import {
   DAILY_POSITION_CATEGORIES,
@@ -147,7 +148,7 @@ const displayValue = (value: any, isAllOk = false) => {
   if (Array.isArray(value)) return value.join(", ");
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : formatDateTime24(date);
   }
   return String(value);
 };
@@ -278,10 +279,10 @@ function SearchableStationDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ×
+              ├ù
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
         </div>
       </button>
 
@@ -528,10 +529,10 @@ function SearchableDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ×
+              ├ù
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
         </div>
       </button>
 
@@ -815,7 +816,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
           </button>
 
           {isOpen && !readOnly && (
@@ -1070,7 +1071,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
           </button>
 
           {isOpen && !readOnly && (
@@ -1464,13 +1465,14 @@ const RealTimeClock = () => {
 
   return (
     <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--muted)", fontWeight: 500 }}>
-      {time.toLocaleDateString(undefined, {
+      {time.toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
         weekday: "short",
         year: "numeric",
         month: "short",
         day: "numeric",
       })}{" "}
-      | {time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+      | {formatTime24(time, true)}
     </p>
   );
 };
@@ -1588,16 +1590,25 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
     queryFn: () => api.dailyPosition.metadata(selectedDivision ? { division: selectedDivision } : {}),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: previousData => previousData,
   });
 
   const recordsQuery = useQuery({
-    queryKey: ["daily-position-records", selectedDivision, selectedDate],
+    queryKey: ["daily-position-records", selectedDivision, selectedDate, dpHistoryFilter],
     queryFn: () => {
       const params: any = {
         division: selectedDivision || "",
         limit: "500",
+<<<<<<< HEAD
       };
-
+=======
+<<<<<<< HEAD
+        date: selectedDate,
+      };
+=======
+      };clear
+>>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
       if (dpHistoryFilter === "active-faults") {
         params.isFaulty = "true";
       } else if (dpHistoryFilter === "resolved-faults") {
@@ -1605,10 +1616,23 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       } else {
         params.date = selectedDate;
       }
-
+>>>>>>> e80e8034dd07778fe64a87254027bfd7cfb0b230
       return api.dailyPosition.list(params);
     },
+    placeholderData: previousData => previousData,
   });
+
+  const activeCircuitFaultsQuery = useQuery({
+    queryKey: ["daily-position-active-faults", selectedDivision, selectedForm?.name],
+    queryFn: () => api.dailyPosition.activeFaults({
+      division: selectedDivision || "",
+      formType: selectedForm?.name || "",
+    }),
+    enabled: canFill && viewMode === "form" && !!selectedDivision && !!selectedForm?.name,
+    staleTime: 30_000,
+    placeholderData: previousData => previousData,
+  });
+  const activeCircuitFaults = activeCircuitFaultsQuery.data?.data || [];
 
   // Reconcile localStorage with live server records:
   // If records for today were deleted from the DB, remove them from local state
@@ -1647,6 +1671,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-active-faults"] });
       
       const isAllOk = variables?.formData?.actionType === "OK";
       
@@ -1692,6 +1717,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-active-faults"] });
       
       setSuccessModal({
         message: <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>,
@@ -2300,8 +2326,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </td>
                   <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
                   <td><span className={`pill status-${isAllOk ? "operational" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "OPERATIONAL" : record.status}</span></td>
-                  <td>{record.failureTime ? (isTodayRecord(record) ? new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.failureTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.failureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : (isAllOk ? "" : "-")}</td>
-                  <td>{record.rectificationTime ? (isTodayRecord(record) ? new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date(record.rectificationTime).toLocaleDateString([], { month: "short", day: "numeric" }) + " " + new Date(record.rectificationTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
+                  <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
                   <td>{record.remarks || record.reason || (isAllOk ? "" : "-")}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
@@ -2439,6 +2465,59 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
 
 
+                {activeCircuitFaults.length > 0 && !editingRecordId && (
+                  <section className="active-circuit-desk" aria-label={`Active faults for ${selectedForm.name}`}>
+                    <div className="active-circuit-desk-head">
+                      <div>
+                        <strong>Active Faults - {selectedForm.name}</strong>
+                        <span>These faults carry forward automatically until they are rectified.</span>
+                      </div>
+                      <b>{activeCircuitFaults.length}</b>
+                    </div>
+                    <div className="active-circuit-list">
+                      {activeCircuitFaults.map((record: any) => {
+                        const startedAt = record.failureTime || record.date;
+                        const durationHours = startedAt
+                          ? Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 3_600_000))
+                          : null;
+                        return (
+                          <article key={record.id} className="active-circuit-row">
+                            <div>
+                              <strong>{record.formType}</strong>
+                              <span>{record.stationCode || record.stationName || record.section || record.majorSection || "Location not specified"}</span>
+                            </div>
+                            <div>
+                              <small>Failure</small>
+                              <span>{formatDateTime24(startedAt)}</span>
+                            </div>
+                            <div>
+                              <small>Open for</small>
+                              <span>{durationHours === null ? "-" : `${Math.floor(durationHours / 24)}d ${durationHours % 24}h`}</span>
+                            </div>
+                            <div className="active-circuit-reason">
+                              <small>Fault details</small>
+                              <span>{record.reason || record.remarks || "Fault reported"}</span>
+                            </div>
+                            <div className="active-circuit-actions">
+                              <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>View</button>
+                              <button
+                                type="button"
+                                className="export-button"
+                                onClick={() => {
+                                  setRectifyingRecord(record);
+                                  setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
+                                }}
+                              >
+                                Mark Rectified
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 <div className="dp-form-grid">
                   {visibleActiveFields.map(field => (
                     <DailyPositionFieldInput
@@ -2518,15 +2597,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                 else if (field.name === "section") val = record.section;
                                 else if (field.name === "stationCode") val = record.stationCode || record.stationName;
                                 else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
-                                else if (field.name === "failureTime") val = record.failureTime ? new Date(record.failureTime).toLocaleString() : "";
-                                else if (field.name === "rectificationTime") val = record.rectificationTime ? new Date(record.rectificationTime).toLocaleString() : "";
+                                else if (field.name === "failureTime") val = record.failureTime ? formatDateTime24(record.failureTime) : "";
+                                else if (field.name === "rectificationTime") val = record.rectificationTime ? formatDateTime24(record.rectificationTime) : "";
                                 else if (field.name === "durationText") val = record.durationText;
                                 else if (field.name === "reason") val = record.reason;
                                 else if (field.name === "remarks") val = record.remarks;
                               }
                               if (field.type === "datetime-local" && val) {
                                 try {
-                                  val = new Date(val).toLocaleString();
+                                  val = formatDateTime24(val);
                                 } catch (e) {}
                               }
                               const isRectificationCell = field.name === "rectificationTime";
@@ -2774,7 +2853,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Category", detailsRecord.category],
                   ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
-                  ["Submitted", detailsRecord.date ? new Date(detailsRecord.date).toLocaleString() : (isAllOk ? "" : "-")],
+                  ["Submitted", detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
@@ -2787,8 +2866,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <h3>Fault Timing</h3>
                 <div className="dp-details-grid">
                   {[
-                    ["Failure Time", detailsRecord.failureTime ? new Date(detailsRecord.failureTime).toLocaleString() : (isAllOk ? "" : "-")],
-                    ["Rectification Time", detailsRecord.rectificationTime ? new Date(detailsRecord.rectificationTime).toLocaleString() : (isAllOk ? "" : "-")],
+                    ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : (isAllOk ? "" : "-")],
+                    ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : (isAllOk ? "" : "-")],
                     ["Duration of Failure", detailsRecord.durationText || (isAllOk ? "" : "-")],
                     ["Reason", detailsRecord.reason || (isAllOk ? "" : "-")],
                     ["Remarks", detailsRecord.remarks || (isAllOk ? "" : "-")],
@@ -2984,7 +3063,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
                 }}
               >
-                ✓
+                Γ£ô
               </div>
               <div style={{ margin: 0 }}>
                 {successModal.message}

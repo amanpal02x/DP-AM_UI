@@ -1,4 +1,5 @@
-import { api } from "./apiClient";
+import { api, getCachedUser } from "./apiClient";
+import { formatTime24 } from "../utils/dateTime";
 import type {
   DashboardSummary,
   KpiMetric,
@@ -23,9 +24,9 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   // Fetch dashboard stats, active faults, today's records, and resolved records in parallel
   const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes] = await Promise.all([
     api.reports.dashboard(division),
-    api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 1000 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 1000 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 1000 }).catch(() => ({ data: [] }))
+    api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 200 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 200 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 200 }).catch(() => ({ data: [] }))
   ]);
 
   const stats = statsRes.data;
@@ -212,7 +213,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     };
 
     const date = new Date(l.createdAt);
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = formatTime24(date);
 
     return {
       id: l.id,
@@ -251,8 +252,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     { id: "s4", label: "Divisional Stations", value: (stats.commissioningSummary?.divisionalStationsCount || 0).toString(), detail: "Commissioned Stations", tone: "amber" }
   ];
 
-  const userProfile = await api.auth.getProfile().catch(() => ({ data: null }));
-  const activeUser = userProfile.data || {
+  const activeUser = getCachedUser() || {
     name: "Telecom SSE",
     designation: "SSE / Telecom",
     role: "SSE"
