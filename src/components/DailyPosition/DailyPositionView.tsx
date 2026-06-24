@@ -1489,6 +1489,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpSelectedFormName: setSelectedFormName,
     setDpOpenCategory: setOpenCategory,
     setDpCircuitSearch: setSearchTerm,
+    dpHistoryFilter,
     dpHistoryCategoryFilter: historyCategory,
     setDpHistoryCategoryFilter: setHistoryCategory
   } = useAppStore();
