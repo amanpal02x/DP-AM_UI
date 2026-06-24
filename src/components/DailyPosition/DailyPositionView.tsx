@@ -279,10 +279,10 @@ function SearchableStationDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ×
+              ├ù
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
         </div>
       </button>
 
@@ -529,10 +529,10 @@ function SearchableDropdown({
                 e.currentTarget.style.color = "#94a3b8";
               }}
             >
-              ×
+              ├ù
             </span>
           )}
-          <span style={{ fontSize: "10px", color: "#64748b" }}>▼</span>
+          <span style={{ fontSize: "10px", color: "#64748b" }}>Γû╝</span>
         </div>
       </button>
 
@@ -816,7 +816,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
           </button>
 
           {isOpen && !readOnly && (
@@ -1071,7 +1071,7 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>▼</span>
+            <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "8px" }}>Γû╝</span>
           </button>
 
           {isOpen && !readOnly && (
@@ -1599,19 +1599,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const params: any = {
         division: selectedDivision || "",
         limit: "500",
-<<<<<<< HEAD
       };
-=======
-<<<<<<< HEAD
-      };
-=======
-<<<<<<< HEAD
-        date: selectedDate,
-      };
-=======
-      };clear
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
->>>>>>> fe9abad5d15b803e69b35d67f52d782bf6a22938
       if (dpHistoryFilter === "active-faults") {
         params.isFaulty = "true";
       } else if (dpHistoryFilter === "resolved-faults") {
@@ -3065,7 +3053,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
                 }}
               >
-                ✓
+                Γ£ô
               </div>
               <div style={{ margin: 0 }}>
                 {successModal.message}

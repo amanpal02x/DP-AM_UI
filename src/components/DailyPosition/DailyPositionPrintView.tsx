@@ -408,8 +408,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               {displayedForms.map((form, index) => {
                 const srNo = index + 1;
 
-<<<<<<< HEAD
-=======
                 // Handle Walkie-Talkie Testing, Repairing, Temporary Joints, Low Insulation
                 const isWtRepair = form.name === "Walkie-Talkie Repairing";
                 const isWtTest = form.name === "Walkie-Talkie Testing";
@@ -451,25 +449,15 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
                 let formRowIndex = 0;
 
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
                 return (
                   <React.Fragment key={form.systemCode}>
                     {divisionRenderData.map((divData, divIndex) => {
                       const { div, entries } = divData;
 
-<<<<<<< HEAD
-                      // Find active faults
-                      const faultEntries = activeEntries.filter((e: any) => {
-                        const s = (e.positionStatus || e.status || "").toUpperCase();
-                        const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                        return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
-                      });
-=======
                       return entries.map((entry, entryIndex) => {
                         const isFirstFormRow = formRowIndex === 0;
                         const isFirstDivRow = entryIndex === 0;
                         formRowIndex++;
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
 
                         // Display values variables
                         let failTimeStr = "-";
@@ -485,23 +473,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                          entry.reason !== "All OK" &&
                                          !(entry.formData && entry.formData.actionType === "OK");
 
-<<<<<<< HEAD
-                      if (hasFault) {
-                        const latestFault = faultEntries[0];
-                        failTimeStr = formatTime(actualFailureTime(latestFault)) || "-";
-                        rtTimeStr = formatTime(actualRectificationTime(latestFault)) || "-";
-                        durationStr = getDurationText(latestFault);
-                        faultySec = actualLocation(latestFault);
-                        actionRemarks = actualRemarks(latestFault, form.name);
-                      } else if (hasRecords) {
-                        const latestRecord = activeEntries[0];
-                        failTimeStr = formatTime(actualFailureTime(latestRecord)) || "-";
-                        rtTimeStr = formatTime(actualRectificationTime(latestRecord)) || "-";
-                        durationStr = getDurationText(latestRecord);
-                        faultySec = actualLocation(latestRecord);
-                        actionRemarks = actualRemarks(latestRecord, form.name);
-                      }
-=======
                         if (!entry.isPlaceholder) {
                           if (isWtRepair) {
                             const fd = entry.formData || {};
@@ -554,7 +525,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             } else if (entry.formData?.exchangeName) {
                               faultySec = entry.formData.exchangeName;
                             }
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
 
                             actionRemarks = entry.remarks || entry.reason || "OK";
                             if (actionRemarks === "No fault reported.") {
@@ -573,16 +543,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                          }
                         }
 
-<<<<<<< HEAD
-                      return (
-                        <tr key={div} style={{
-                          borderBottom: divIndex === DIVISIONS.length - 1 ? "1.5px solid #000000" : "1px solid #cbd5e1"
-                        }}>
-                          {/* Rowspans for first division row */}
-                          {divIndex === 0 && (
-                            <>
-                              <td rowSpan={DIVISIONS.length} style={{
-=======
                         return (
                           <tr key={`${div}-${entry.id || entryIndex}`} style={{
                             borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
@@ -611,7 +571,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             )}
                             {!filterDivision && isFirstDivRow && (
                               <td rowSpan={entries.length} style={{
->>>>>>> 286104a5f8a4243d78d40bd7ef41e788b675d763
                                 border: "1px solid #000000",
                                 padding: "6px",
                                 textAlign: "center",
