@@ -493,15 +493,19 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             const fd = entry.formData || {};
                             failTimeStr = formatTime(fd.dateTime) || "-";
                             rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
-                            durationStr = `Total: ${fd.temporaryJointsCount ?? 0}`;
-                            faultySec = `Bal: ${Number(fd.temporaryJointsCount || 0) - Number(fd.rectifiedJoints || 0)}`;
+                            // Show actual time duration, not count
+                            durationStr = getDurationText({ failureTime: fd.dateTime, rectificationTime: fd.rectifiedDateTime });
+                            // Show actual section/station location, not balance count
+                            faultySec = actualLocation(entry);
                             actionRemarks = fd.actionPlan || entry.remarks || "Joints logged.";
                           } else if (isInsulation) {
                             const fd = entry.formData || {};
                             failTimeStr = formatTime(entry.failureTime) || "-";
                             rtTimeStr = formatTime(entry.rectificationTime) || "-";
-                            durationStr = `Total: ${fd.totalInsulationFaults ?? 0}`;
-                            faultySec = `Bal: ${fd.balanceInsulationFaults ?? 0}`;
+                            // Show actual time duration, not count
+                            durationStr = getDurationText(entry);
+                            // Show actual section/station location, not balance count
+                            faultySec = actualLocation(entry);
                             actionRemarks = fd.actionPlanTdc || entry.remarks || "Insulation faults logged.";
                           } else {
                             failTimeStr = formatTime(entry.failureTime) || "-";
