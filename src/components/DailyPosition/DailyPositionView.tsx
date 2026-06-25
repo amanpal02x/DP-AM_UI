@@ -397,6 +397,70 @@ function SearchableStationDropdown({
   );
 }
 
+function ClearableSelect({
+  value,
+  onChange,
+  children,
+  style,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="clearable-select-wrapper" style={{ position: "relative", width: "100%", display: "inline-block" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        style={{
+          ...style,
+          width: "100%",
+          paddingRight: value && !disabled ? "36px" : style?.paddingRight,
+        }}
+      >
+        {children}
+      </select>
+      {value && !disabled && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onChange("");
+          }}
+          style={{
+            position: "absolute",
+            right: "26px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            cursor: "pointer",
+            color: "#94a3b8",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "4px",
+            zIndex: 2,
+            userSelect: "none"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#ef4444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#94a3b8";
+          }}
+        >
+          <X size={12} />
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SearchableDropdown({
   options,
   value,
@@ -1559,16 +1623,37 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   }, [selectedForm, maintenanceType]);
 
   const visibleActiveFields = useMemo(() => {
-    return activeFields.filter(field => {
+    const list: typeof activeFields = [];
+    for (const field of activeFields) {
       if (field.name === "cableCutByWhomOther") {
-        return values.cableCutByWhom === "Other";
+        if (values.cableCutByWhom === "Other") {
+          list.push(field);
+        }
+        continue;
       }
       if (field.name === "natureOfFaultOther") {
-        return values.natureOfFault === "Other";
+        if (values.natureOfFault === "Other") {
+          list.push(field);
+        }
+        continue;
       }
-      return true;
-    });
-  }, [activeFields, values.cableCutByWhom, values.natureOfFault]);
+      list.push(field);
+      if (field.type === "select" && (values[field.name] === "Other" || values[field.name] === "Others")) {
+        const otherFieldName = `${field.name}Other`;
+        const hasExplicitOther = activeFields.some(f => f.name === otherFieldName || f.name === `${field.name}Others`);
+        if (!hasExplicitOther) {
+          list.push({
+            name: otherFieldName,
+            label: `${field.label} (Other)`,
+            type: "text",
+            required: true,
+            placeholder: `Specify ${field.label.toLowerCase()}`
+          });
+        }
+      }
+    }
+    return list;
+  }, [activeFields, values]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -2221,8 +2306,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const currentFormRecords = records
-    .filter((record: any) => record.formType === selectedForm?.name)
-    .slice(0, 8);
+    .filter((record: any) => record.formType === selectedForm?.name);
 
   const renderHistory = () => (
     <section className="dp-history-panel">
@@ -2230,30 +2314,30 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         {/* Division filter */}
         <div style={{ flex: "1 1 150px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-          <select
+          <ClearableSelect
             value={historyDivision}
-            onChange={e => setHistoryDivision(e.target.value)}
+            onChange={setHistoryDivision}
             style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
           >
             <option value="">All Divisions</option>
             <option value="Bilaspur">Bilaspur</option>
             <option value="Raipur">Raipur</option>
             <option value="Nagpur">Nagpur</option>
-          </select>
+          </ClearableSelect>
         </div>
         {/* Status-wise filter */}
         <div style={{ flex: "1 1 160px" }}>
           <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
-          <select
+          <ClearableSelect
             value={historyStatus}
-            onChange={e => setHistoryStatus(e.target.value)}
+            onChange={setHistoryStatus}
             style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
           >
             <option value="">All</option>
             <option value="active">Active</option>
             <option value="allok">ALL OK</option>
             <option value="fault">Fault</option>
-          </select>
+          </ClearableSelect>
         </div>
         {/* Spacer pushes search to right */}
         <div style={{ flex: "1 1 0" }} />
@@ -2542,11 +2626,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           >
                             {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => {
                               let val = record.formData?.[field.name];
-                              if (field.name === "natureOfFault" && val === "Other") {
-                                val = record.formData?.natureOfFaultOther || val;
-                              }
-                              if (field.name === "cableCutByWhom" && val === "Other") {
-                                val = record.formData?.cableCutByWhomOther || val;
+                              if (val === "Other" || val === "Others") {
+                                val = record.formData?.[`${field.name}Other`] || record.formData?.[`${field.name}Others`] || val;
                               }
                               if (val === undefined) {
                                 if (field.name === "majorSection") val = record.majorSection;
@@ -2820,15 +2901,62 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 ))}
               </div>
 
-              <section className="dp-details-section">
+              {/* Location Details (Priority 1) */}
+              {(() => {
+                const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                const locationItems = Object.entries(detailsRecord.formData || {})
+                  .filter(([key]) => locationKeys.includes(key))
+                  .map(([key, value]) => {
+                    let displayVal = value;
+                    if (value === "Other" || value === "Others") {
+                      displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                    }
+                    return {
+                      key,
+                      label: humanizeFieldName(key),
+                      value: displayValue(displayVal, isAllOk)
+                    };
+                  });
+
+                if (locationItems.length === 0) return null;
+                return (
+                  <section className="dp-details-section" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", marginTop: "12px" }}>
+                    <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Location Details</h3>
+                    <div className="dp-details-grid">
+                      {locationItems.map(item => (
+                        <div key={item.key}>
+                          <span>{item.label}</span>
+                          <strong style={{ fontWeight: 650 }}>{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
+
+              {/* Reason & Remarks Section (Priority 2) */}
+              <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Remarks</h3>
+                <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
+                  <strong style={{ fontWeight: 500 }}>
+                    {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System Operational") : (
+                      <>
+                        {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
+                        {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && ` · ${detailsRecord.remarks}`}
+                      </>
+                    )}
+                  </strong>
+                </div>
+              </section>
+
+              {/* Fault Timing (Priority 3) */}
+              <section className="dp-details-section" style={{ marginTop: "12px" }}>
                 <h3>Fault Timing</h3>
                 <div className="dp-details-grid">
                   {[
                     ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : (isAllOk ? "" : "-")],
                     ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : (isAllOk ? "" : "-")],
                     ["Duration of Failure", detailsRecord.durationText || (isAllOk ? "" : "-")],
-                    ["Reason", detailsRecord.reason || (isAllOk ? "" : "-")],
-                    ["Remarks", detailsRecord.remarks || (isAllOk ? "" : "-")],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <span>{label}</span>
@@ -2838,34 +2966,49 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </div>
               </section>
 
-              <section className="dp-details-section">
-                <h3>Submitted Form Fields</h3>
-                <div className="dp-details-grid">
-                  {Object.entries(detailsRecord.formData || {})
-                    .filter(([key]) => key !== "natureOfFaultOther" && key !== "cableCutByWhomOther")
-                    .map(([key, value]) => {
-                      let displayVal = value;
-                      if (key === "natureOfFault" && value === "Other") {
-                        displayVal = detailsRecord.formData?.natureOfFaultOther || value;
-                      }
-                      if (key === "cableCutByWhom" && value === "Other") {
-                        displayVal = detailsRecord.formData?.cableCutByWhomOther || value;
-                      }
-                      return (
-                        <div key={key}>
-                          <span>{humanizeFieldName(key)}</span>
-                          <strong>{displayValue(displayVal, isAllOk)}</strong>
+              {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
+              {(() => {
+                const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                const formFieldItems = Object.entries(detailsRecord.formData || {})
+                  .filter(([key]) => {
+                    if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
+                    if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
+                    if (key.endsWith("Other") || key.endsWith("Others")) return false;
+                    if (locationKeys.includes(key)) return false;
+                    return true;
+                  })
+                  .map(([key, value]) => {
+                    let displayVal = value;
+                    if (value === "Other" || value === "Others") {
+                      displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                    }
+                    return {
+                      key,
+                      label: humanizeFieldName(key),
+                      value: displayValue(displayVal, isAllOk)
+                    };
+                  });
+
+                return (
+                  <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                    <h3>Submitted Form Fields</h3>
+                    <div className="dp-details-grid">
+                      {formFieldItems.map(item => (
+                        <div key={item.key}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
                         </div>
-                      );
-                    })}
-                  {Object.keys(detailsRecord.formData || {}).length === 0 && (
-                    <div>
-                      <span>Form Data</span>
-                      <strong>No additional fields submitted.</strong>
+                      ))}
+                      {formFieldItems.length === 0 && (
+                        <div>
+                          <span>Form Data</span>
+                          <strong>No additional fields submitted.</strong>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </section>
+                  </section>
+                );
+              })()}
             </div>
           </div>
         );
