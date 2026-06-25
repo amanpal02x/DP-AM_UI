@@ -2593,7 +2593,9 @@ function DailyPositionHighPriorityFaultsPanel({
       {rectifyingRecord && (
         <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)} style={{ zIndex: 9999 }}>
           <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", background: "#fff", position: "relative" }}>
-            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} style={{ top: "14px", right: "16px" }}>X</button>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} aria-label="Close">
+              <X size={16} />
+            </button>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "var(--navy)" }}>Rectify Fault</h3>
             <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "var(--muted)" }}>
               Update the rectification date and time for <strong>{rectifyingRecord.formType || rectifyingRecord.name}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
@@ -2889,7 +2891,9 @@ function CategoryFaultsPageView({
       {rectifyingRecord && (
         <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)} style={{ zIndex: 9999 }}>
           <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", background: "#fff", position: "relative" }}>
-            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} style={{ top: "14px", right: "16px" }}>X</button>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} aria-label="Close">
+              <X size={16} />
+            </button>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "var(--navy)" }}>Rectify Fault</h3>
             <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "var(--muted)" }}>
               Update the rectification date and time for <strong>{rectifyingRecord.formType || categoryName}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
@@ -3356,7 +3360,9 @@ function DailyPositionDetailsModal({
   return (
     <div className="modal-backdrop dp-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "600px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
-        <button className="modal-close" type="button" onClick={onClose} style={{ top: "14px", right: "16px" }}>X</button>
+        <button className="modal-close" type="button" onClick={onClose} aria-label="Close">
+          <X size={16} />
+        </button>
 
         {/* Header */}
         <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
@@ -4879,7 +4885,9 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
       {addSectionOpen && (
         <div className="modal-backdrop" onClick={() => setAddSectionOpen(false)}>
           <div className="modal-card section-modal" onClick={event => event.stopPropagation()}>
-            <button className="modal-close" type="button" onClick={() => setAddSectionOpen(false)}>X</button>
+            <button className="modal-close" type="button" onClick={() => setAddSectionOpen(false)} aria-label="Close">
+              <X size={16} />
+            </button>
             <h2>Add Section</h2>
             <p>Register division, major section, and section for Daily Position forms.</p>
             <form className="section-modal-form" onSubmit={handleCreate}>
