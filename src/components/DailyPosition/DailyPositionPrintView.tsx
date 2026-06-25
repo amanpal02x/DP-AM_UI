@@ -99,9 +99,23 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     return `${dateStr} ${timeStr}`;
   };
 
-  const positionTitle = positionType === "MORNING"
-    ? `MORNING POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`
-    : `CURRENT POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`;
+  const getNextDayFormatted = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, ".");
+  };
+
+  const formatAsOnDate = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const month = d.toLocaleDateString("en-US", { month: "long" });
+    const year = d.getFullYear();
+    return `Position as on ${day} ${month} ${year}`;
+  };
+
+  const positionTitle = formatAsOnDate(selectedDate);
 
   // Helper to get formatted duration text
   const getDurationText = (entry: any) => {
@@ -393,11 +407,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               PCSTE/SECR POSITION
             </h2>
             <div style={{ marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
-              {positionTitle}
+              DATE: {getNextDayFormatted(selectedDate)}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", fontSize: "13px", fontWeight: "bold" }}>
               <span>{filterDivision ? `${filterDivision.toUpperCase()} DIVISION` : "BILASPUR / RAIPUR / NAGPUR DIVISION"}</span>
-              <span>DATE: {formatDate(selectedDate)}</span>
+              <span>{positionTitle}</span>
             </div>
           </div>
 
@@ -597,13 +611,12 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 padding: "6px",
                                 textAlign: "center",
                                 fontWeight: "bold",
-                                verticalAlign: "middle",
-                                color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
+                                verticalAlign: "middle"
                               }}>
                                 {div}
                               </td>
                             )}
-                            <td style={{ border: "1px solid #000000", padding: "6px", color: hasFault ? "#b91c1c" : "inherit" }}>
+                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
                               {failTimeStr}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "6px" }}>
@@ -612,7 +625,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
                               {durationStr}
                             </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal", color: hasFault ? "#b91c1c" : "inherit" }}>
+                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal" }}>
                               {faultySec}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "6px" }}>
