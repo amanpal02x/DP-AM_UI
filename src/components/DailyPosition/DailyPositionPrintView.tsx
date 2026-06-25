@@ -75,9 +75,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
   const DIVISIONS = filterDivision ? [filterDivision] : ["Bilaspur", "Raipur", "Nagpur"];
 
   const displayedForms = useMemo(() => {
-    return DAILY_POSITION_FORMS.filter(
+    const base = DAILY_POSITION_FORMS.filter(
       (form) => form.category !== "Daily Log" && form.name !== "Daily Position Log"
     );
+    const wifi = base.find(f => f.name === "Wi-Fi");
+    if (wifi) {
+      return [...base.filter(f => f.name !== "Wi-Fi"), wifi];
+    }
+    return base;
   }, []);
 
   const formatDate = (dateStr: string) => {

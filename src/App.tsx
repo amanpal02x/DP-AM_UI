@@ -2041,7 +2041,12 @@ function DailyPositionSubmissionProgressPanel({ division }: { division: string }
 
   // Count unique forms submitted today
   const displayedForms = useMemo(() => {
-    return DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+    const base = DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+    const wifi = base.find(f => f.name === "Wi-Fi");
+    if (wifi) {
+      return [...base.filter(f => f.name !== "Wi-Fi"), wifi];
+    }
+    return base;
   }, []);
 
   const submittedFormsCount = useMemo(() => {
@@ -3378,6 +3383,47 @@ function DailyPositionDetailsModal({
             const effectiveStatus = entry.positionStatus || entry.status;
             const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
+            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+            
+            const locationItems = Object.entries(entry.formData || {})
+              .filter(([key]) => locationKeys.includes(key))
+              .map(([key, value]) => {
+                let displayVal = value;
+                if (key === "natureOfFault" && value === "Other") {
+                  displayVal = entry.formData?.natureOfFaultOther || value;
+                }
+                if (key === "cableCutByWhom" && value === "Other") {
+                  displayVal = entry.formData?.cableCutByWhomOther || value;
+                }
+                return {
+                  key,
+                  label: summaryHumanizeFieldName(key),
+                  value: summaryDisplayValue(displayVal, isAllOk)
+                };
+              });
+
+            const formFieldItems = Object.entries(entry.formData || {})
+              .filter(([key]) => {
+                if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
+                if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
+                if (key === "natureOfFaultOther" || key === "cableCutByWhomOther") return false;
+                if (locationKeys.includes(key)) return false;
+                return true;
+              })
+              .map(([key, value]) => {
+                let displayVal = value;
+                if (key === "natureOfFault" && value === "Other") {
+                  displayVal = entry.formData?.natureOfFaultOther || value;
+                }
+                if (key === "cableCutByWhom" && value === "Other") {
+                  displayVal = entry.formData?.cableCutByWhomOther || value;
+                }
+                return {
+                  key,
+                  label: summaryHumanizeFieldName(key),
+                  value: summaryDisplayValue(displayVal, isAllOk)
+                };
+              });
 
             return (
               <div key={entry.id} style={{
@@ -3416,7 +3462,60 @@ function DailyPositionDetailsModal({
                   </div>
                 </div>
 
-                {/* Main Information: Fault Timing (Priority 1) */}
+                {/* Location Details (Priority 1) */}
+                {locationItems.length > 0 && (
+                  <div style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    marginBottom: "14px"
+                  }}>
+                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Location Details
+                    </span>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                      {locationItems.map(item => (
+                        <div key={item.key}>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 650 }}>{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Remarks & Reason block (Priority 2 - Directly after Location Details) */}
+                {isFault ? (
+                  <div style={{
+                    marginBottom: "14px"
+                  }}>
+                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                      Reason / Remarks
+                    </span>
+                    <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.08)" }}>
+                      <strong style={{ fontWeight: 500 }}>
+                        {entry.reason || entry.remarks || "No reason specified"}
+                        {showRemarks && ` · ${entry.remarks}`}
+                      </strong>
+                    </div>
+                  </div>
+                ) : (
+                  (entry.remarks || entry.reason) && (
+                    <div style={{
+                      marginBottom: "14px"
+                    }}>
+                      <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                        Remarks
+                      </span>
+                      <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(34, 197, 94, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(34, 197, 94, 0.08)" }}>
+                        <strong style={{ fontWeight: 500 }}>{entry.remarks || entry.reason}</strong>
+                      </div>
+                    </div>
+                  )
+                )}
+
+                {/* Main Information: Fault Timing (Priority 3) */}
                 <div style={{
                   background: isFault ? "rgba(239, 68, 68, 0.03)" : "rgba(34, 197, 94, 0.03)",
                   border: `1px solid ${isFault ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)"}`,
@@ -3443,61 +3542,32 @@ function DailyPositionDetailsModal({
                           <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.durationText}</strong>
                         </div>
                       )}
-
-                      <div>
-                        <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Reason / Remarks</span>
-                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>
-                          {entry.reason || entry.remarks || "No reason specified"}
-                          {showRemarks && ` · ${entry.remarks}`}
-                        </strong>
-                      </div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>✔ System Operational</span>
-                      {(entry.remarks || entry.reason) && (
-                        <div style={{ borderTop: "1px solid rgba(34, 197, 94, 0.08)", paddingTop: "6px" }}>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Remarks</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{entry.remarks || entry.reason}</strong>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Additional Form Fields (Priority 2) */}
-                {Object.keys(entry.formData || {}).length > 0 && (
+                {/* Additional Form Fields (Priority 4) */}
+                {formFieldItems.length > 0 && (
                   <div style={{ marginBottom: "12px" }}>
                     <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
                       Form Fields
                     </span>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
-                      {Object.entries(entry.formData || {}).map(([key, value]) => {
-                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return null;
-                        if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return null;
-                        if (key === "stationCode" || key === "assetId") return null;
-                        if (key === "natureOfFaultOther" || key === "cableCutByWhomOther") return null;
-
-                        let displayVal = value;
-                        if (key === "natureOfFault" && value === "Other") {
-                          displayVal = entry.formData?.natureOfFaultOther || value;
-                        }
-                        if (key === "cableCutByWhom" && value === "Other") {
-                          displayVal = entry.formData?.cableCutByWhomOther || value;
-                        }
-
-                        return (
-                          <div key={key}>
-                            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{summaryHumanizeFieldName(key)}</span>
-                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{summaryDisplayValue(displayVal, isAllOk)}</strong>
-                          </div>
-                        );
-                      })}
+                      {formFieldItems.map(item => (
+                        <div key={item.key}>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{item.value}</strong>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {/* Footer Metadata (Priority 3) */}
+                {/* Footer Metadata */}
                 <div style={{
                   borderTop: "1px solid #f1f5f9",
                   paddingTop: "10px",
@@ -3626,7 +3696,12 @@ function DailyPositionSummaryTable({
   const divisionMaps: Record<string, Record<string, any[]>> = { Bilaspur: bspMap, Raipur: rprMap, Nagpur: ngpMap };
 
   const displayedForms = useMemo(() => {
-    return DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+    const base = DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
+    const wifi = base.find(f => f.name === "Wi-Fi");
+    if (wifi) {
+      return [...base.filter(f => f.name !== "Wi-Fi"), wifi];
+    }
+    return base;
   }, []);
 
   const handleRowClick = (form: typeof DAILY_POSITION_FORMS[0]) => {
@@ -3676,8 +3751,14 @@ function DailyPositionSummaryTable({
   const grouped = useMemo(() => {
     const activeFaults: typeof DAILY_POSITION_FORMS = [];
     const normalCats: Record<string, typeof DAILY_POSITION_FORMS> = {};
+    let wifiForm: typeof DAILY_POSITION_FORMS[0] | null = null;
 
     for (const form of displayedForms) {
+      if (form.name === "Wi-Fi") {
+        wifiForm = form;
+        continue;
+      }
+
       let hasFault = false;
       if (isSuperAdmin) {
         hasFault = getStatusFromMap(bspMap, form) === "FAULT" || getStatusFromMap(rprMap, form) === "FAULT" || getStatusFromMap(ngpMap, form) === "FAULT";
@@ -3702,6 +3783,10 @@ function DailyPositionSummaryTable({
       if (forms.length > 0) {
         result[cat] = forms;
       }
+    }
+
+    if (wifiForm) {
+      result["Wi-Fi"] = [wifiForm];
     }
 
     return result;
@@ -3784,15 +3869,26 @@ function DailyPositionSummaryTable({
           const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
           let locLabel = "Station";
           let locValue = "";
-          if (entry.stationCode || entry.stationName) {
-            locLabel = "Station";
-            locValue = entry.stationCode || entry.stationName;
-          } else if (entry.section) {
+          const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
+          if (codeOrName) {
+            locLabel = "St. Code";
+            const sList = queries?.stationsQuery?.data?.data || [];
+            const found = sList.find(
+              (s: any) =>
+                String(s.code).toLowerCase() === codeOrName.toLowerCase() ||
+                String(s.name).toLowerCase() === codeOrName.toLowerCase()
+            );
+            if (found) {
+              locValue = found.code;
+            } else {
+              locValue = codeOrName;
+            }
+          } else if (entry.section || entry.formData?.section) {
             locLabel = "Section";
-            locValue = entry.section;
-          } else if (entry.location) {
+            locValue = entry.section || entry.formData?.section;
+          } else if (entry.location || entry.formData?.location) {
             locLabel = "Location";
-            locValue = entry.location;
+            locValue = entry.location || entry.formData?.location;
           }
           
           const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
@@ -3806,7 +3902,7 @@ function DailyPositionSummaryTable({
             }
           }
           const parts = [];
-          if (failureText) parts.push(`Failure: ${failureText}`);
+          if (failureText) parts.push(`Ft.: ${failureText}`);
           if (locValue) parts.push(`${locLabel} : ${locValue}`);
           if (truncatedRemark) parts.push(`Remark : ${truncatedRemark}`);
           return parts.join(" ");
@@ -3978,15 +4074,17 @@ function DailyPositionSummaryTable({
             {Object.entries(grouped).map(([category, forms]) => (
               <div key={category}>
                 {/* Category divider */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "6px 20px 5px", background: "#f4f7fb",
-                  borderBottom: "1px solid var(--line)"
-                }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {category}
-                  </span>
-                </div>
+                {category !== "Wi-Fi" && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 20px 5px", background: "#f4f7fb",
+                    borderBottom: "1px solid var(--line)"
+                  }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {category}
+                    </span>
+                  </div>
+                )}
 
                 {/* Form rows */}
                 {forms.map(form => {
@@ -4230,7 +4328,7 @@ function DailyPositionSummaryTableSuperAdmin({
           <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 500 }}>
             {Object.entries(grouped).map(([category, forms]: [string, any]) => (
               <div key={category}>
-                {category !== "ACTIVE FAULTS" && (
+                {category !== "ACTIVE FAULTS" && category !== "Wi-Fi" && (
                   <div style={{
                     padding: "6px 20px",
                     background: "#f4f7fb",
@@ -4259,8 +4357,8 @@ function DailyPositionSummaryTableSuperAdmin({
                     minHeight: 52,
                     gap: 8,
                     borderBottom: "1px solid var(--line)",
-                    background: category === "ACTIVE FAULTS" ? "rgba(239, 68, 68, 0.02)" : "#fff",
-                    borderLeft: category === "ACTIVE FAULTS" ? "3px solid var(--red)" : "none"
+                    background: (category === "ACTIVE FAULTS" || DIVISIONS.some((div: string) => getStatusFromMap(divisionMaps[div], form) === "FAULT")) ? "rgba(239, 68, 68, 0.02)" : "#fff",
+                    borderLeft: (category === "ACTIVE FAULTS" || DIVISIONS.some((div: string) => getStatusFromMap(divisionMaps[div], form) === "FAULT")) ? "3px solid var(--red)" : "none"
                   }}>
                     <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.name}</span>
                     {DIVISIONS.map((div: string) => {
@@ -4287,7 +4385,7 @@ function DailyPositionSummaryTableSuperAdmin({
                             const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
                             
                             if (codeOrName) {
-                              locLabel = "Station/Code";
+                              locLabel = "St. Code";
                               const sList = queries?.stationsQuery?.data?.data || [];
                               const found = sList.find(
                                 (s: any) =>
@@ -4295,7 +4393,7 @@ function DailyPositionSummaryTableSuperAdmin({
                                   String(s.name).toLowerCase() === codeOrName.toLowerCase()
                               );
                               if (found) {
-                                locValue = `${found.name}/${found.code}`;
+                                locValue = found.code;
                               } else {
                                 locValue = codeOrName;
                               }
@@ -4350,7 +4448,9 @@ function DailyPositionSummaryTableSuperAdmin({
                                     width: "90%",
                                     minWidth: "150px",
                                     boxShadow: "none",
-                                    letterSpacing: "0.2px"
+                                    letterSpacing: "0.2px",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden"
                                   }}
                                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
                                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
@@ -4359,18 +4459,30 @@ function DailyPositionSummaryTableSuperAdmin({
                                     <div style={{ textAlign: "center", width: "100%", fontWeight: 800 }}>FAULT</div>
                                   ) : (
                                     faultDetails.map((detail: any, idx: number) => (
-                                      <div key={idx} style={{ width: "100%" }}>
+                                      <div key={idx} style={{ 
+                                        width: "100%", 
+                                        display: "flex", 
+                                        flexDirection: "row", 
+                                        alignItems: "center", 
+                                        gap: "4px", 
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis"
+                                      }}>
                                         {detail.failureText && (
-                                          <div>
-                                            <span>Failure: </span>
+                                          <span style={{ whiteSpace: "nowrap" }}>
+                                            <span>Ft.: </span>
                                             <span style={{ fontWeight: 800 }}>{detail.failureText}</span>
-                                          </div>
+                                          </span>
+                                        )}
+                                        {detail.failureText && detail.locValue && (
+                                          <span style={{ color: "#cbd5e1" }}>|</span>
                                         )}
                                         {detail.locValue && (
-                                          <div>
+                                          <span style={{ whiteSpace: "nowrap" }}>
                                             <span>{detail.locLabel}: </span>
                                             <span style={{ fontWeight: 800 }}>{detail.locValue}</span>
-                                          </div>
+                                          </span>
                                         )}
                                       </div>
                                     ))
