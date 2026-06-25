@@ -2793,7 +2793,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         return (
           <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
             <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()}>
-              <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)}>X</button>
+              <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)} aria-label="Close">
+                <X size={16} />
+              </button>
               <div className="dp-details-header">
                 <div>
                   <span>Daily Position Record</span>
@@ -2940,7 +2942,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       {rectifyingRecord && (
         <div className="modal-backdrop dp-modal-backdrop" onClick={() => setRectifyingRecord(null)}>
           <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(460px, 95vw)", padding: "24px" }}>
-            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)}>X</button>
+            <button className="modal-close" type="button" onClick={() => setRectifyingRecord(null)} aria-label="Close">
+              <X size={16} />
+            </button>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600", color: "#1e293b" }}>Rectify Fault</h3>
             <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "#64748b" }}>
               Update the rectification date and time for <strong>{rectifyingRecord.formType === "Exchange" && rectifyingRecord.formData?.exchangeName ? rectifyingRecord.formData.exchangeName : rectifyingRecord.formType}</strong> at <strong>{rectifyingRecord.stationCode || rectifyingRecord.stationName || rectifyingRecord.section || "-"}</strong>.
