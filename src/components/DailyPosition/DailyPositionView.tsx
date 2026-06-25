@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X } from "lucide-react";
+import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDate24, formatDateTime24, formatTime24 } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
@@ -1033,13 +1033,14 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "reason") {
-    const REASON_OPTIONS = [
+    const rawOptions = field.options || [
       "Cable Cut",
       "Link Failure",
       "Equipment Failure (STM / MUX)",
       "Mux Card",
       "Power Supply"
     ];
+    const REASON_OPTIONS = rawOptions.filter(opt => opt !== "Other" && opt !== "Others");
 
     const parts = (value || "").split(/,\s*/).map((p: string) => {
       if (p.startsWith("Others:")) return p;
@@ -1354,10 +1355,31 @@ function DailyPositionFieldInput({
     return (
       <div className="dp-field">
         <label>{field.label}{field.required && <span>*</span>}</label>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            minHeight: "42px",
+            padding: "4px",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            background: readOnly ? "#f8fafc" : "#ffffff",
+            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+            width: "100%",
+            boxSizing: "border-box",
+            transition: "border-color 0.15s ease-in-out"
+          }}
+          onMouseEnter={e => {
+            if (!readOnly) e.currentTarget.style.borderColor = "#94a3b8";
+          }}
+          onMouseLeave={e => {
+            if (!readOnly) e.currentTarget.style.borderColor = "#cbd5e1";
+          }}
+        >
           <input
             type="file"
             id="file-upload"
+            disabled={readOnly}
             style={{ display: "none" }}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -1367,28 +1389,79 @@ function DailyPositionFieldInput({
             }}
           />
           <label
-            htmlFor="file-upload"
-            className="export-button"
+            htmlFor={readOnly ? undefined : "file-upload"}
             style={{
-              cursor: "pointer",
-              background: "#f8fafc",
-              color: "#334155",
-              borderColor: "#cbd5e1",
+              cursor: readOnly ? "not-allowed" : "pointer",
+              background: "#f0f7ff",
+              color: "#1d4ed8",
+              border: "1px solid #bfdbfe",
               margin: 0,
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
+              gap: "8px",
+              padding: "6px 14px",
               fontSize: "13px",
-              border: "1px solid #cbd5e1",
-              borderRadius: "4px"
+              fontWeight: 500,
+              borderRadius: "6px",
+              transition: "all 0.15s ease-in-out"
+            }}
+            onMouseEnter={e => {
+              if (!readOnly) {
+                e.currentTarget.style.background = "#dbeafe";
+                e.currentTarget.style.borderColor = "#93c5fd";
+              }
+            }}
+            onMouseLeave={e => {
+              if (!readOnly) {
+                e.currentTarget.style.background = "#f0f7ff";
+                e.currentTarget.style.borderColor = "#bfdbfe";
+              }
             }}
           >
+            <Paperclip size={14} style={{ strokeWidth: 2.2 }} />
             Choose File
           </label>
-          <span style={{ fontSize: "13px", color: "var(--muted)" }}>
-            {value || "No file attached"}
-          </span>
+          <div style={{ width: "1px", height: "22px", backgroundColor: "#e2e8f0", margin: "0 12px" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flex: 1, paddingRight: "8px", minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: "13px",
+                color: value ? "#1e293b" : "#94a3b8",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                userSelect: "none"
+              }}
+            >
+              {value || ""}
+            </span>
+            {value && !readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setValue(field.name, "");
+                  const inputEl = document.getElementById("file-upload") as HTMLInputElement;
+                  if (inputEl) inputEl.value = "";
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "4px",
+                  color: "#94a3b8",
+                  marginLeft: "8px",
+                  transition: "color 0.15s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

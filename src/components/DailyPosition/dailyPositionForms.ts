@@ -116,8 +116,6 @@ const exchangeFields: DailyPositionField[] = [
 export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
   docketField,
   { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
-  { name: "bandwidth", label: "Railway Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
-  { name: "lastTestingTime", label: "IPDSLAM", type: "datetime-local", required: true, placeholder: "Select IPDSLAM Testing Date & Time" },
   { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
   { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
@@ -125,14 +123,12 @@ export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
-  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
+  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "IPDSLAM", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
 
 export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   docketField,
-  { name: "bandwidth", label: "Railway Bandwidth", type: "text", required: true, placeholder: "Example: 100 Mbps, 1 Gbps" },
-  { name: "lastTestingTime", label: "IPDSLAM", type: "datetime-local", required: true, placeholder: "Select IPDSLAM Testing Date & Time" },
   { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
   { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
@@ -140,7 +136,7 @@ export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
-  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "Other"], placeholder: "Select Reason of Failure" },
+  { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "IPDSLAM", "Other"], placeholder: "Select Reason of Failure" },
   { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
 ];
 
@@ -370,11 +366,10 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "stationLobby", label: "Station / Lobby", type: "text", required: true, placeholder: "Enter Station or Lobby name (e.g. BSP Lobby)" },
       { name: "makeModel", label: "Make / Model", type: "select", required: true, options: ["Motorola", "Kenwood", "Icom", "Hytera", "Vertex Standard", "Other"], placeholder: "Select Make / Model" },
       { name: "serialNo", label: "Walkie Talkie Serial No.", type: "text", required: true, placeholder: "Enter Walkie Talkie serial number" },
-      { name: "frequency", label: "Frequency Configuration -MHZ", type: "text", required: true, placeholder: "Enter frequency (e.g. 150.5 MHz)" },
       { name: "powerOutput", label: "Output TX Power", type: "text", required: true, placeholder: "Enter output power (e.g. 5W)" },
       { name: "batteryVoltage", label: "Battery Voltage", type: "text", required: true, placeholder: "Enter battery voltage (e.g. 7.4V)" },
       { name: "batteryCurrent", label: "Battery Current", type: "text", required: true, placeholder: "Enter battery current (e.g. 1.5A)" },
-      { name: "antennaStatus", label: "Antenna", type: "select", required: true, options: ["OK", "Defective", "Missing", "Other"], placeholder: "Select Antenna" },
+      { name: "antennaStatus", label: "Antenna", type: "select", required: true, options: ["OK", "Damage", "Missing", "Other"], placeholder: "Select Antenna" },
       { name: "testDate", label: "Date of Testing", type: "date", required: true, placeholder: "Select Date of Testing" },
       { name: "toBeTestedCount", label: "Total walkie-talkies to be tested", type: "number", required: true, placeholder: "Total count to be tested" },
       { name: "testedCount", label: "Total walkie-talkies tested", type: "number", required: true, placeholder: "Total count tested" },
@@ -390,9 +385,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Workshop maintenance records and battery cell replacements.",
     statusMode: "maintenance",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
-      { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
-      { name: "stationCode", label: "Station/Location", type: "select", placeholder: "Select Station/Location" },
+      { name: "stationCode", label: "Station/Lobby", type: "select", placeholder: "Select Station/Lobby" },
       { name: "testDate", label: "Date", type: "date", required: true, placeholder: "Select Date" },
       { name: "openingDefective", label: "Opening Balance of Defective Sets", type: "number", required: true, placeholder: "Enter opening balance" },
       { name: "receivedFromUser", label: "Defective Sets Received from User Dept", type: "number", required: true, placeholder: "Received from user department" },
