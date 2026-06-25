@@ -118,6 +118,24 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
         return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
       }
     }
+    if (failureTime && !rectificationTime) {
+      const start = new Date(failureTime);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date();
+        const diffMs = end.getTime() - start.getTime();
+        if (diffMs > 0) {
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          const days = Math.floor(diffDays);
+          const hrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          if (days > 0) {
+            return `${days} day${days > 1 ? "s" : ""}`;
+          } else {
+            return `${hrs} hr${hrs > 1 ? "s" : ""}`;
+          }
+        }
+        return "0 days";
+      }
+    }
     if (entry.durationMinutes !== undefined && entry.durationMinutes !== null) {
       const hrs = Math.floor(entry.durationMinutes / 60);
       const mins = entry.durationMinutes % 60;
@@ -399,7 +417,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                 )}
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Failure Time</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Rectified Time</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure Durations</th>
+                <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure durations/Pending</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "left" }}>Faulty Section/station</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "20%", textAlign: "left" }}>Failure Remarks & Action taken</th>
               </tr>
