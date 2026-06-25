@@ -3540,7 +3540,7 @@ function DailyPositionSummaryTable({
 }) {
   const { user: storeUser } = useAppStore();
   const currentUser = user || storeUser;
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ALL_DIVISION_VIEWER";
+  const isSuperAdmin = true; // Always show the multi-division table (admin style) for all logins
   const userDivision = currentUser?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
