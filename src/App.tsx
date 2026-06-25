@@ -3395,11 +3395,8 @@ function DailyPositionDetailsModal({
               .filter(([key]) => locationKeys.includes(key))
               .map(([key, value]) => {
                 let displayVal = value;
-                if (key === "natureOfFault" && value === "Other") {
-                  displayVal = entry.formData?.natureOfFaultOther || value;
-                }
-                if (key === "cableCutByWhom" && value === "Other") {
-                  displayVal = entry.formData?.cableCutByWhomOther || value;
+                if (value === "Other" || value === "Others") {
+                  displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
                 }
                 return {
                   key,
@@ -3412,17 +3409,14 @@ function DailyPositionDetailsModal({
               .filter(([key]) => {
                 if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
                 if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                if (key === "natureOfFaultOther" || key === "cableCutByWhomOther") return false;
+                if (key.endsWith("Other") || key.endsWith("Others")) return false;
                 if (locationKeys.includes(key)) return false;
                 return true;
               })
               .map(([key, value]) => {
                 let displayVal = value;
-                if (key === "natureOfFault" && value === "Other") {
-                  displayVal = entry.formData?.natureOfFaultOther || value;
-                }
-                if (key === "cableCutByWhom" && value === "Other") {
-                  displayVal = entry.formData?.cableCutByWhomOther || value;
+                if (value === "Other" || value === "Others") {
+                  displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
                 }
                 return {
                   key,
