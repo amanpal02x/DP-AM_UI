@@ -104,9 +104,23 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     return `${dateStr} ${timeStr}`;
   };
 
-  const positionTitle = positionType === "MORNING"
-    ? `MORNING POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`
-    : `CURRENT POSITION OF ${formatPositionDate(selectedDate).toUpperCase()}`;
+  const getNextDayFormatted = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, ".");
+  };
+
+  const formatAsOnDate = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const month = d.toLocaleDateString("en-US", { month: "long" });
+    const year = d.getFullYear();
+    return `Position as on ${day} ${month} ${year}`;
+  };
+
+  const positionTitle = formatAsOnDate(selectedDate);
 
   // Helper to get formatted duration text
   const getDurationText = (entry: any) => {
@@ -121,6 +135,24 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
         const hrs = Math.floor(minutes / 60);
         const mins = minutes % 60;
         return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+      }
+    }
+    if (failureTime && !rectificationTime) {
+      const start = new Date(failureTime);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date();
+        const diffMs = end.getTime() - start.getTime();
+        if (diffMs > 0) {
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          const days = Math.floor(diffDays);
+          const hrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          if (days > 0) {
+            return `${days} day${days > 1 ? "s" : ""}`;
+          } else {
+            return `${hrs} hr${hrs > 1 ? "s" : ""}`;
+          }
+        }
+        return "0 days";
       }
     }
     if (entry.durationMinutes !== undefined && entry.durationMinutes !== null) {
@@ -380,11 +412,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               PCSTE/SECR POSITION
             </h2>
             <div style={{ marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
-              {positionTitle}
+              DATE: {getNextDayFormatted(selectedDate)}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", fontSize: "13px", fontWeight: "bold" }}>
               <span>{filterDivision ? `${filterDivision.toUpperCase()} DIVISION` : "BILASPUR / RAIPUR / NAGPUR DIVISION"}</span>
-              <span>DATE: {formatDate(selectedDate)}</span>
+              <span>{positionTitle}</span>
             </div>
           </div>
 
@@ -404,7 +436,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                 )}
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Failure Time</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Rectified Time</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure Durations</th>
+                <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure durations/Pending</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "left" }}>Faulty Section/station</th>
                 <th style={{ border: "1px solid #000000", padding: "6px", width: "20%", textAlign: "left" }}>Failure Remarks & Action taken</th>
               </tr>
@@ -584,13 +616,12 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 padding: "6px",
                                 textAlign: "center",
                                 fontWeight: "bold",
-                                verticalAlign: "middle",
-                                color: div === "Bilaspur" ? "#1e3a8a" : div === "Raipur" ? "#b91c1c" : "#15803d"
+                                verticalAlign: "middle"
                               }}>
                                 {div}
                               </td>
                             )}
-                            <td style={{ border: "1px solid #000000", padding: "6px", color: hasFault ? "#b91c1c" : "inherit" }}>
+                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
                               {failTimeStr}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "6px" }}>
@@ -599,7 +630,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
                               {durationStr}
                             </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal", color: hasFault ? "#b91c1c" : "inherit" }}>
+                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal" }}>
                               {faultySec}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "6px" }}>
