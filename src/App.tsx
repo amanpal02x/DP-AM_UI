@@ -401,6 +401,7 @@ import type {
 type NavKey =
   | "Asset Dashboard"
   | "Daily Position"
+  | "DP Summary"
   | "Master List"
   | "Assets"
   | "LC Gate"
@@ -416,6 +417,7 @@ type NavKey =
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
   "Daily Position": "#/dashboard/daily-position",
+  "DP Summary": "#/dashboard/daily-position-summary",
   "Master List": "#/stations",
   "Assets": "#/assets",
   "LC Gate": "#/gates",
@@ -432,6 +434,7 @@ const navToHash: Record<NavKey, string> = {
 const hashToNav: Record<string, NavKey> = {
   "#/dashboard/asset-management": "Asset Dashboard",
   "#/dashboard/daily-position": "Daily Position",
+  "#/dashboard/daily-position-summary": "DP Summary",
   "#/stations": "Master List",
   "#/assets": "Assets",
   "#/gates": "LC Gate",
@@ -542,6 +545,7 @@ const navItems: Array<{
     { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM"] },
+    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
     { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
@@ -1072,7 +1076,7 @@ function App() {
     const hasDailyPositionAccess = user.accessDailyPosition !== false;
 
     const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
-    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Logs"];
+    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Summary", "DP Logs"];
 
     if (assetRoutes.includes(activeNav) && !hasAssetAccess) {
       if (hasDailyPositionAccess) {
@@ -1245,6 +1249,12 @@ function App() {
           )
         ) : activeNav === "DP Form" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
+        ) : activeNav === "DP Summary" ? (
+          <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
+            <section className="operations-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} forceSuperAdminGrid={true} />
+            </section>
+          </div>
         ) : activeNav === "DP Logs" ? (
           <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
         ) : activeNav === "Feedback" ? (
@@ -1663,7 +1673,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     if (!item.roles.includes(role)) return false;
     if (item.label === "Feedback") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-    const isDpLink = ["Daily Position", "DP Form", "DP Logs"].includes(item.label);
+    const isDpLink = ["Daily Position", "DP Form", "DP Summary", "DP Logs"].includes(item.label);
     if (isAssetLink && !hasAccessAssets) return false;
     if (isDpLink && !hasAccessDailyPosition) return false;
     return true;
@@ -1733,7 +1743,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
       <nav className="nav-list" aria-label="Primary">
         {visibleNav.map((item) => {
           const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-          const isDpLink = ["Daily Position", "DP Form", "DP Logs"].includes(item.label);
+          const isDpLink = ["Daily Position", "DP Form", "DP Summary", "DP Logs"].includes(item.label);
           const hasAccess = (isAssetLink ? hasAccessAssets : true) && (isDpLink ? hasAccessDailyPosition : true);
 
           return (
@@ -3152,10 +3162,6 @@ function DailyPositionDashboardView({
           queries={queries}
         />
       </section>
-
-      <section className="operations-grid" style={{ gridTemplateColumns: "1fr" }}>
-        <DailyPositionSummaryTable user={data.user} queries={queries} showToast={showToast} />
-      </section>
     </div>
   );
 }
@@ -3532,15 +3538,17 @@ function DailyPositionDetailsModal({
 function DailyPositionSummaryTable({
   user,
   queries,
-  showToast
+  showToast,
+  forceSuperAdminGrid
 }: {
   user: any;
   queries?: any;
   showToast: (msg: string) => void;
+  forceSuperAdminGrid?: boolean;
 }) {
   const { user: storeUser } = useAppStore();
   const currentUser = user || storeUser;
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ALL_DIVISION_VIEWER";
+  const isSuperAdmin = forceSuperAdminGrid || currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ALL_DIVISION_VIEWER";
   const userDivision = currentUser?.division || "Bilaspur";
 
   const DIVISIONS = ["Bilaspur", "Raipur", "Nagpur"];
@@ -4136,7 +4144,7 @@ function DailyPositionSummaryTableSuperAdmin({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
         <div>
           <div className="position-summary-title-row">
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Position Summary</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Position Summary of</h3>
             <input
               type="date"
               value={selectedDate}
@@ -4922,18 +4930,31 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
 }
 
 function FeedbackFormView({ showToast }: { showToast: (message: string) => void }) {
+  const [selectedForm, setSelectedForm] = useState("");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Flat list of daily position form names
+  const flatForms = useMemo(() => {
+    const names: string[] = [];
+    DAILY_POSITION_FORMS.forEach((form) => {
+      if (form.category === "Daily Log" || form.name === "Daily Position Log") return;
+      if (!names.includes(form.name)) {
+        names.push(form.name);
+      }
+    });
+    return names.sort();
+  }, []);
+
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
@@ -5009,18 +5030,20 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
             name: file.name,
             type: file.type,
             size: file.size,
-            content
+            content,
           };
         })
       );
 
       await api.feedback.create({
-        description,
-        files: base64Files
+        description: selectedForm ? `[Form: ${selectedForm}]\n${description}` : description,
+        files: base64Files,
+        formName: selectedForm,
       });
 
       showToast("Feedback submitted successfully! Thank you for your feedback.");
       setDescription("");
+      setSelectedForm("");
       setFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -5041,39 +5064,145 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
   };
 
   return (
-    <article className="feedback-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <section className="tabular-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", margin: 0, borderLeft: "none", borderRight: "none", borderRadius: 0 }}>
-        <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left" }}>
+    <article
+      className="feedback-page no-scrollbar"
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      {/* Compact Page Header */}
+      <section
+        className="tabular-header"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 24px",
+          margin: 0,
+          borderLeft: "none",
+          borderRight: "none",
+          borderRadius: 0,
+          background: "#ffffff",
+          borderBottom: "1px solid var(--line)"
+        }}
+      >
+        <div
+          className="header-title-section"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            width: "100%",
+            textAlign: "left",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div
               style={{
-                width: "32px",
-                height: "32px",
+                width: "28px",
+                height: "28px",
                 borderRadius: "50%",
                 background: "#0b6dff",
                 display: "grid",
                 placeItems: "center",
                 color: "#ffffff",
-                boxShadow: "0 4px 10px rgba(11, 109, 255, 0.2)"
+                boxShadow: "0 4px 10px rgba(11, 109, 255, 0.2)",
               }}
             >
-              <MessageSquare size={16} />
+              <MessageSquare size={14} />
             </div>
-            <h2 style={{ margin: 0, fontSize: "22px", lineHeight: "1" }}>Feedback Form</h2>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, lineHeight: "1" }}>Feedback Form</h2>
           </div>
-          <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "var(--muted)" }}>
-            Submit feedback related to Daily Position entries, form issues, suggestions, or report-related problems.
-          </p>
         </div>
       </section>
 
-      {/* Scrollable Form Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
-        <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "32px 24px", background: "#ffffff", border: "1px solid var(--line)", borderLeft: "none", borderRight: "none", borderBottom: "none", borderRadius: 0 }}>
-          <form id="feedback-form-element" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "800px", width: "100%" }}>
+      {/* Main Single Page Form Container */}
+      <div
+        className="no-scrollbar"
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "20px 24px",
+          background: "var(--page)",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch"
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            background: "#ffffff",
+            border: "1px solid var(--line)",
+            borderRadius: "12px",
+            boxShadow:
+              "0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03)",
+            padding: "24px 32px",
+          }}
+        >
+          {/* Form Card Header */}
+          <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: "12px", marginBottom: "16px" }}>
+            <h3 style={{ margin: 0, fontSize: "16px", color: "var(--navy)", fontWeight: 700 }}>Submit Your Feedback</h3>
+            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
+              Please select the Daily Position form, enter your feedback, and attach any relevant files.
+            </p>
+          </div>
+
+          <form
+            id="feedback-form-element"
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+          >
+            {/* Form Selection Dropdown */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>
+                Select Daily Position Form <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
+              </label>
+              <select
+                disabled={loading}
+                value={selectedForm}
+                onChange={(e) => setSelectedForm(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--line)",
+                  background: "#f8fafc",
+                  fontSize: "13px",
+                  color: "var(--navy)",
+                  outline: "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  fontFamily: "inherit",
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                  backgroundPosition: "right 14px center",
+                  backgroundSize: "18px",
+                  backgroundRepeat: "no-repeat",
+                  paddingRight: "36px",
+                }}
+                className="feedback-select"
+              >
+                <option value="">Select a Form (None)</option>
+                {flatForms.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Feedback Description */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>
                 Feedback Description <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
               </label>
               <div style={{ position: "relative" }}>
@@ -5084,17 +5213,17 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                   placeholder="Enter your feedback here..."
                   style={{
                     width: "100%",
-                    height: "200px",
-                    padding: "16px",
-                    borderRadius: "10px",
+                    height: "120px",
+                    padding: "12px",
+                    borderRadius: "8px",
                     border: "1px solid var(--line)",
                     background: "#f8fafc",
-                    fontSize: "14px",
+                    fontSize: "13px",
                     color: "var(--navy)",
                     outline: "none",
                     resize: "none",
                     transition: "all 0.2s ease",
-                    fontFamily: "inherit"
+                    fontFamily: "inherit",
                   }}
                   className="feedback-textarea"
                 />
@@ -5102,10 +5231,10 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                   style={{
                     display: "flex",
                     justifyContent: "flex-end",
-                    fontSize: "12px",
+                    fontSize: "11px",
                     color: "var(--muted)",
-                    marginTop: "6px",
-                    fontWeight: 600
+                    marginTop: "4px",
+                    fontWeight: 600,
                   }}
                 >
                   {description.length} / 2000
@@ -5114,8 +5243,8 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
             </div>
 
             {/* Upload File */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>
                 Upload Files <span style={{ color: "var(--muted)", fontWeight: 500 }}>(Optional)</span>
               </label>
 
@@ -5128,15 +5257,15 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                 style={{
                   border: dragActive ? "2px dashed #0b6dff" : "1.5px dashed #b3d1ff",
                   background: dragActive ? "#edf2ff" : "#fcfdfe",
-                  borderRadius: "12px",
-                  padding: "32px 20px",
+                  borderRadius: "10px",
+                  padding: "20px 16px",
                   textAlign: "center",
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: "12px"
+                  gap: "8px",
                 }}
                 className="feedback-dropzone"
               >
@@ -5151,116 +5280,113 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
                 />
 
                 <div style={{ color: "#0b6dff" }}>
-                  <UploadCloud size={36} />
+                  <UploadCloud size={28} />
                 </div>
 
-                <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>
-                  Drag and drop files here or <span style={{ color: "#0b6dff", textDecoration: "underline" }}>click to browse</span>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>
+                  Drag and drop files here or{" "}
+                  <span style={{ color: "#0b6dff", textDecoration: "underline" }}>click to browse</span>
                 </p>
-                <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, fontWeight: 500 }}>
-                  Supported formats: PDF, JPG, PNG, DOC, DOCX (Max 20MB per file)
+                <p style={{ fontSize: "11px", color: "var(--muted)", margin: 0, fontWeight: 500 }}>
+                  PDF, JPG, PNG, DOC, DOCX (Max 20MB per file)
                 </p>
               </div>
 
-              {/* Selected Files List */}
+              {/* Selected Files List (Compact Tags) */}
               {files.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "4px" }}>
                   {files.map((file, idx) => (
                     <div
                       key={`${file.name}-${idx}`}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "12px",
+                        gap: "6px",
                         background: "#f1f5f9",
-                        padding: "8px 16px",
-                        borderRadius: "8px",
-                        border: "1px solid var(--line)"
+                        padding: "4px 10px",
+                        borderRadius: "20px",
+                        border: "1px solid var(--line)",
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)" }}>{file.name}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>({formatFileSize(file.size)})</span>
-                        <button
-                          onClick={(e) => removeFile(idx, e)}
-                          style={{
-                            background: "rgba(239, 68, 68, 0.1)",
-                            border: "none",
-                            color: "var(--red)",
-                            borderRadius: "50%",
-                            width: "20px",
-                            height: "20px",
-                            display: "grid",
-                            placeItems: "center",
-                            cursor: "pointer",
-                            fontSize: "11px",
-                            fontWeight: 800
-                          }}
-                          type="button"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "var(--navy)",
+                          maxWidth: "150px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {file.name}
+                      </span>
+                      <span style={{ fontSize: "10px", color: "var(--muted)" }}>({formatFileSize(file.size)})</span>
+                      <button
+                        onClick={(e) => removeFile(idx, e)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--red)",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          padding: "0 2px",
+                        }}
+                        type="button"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* Submit Button Inside Card */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  background: "#0b6dff",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 24px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.7 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 4px 12px rgba(11, 109, 255, 0.15)",
+                  transition: "all 0.2s ease",
+                }}
+                className="feedback-submit-btn"
+              >
+                <Send size={14} />
+                <span>{loading ? "Submitting..." : "Submit Feedback"}</span>
+              </button>
+            </div>
           </form>
         </div>
       </div>
 
-      {/* Sticky Bottom Submit Bar */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderTop: "1px solid var(--line)",
-          padding: "16px 24px",
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          borderRadius: 0,
-          border: "1px solid var(--line)",
-          borderLeft: "none",
-          borderRight: "none",
-          borderBottom: "none",
-          boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.02)"
-        }}
-      >
-        <button
-          form="feedback-form-element"
-          type="submit"
-          disabled={loading}
-          style={{
-            background: "#0b6dff",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "8px",
-            padding: "12px 24px",
-            fontSize: "14px",
-            fontWeight: 700,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            boxShadow: "0 4px 12px rgba(11, 109, 255, 0.2)",
-            transition: "all 0.2s ease"
-          }}
-          className="feedback-submit-btn"
-        >
-          <Send size={16} />
-          <span>{loading ? "Submitting..." : "Submit Feedback"}</span>
-        </button>
-      </div>
-
       <style>{`
-        .feedback-textarea:focus {
+        .feedback-page::-webkit-scrollbar,
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .feedback-textarea:focus,
+        .feedback-select:focus {
           border-color: #0b6dff !important;
           background: #ffffff !important;
-          box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.1);
+          box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.08);
         }
         .feedback-dropzone:hover {
           border-color: #0b6dff !important;
@@ -5268,7 +5394,7 @@ function FeedbackFormView({ showToast }: { showToast: (message: string) => void 
         }
         .feedback-submit-btn:hover:not(:disabled) {
           background: #0056cc !important;
-          box-shadow: 0 6px 16px rgba(11, 109, 255, 0.3) !important;
+          box-shadow: 0 6px 16px rgba(11, 109, 255, 0.25) !important;
           transform: translateY(-1px);
         }
       `}</style>
@@ -5319,7 +5445,7 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
   };
 
   return (
-    <article className="feedback-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <article className="feedback-page no-scrollbar" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}>
       <section className="tabular-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", margin: 0, borderLeft: "none", borderRight: "none", borderRadius: 0 }}>
         <div className="header-title-section" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -5359,7 +5485,7 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
       </div>
 
       {/* Feedbacks List */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", padding: 0, scrollbarWidth: "none", msOverflowStyle: "none" }}>
         {isLoading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>Loading user feedback...</div>
         ) : filteredFeedbacks.length === 0 ? (
@@ -5383,6 +5509,12 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
                 <tbody>
                   {filteredFeedbacks.map((fb: any) => {
                     const attachments = Array.isArray(fb.files) ? fb.files : [];
+                    
+                    // Parse form name prefix if exists
+                    const match = fb.description?.match(/^\[Form:\s*([^\]]+)\]\n?([\s\S]*)$/);
+                    const formName = match ? match[1] : null;
+                    const cleanDescription = match ? match[2] : fb.description;
+
                     return (
                       <tr key={fb.id}>
                         <td>
@@ -5397,7 +5529,22 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
                         </td>
                         <td>{fb.createdBy?.division || "HQ"}</td>
                         <td style={{ whiteSpace: "normal", wordBreak: "break-word", fontSize: "13px", lineHeight: "1.5" }}>
-                          {fb.description || <span style={{ color: "var(--muted)", fontStyle: "italic" }}>No description provided.</span>}
+                          {formName && (
+                            <div style={{ marginBottom: "6px" }}>
+                              <span style={{
+                                background: "var(--blue-soft)",
+                                color: "var(--blue)",
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                display: "inline-block"
+                              }}>
+                                📋 {formName}
+                              </span>
+                            </div>
+                          )}
+                          {cleanDescription || <span style={{ color: "var(--muted)", fontStyle: "italic" }}>No description provided.</span>}
                         </td>
                         <td>
                           {attachments.length === 0 ? (
@@ -5437,6 +5584,15 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
           </div>
         )}
       </div>
+
+      <style>{`
+        .feedback-page::-webkit-scrollbar,
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+      `}</style>
     </article>
   );
 }

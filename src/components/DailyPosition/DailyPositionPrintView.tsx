@@ -230,6 +230,17 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     return details.filter(Boolean).join(" | ") || "-";
   };
 
+  const formatWatermarkDate = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const month = d.toLocaleDateString("en-US", { month: "short" });
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  const watermarkText = formatWatermarkDate(selectedDate);
+
   return createPortal(
     <div className="print-preview-overlay" style={{
       position: "fixed",
@@ -249,6 +260,17 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     }}>
       {/* CSS overrides for print display */}
       <style dangerouslySetInnerHTML={{ __html: `
+        .print-watermark {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 0;
+          user-select: none;
+          background-repeat: repeat;
+        }
         @media print {
           #root {
             display: none !important;
@@ -266,7 +288,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             width: 100% !important;
           }
           .print-preview-content {
-            position: static !important;
+            position: relative !important;
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -285,6 +307,17 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           }
           thead {
             display: table-header-group;
+          }
+          .print-watermark {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: -10 !important;
+            background-repeat: repeat !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}} />
@@ -345,6 +378,16 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           fontFamily: "Arial, sans-serif",
           position: "relative"
         }}>
+          {/* Watermark */}
+          <div 
+            className="print-watermark" 
+            style={{
+              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250"><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="black" fill-opacity="0.1" text-anchor="middle" transform="rotate(-30 150 125)">${watermarkText}</text></svg>`
+              )}")`
+            }}
+          />
+
           {/* Action buttons (Print and Close) placed at the top-right corner of the form */}
           <div className="print-exclude" style={{
             position: "absolute",
