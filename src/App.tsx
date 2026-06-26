@@ -24,6 +24,7 @@ import {
   Upload,
   Users,
   Wrench,
+  Wifi,
   X,
   LogOut,
   Layers,
@@ -458,6 +459,7 @@ type AppState = {
   assetStatusFilter: string;
   dpHistoryFilter: "date" | "active-faults" | "resolved-faults";
   dpHistoryCategoryFilter: string;
+  dpHistoryFormTypeFilter: string;
   setActiveNav: (activeNav: NavKey) => void;
   setDivision: (division: string) => void;
   setToken: (token: string | null) => void;
@@ -466,6 +468,7 @@ type AppState = {
   setAssetStatusFilter: (status: string) => void;
   setDpHistoryFilter: (filter: "date" | "active-faults" | "resolved-faults") => void;
   setDpHistoryCategoryFilter: (category: string) => void;
+  setDpHistoryFormTypeFilter: (formType: string) => void;
   logout: () => void;
   dpSelectedCategory: string;
   dpSelectedFormName: string;
@@ -489,7 +492,8 @@ export const useAppStore = create<AppState>((set) => ({
   assetStatusFilter: "",
   dpHistoryFilter: "date",
   dpHistoryCategoryFilter: "",
-  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" }),
+  dpHistoryFormTypeFilter: "",
+  setActiveNav: (activeNav) => set({ activeNav, sidebarOpen: false, assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" }),
   setDivision: (division) => set({ division }),
   setToken: (token) => {
     setAuthToken(token);
@@ -503,10 +507,11 @@ export const useAppStore = create<AppState>((set) => ({
   setAssetStatusFilter: (status) => set({ assetStatusFilter: status }),
   setDpHistoryFilter: (dpHistoryFilter) => set({ dpHistoryFilter }),
   setDpHistoryCategoryFilter: (dpHistoryCategoryFilter) => set({ dpHistoryCategoryFilter }),
+  setDpHistoryFormTypeFilter: (dpHistoryFormTypeFilter) => set({ dpHistoryFormTypeFilter }),
   logout: () => {
     setAuthToken(null);
     setCachedUser(null);
-    set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
+    set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
@@ -523,7 +528,7 @@ const toneIcons = {
   green: Gauge,
   amber: Wrench,
   red: Siren,
-  purple: ShieldCheck,
+  purple: Wifi,
   teal: ShieldCheck
 };
 
@@ -2368,7 +2373,8 @@ function DailyPositionHighPriorityFaultsPanel({
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
       const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-      return !isAllOk;
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return !isAllOk && !isWifi;
     });
 
     // Sort by priority weight first (High=1, Median=2, Low=3), then by failureTime ascending (oldest first)
@@ -2717,6 +2723,14 @@ function CategoryFaultsPageView({
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
 
+  const [selectedDivision, setSelectedDivision] = useState("");
+  const [selectedStation, setSelectedStation] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    setSelectedStation("");
+  }, [selectedDivision]);
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -2766,11 +2780,65 @@ function CategoryFaultsPageView({
   });
 
   const records = (faultsQuery.data?.data || []).filter((r: any) => {
-    if (r.category?.toLowerCase() !== categoryName?.toLowerCase()) return false;
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    return !isAllOk;
+    if (isAllOk) return false;
+
+    // Special check for "Wi-Fi"
+    if (categoryName.toLowerCase() === "wi-fi") {
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return isWifi;
+    }
+
+    return r.category?.toLowerCase() === categoryName?.toLowerCase();
   });
+
+  const sortedRecords = useMemo(() => {
+    return [...records].sort((a: any, b: any) => {
+      const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
+      const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [records]);
+
+  const uniqueDivisions = useMemo(() => {
+    return Array.from(new Set(records.map((r: any) => r.division).filter(Boolean))) as string[];
+  }, [records]);
+
+  const uniqueStations = useMemo(() => {
+    const filteredForStations = selectedDivision
+      ? records.filter((r: any) => r.division === selectedDivision)
+      : records;
+    return Array.from(new Set(filteredForStations.map((r: any) => r.stationCode || r.stationName || r.section).filter(Boolean))) as string[];
+  }, [records, selectedDivision]);
+
+  const filteredRecords = useMemo(() => {
+    return sortedRecords.filter((r: any) => {
+      if (selectedDivision && r.division !== selectedDivision) return false;
+      
+      const stationVal = r.stationCode || r.stationName || r.section || "";
+      if (selectedStation && stationVal !== selectedStation) return false;
+
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const division = String(r.division || "").toLowerCase();
+        const category = String(r.category || "").toLowerCase();
+        const formType = String(r.formType || "").toLowerCase();
+        const station = String(stationVal).toLowerCase();
+        const remarks = String(r.remarks || r.reason || "").toLowerCase();
+        const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
+
+        const match = division.includes(query) ||
+                      category.includes(query) ||
+                      formType.includes(query) ||
+                      station.includes(query) ||
+                      remarks.includes(query) ||
+                      customFields.includes(query);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [sortedRecords, selectedDivision, selectedStation, searchTerm]);
 
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return "-";
@@ -2799,7 +2867,7 @@ function CategoryFaultsPageView({
       </div>
 
       {/* Page Body */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
         {faultsQuery.isLoading ? (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "80px" }}>
             <div className="dp-btn-loader" style={{ borderTopColor: "var(--blue)", width: "32px", height: "32px" }} />
@@ -2810,19 +2878,89 @@ function CategoryFaultsPageView({
             No active faults found for {categoryName}.
           </div>
         ) : (
-          <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Division</th>
-                  <th>Station</th>
-                  <th>Failure Time</th>
-                  <th>Rectification Time</th>
-                  <th>Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record: any) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+            {/* Filters Panel */}
+            <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 150px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+                <ClearableSelect
+                  value={selectedDivision}
+                  onChange={setSelectedDivision}
+                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                >
+                  <option value="">All Divisions</option>
+                  {uniqueDivisions.map(div => (
+                    <option key={div} value={div}>{div}</option>
+                  ))}
+                </ClearableSelect>
+              </div>
+
+              <div style={{ flex: "1 1 180px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
+                <ClearableSelect
+                  value={selectedStation}
+                  onChange={setSelectedStation}
+                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                >
+                  <option value="">All Stations</option>
+                  {uniqueStations.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </ClearableSelect>
+              </div>
+
+              <div style={{ flex: "1 1 0" }} />
+
+              <div style={{ flex: "0 1 280px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search station, remarks..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+
+              {(selectedDivision || selectedStation || searchTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDivision("");
+                    setSelectedStation("");
+                    setSearchTerm("");
+                  }}
+                  className="action-btn text-red"
+                  style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            {filteredRecords.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
+                No active faults matching current criteria.
+              </div>
+            ) : (
+              <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff" }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Division</th>
+                      <th>Station</th>
+                      <th>Failure Time</th>
+                      <th>Rectification Time</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((record: any) => (
                   <tr key={record.id}>
                     <td>{record.division}</td>
                     <td>{record.stationCode || record.stationName || record.section || "-"}</td>
@@ -2890,6 +3028,8 @@ function CategoryFaultsPageView({
           </div>
         )}
       </div>
+    )}
+  </div>
 
       {selectedRecord && (
         <DailyPositionDetailsModal
@@ -3062,6 +3202,23 @@ function DailyPositionDashboardView({
 }) {
   const { role, division: userDivision } = useAppStore();
 
+  const activeFaultsQuery = useQuery({
+    queryKey: ["daily-position-dashboard-active-faults", userDivision],
+    queryFn: () => api.dailyPosition.list({ division: userDivision || "", isFaulty: "true", limit: 500 }),
+    staleTime: 30 * 1000,
+  });
+
+  const wifiFaultsCount = useMemo(() => {
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return isWifi && !isAllOk;
+    });
+    return filtered.length;
+  }, [activeFaultsQuery.data]);
+
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
@@ -3080,6 +3237,14 @@ function DailyPositionDashboardView({
       tone: "red",
       series: [0, 0, 0, 0, 0]
     };
+    const wifiKpi = {
+      id: "wifiFaults",
+      label: "Wi-Fi Faults",
+      value: String(wifiFaultsCount),
+      detail: "Active Wi-Fi faults",
+      tone: "purple" as const,
+      series: [0, 0, 0, 0, 0]
+    };
     const faultsTodayKpi = data.kpis.find(k => k.id === "faultsToday") || {
       id: "faultsToday",
       label: "Faults Today",
@@ -3096,8 +3261,8 @@ function DailyPositionDashboardView({
       tone: "green",
       series: [0, 0, 0, 0, 0]
     };
-    return [faultsKpi, faultsTodayKpi, resolvedTodayKpi];
-  }, [data.kpis]);
+    return [faultsKpi, wifiKpi, faultsTodayKpi, resolvedTodayKpi];
+  }, [data.kpis, wifiFaultsCount]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -3155,7 +3320,7 @@ function DailyPositionDashboardView({
     <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
       <section className="kpi-grid">
         {dpKpis.map((kpi, index) => (
-          <KpiCard key={kpi.id} kpi={kpi} index={index} />
+          <KpiCard key={kpi.id} kpi={kpi} index={index} onCategoryClick={onCategoryClick} />
         ))}
       </section>
 
@@ -3172,7 +3337,7 @@ function DailyPositionDashboardView({
 }
 
 // KPI Card Component
-function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
+function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: number; onCategoryClick?: (categoryName: string) => void }) {
   const Icon = toneIcons[kpi.tone];
   const { setActiveNav, setAssetStatusFilter, setDpHistoryFilter, role } = useAppStore();
 
@@ -3184,14 +3349,16 @@ function KpiCard({ kpi, index }: { kpi: KpiMetric; index: number }) {
     } else if (kpi.label === "Under Maintenance") {
       useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "UNDER_MAINTENANCE" });
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
-      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "" });
+      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
+    } else if (kpi.id === "wifiFaults" || kpi.label === "Wi-Fi Faults") {
+      onCategoryClick?.("Wi-Fi");
     } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved Today" || kpi.label === "Resolved Today") {
-      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "" });
+      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       if (role === "TESTROOM") {
         useAppStore.setState({ activeNav: "DP Form" });
       } else {
-        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "" });
+        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
       }
     }
   };
@@ -3704,11 +3871,9 @@ function DailyPositionSummaryTable({
   const divisionMaps: Record<string, Record<string, any[]>> = { Bilaspur: bspMap, Raipur: rprMap, Nagpur: ngpMap };
 
   const displayedForms = useMemo(() => {
-    const base = DAILY_POSITION_FORMS.filter(form => form.category !== "Daily Log" && form.name !== "Daily Position Log");
-    const wifi = base.find(f => f.name === "Wi-Fi");
-    if (wifi) {
-      return [...base.filter(f => f.name !== "Wi-Fi"), wifi];
-    }
+    const base = DAILY_POSITION_FORMS.filter(
+      form => form.category !== "Daily Log" && form.name !== "Daily Position Log" && form.name !== "Wi-Fi"
+    );
     return base;
   }, []);
 

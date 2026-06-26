@@ -1624,7 +1624,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpCircuitSearch: setSearchTerm,
     dpHistoryFilter,
     dpHistoryCategoryFilter: historyCategory,
-    setDpHistoryCategoryFilter: setHistoryCategory
+    setDpHistoryCategoryFilter: setHistoryCategory,
+    dpHistoryFormTypeFilter: historyFormType,
+    setDpHistoryFormTypeFilter: setHistoryFormType
   } = useAppStore();
 
   const [localViewMode, setLocalViewMode] = useState<"form" | "history" | null>(null);
@@ -1912,7 +1914,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const [historySearch, setHistorySearch] = useState("");
   const [historyDivision, setHistoryDivision] = useState("");
-  const [historyFormType, setHistoryFormType] = useState("");
   const [historyStatus, setHistoryStatus] = useState("");
 
   const uniqueCategories = useMemo(() => {
@@ -2430,13 +2431,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             />
           </div>
         </div>
-        {(historySearch || historyDivision || historyStatus) && (
+        {(historySearch || historyDivision || historyStatus || historyCategory || historyFormType) && (
           <button
             type="button"
             onClick={() => {
               setHistorySearch("");
               setHistoryDivision("");
               setHistoryStatus("");
+              setHistoryCategory("");
+              setHistoryFormType("");
             }}
             className="action-btn text-red"
             style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}

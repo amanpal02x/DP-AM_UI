@@ -427,7 +427,7 @@ textarea {
 
 .kpi-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 10px;
 }
 
@@ -1545,7 +1545,7 @@ textarea {
   .main { margin-left: 250px; }
 
   .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
 
@@ -3747,7 +3747,7 @@ textarea {
 /* Grid responsiveness overrides */
 @media (max-width: 1120px) {
   .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
