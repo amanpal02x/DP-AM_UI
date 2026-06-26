@@ -151,7 +151,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
   },
   {
     category: "Communication & Voice Circuits",
-    name: "FOIS (VSAT)",
+    name: "FOIS",
     badge: "FOIS",
     systemCode: "SECR/TEL/FOIS-02",
     description: "Freight Operations Information System terminal connectivity and central host communications.",

@@ -38,13 +38,32 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
     return !isAllOk;
   });
-  const activeFaultsCount = activeFaultsList.length;
+  // Exclude wifi faults from the active faults count because they are shown separately
+  const activeFaultsCount = activeFaultsList.filter((r: any) => {
+    const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+    return !isWifi;
+  }).length;
 
-  // 2. Calculate Faults Today Count (only today's data, excluding previous days)
-  const faultsTodayList = (todayRecordsRes.data || []).filter((r: any) => {
+  // 2. Calculate Faults Today Count (where failureTime is today)
+  const uniqueRecordsMap = new Map<string, any>();
+  for (const r of [...activeFaultsList, ...(resolvedRecordsRes.data || []), ...(todayRecordsRes.data || [])]) {
+    if (r.id) {
+      uniqueRecordsMap.set(r.id, r);
+    }
+  }
+
+  const faultsTodayList = Array.from(uniqueRecordsMap.values()).filter((r: any) => {
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    return !isAllOk;
+    if (isAllOk) return false;
+    if (!r.failureTime) return false;
+    try {
+      const failDate = new Date(r.failureTime);
+      if (isNaN(failDate.getTime())) return false;
+      return toDateValue(failDate) === todayStr;
+    } catch {
+      return false;
+    }
   });
   const faultsTodayCount = faultsTodayList.length;
 
