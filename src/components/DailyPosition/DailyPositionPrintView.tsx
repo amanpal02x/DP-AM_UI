@@ -319,12 +319,25 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             left: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            z-index: -10 !important;
-            background-repeat: repeat !important;
+            z-index: 1 !important;
+            overflow: hidden !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-        }
+          .print-watermark svg {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-preview-content {
+            position: relative !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            width: 100% !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
       `}} />
 
       {/* Main Printable Document Sheet */}
@@ -383,15 +396,55 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           fontFamily: "Arial, sans-serif",
           position: "relative"
         }}>
-          {/* Watermark */}
-          <div 
-            className="print-watermark" 
+          {/* Watermark — inline SVG tiles that always render in print (background-image is blocked by browsers) */}
+          <div
+            className="print-watermark"
             style={{
-              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
-                `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250"><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="black" fill-opacity="0.1" text-anchor="middle" transform="rotate(-30 150 125)">${watermarkText}</text></svg>`
-              )}")`
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 1,
+              overflow: "hidden",
+              userSelect: "none"
             }}
-          />
+          >
+            {Array.from({ length: 60 }).map((_, i) => {
+              const col = i % 4;
+              const row = Math.floor(i / 4);
+              return (
+                <svg
+                  key={i}
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="300"
+                  height="130"
+                  style={{
+                    position: "absolute",
+                    top: `${row * 130}px`,
+                    left: `${col * 300}px`,
+                    overflow: "visible"
+                  }}
+                >
+                  <text
+                    x="50%"
+                    y="50%"
+                    fontFamily="Arial, sans-serif"
+                    fontSize="20"
+                    fontWeight="bold"
+                    fill="#000000"
+                    fillOpacity="0.07"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    transform="rotate(-30 150 65)"
+                  >
+                    {watermarkText}
+                  </text>
+                </svg>
+              );
+            })}
+          </div>
 
           {/* Action buttons (Print and Close) placed at the top-right corner of the form */}
           <div className="print-exclude" style={{
