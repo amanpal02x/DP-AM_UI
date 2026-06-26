@@ -4551,6 +4551,12 @@ path:focus {
   color: #ffffff !important;
 }
 
+.dp-circuit-list button.active {
+  background: #ffffff !important;
+  color: #114c8f !important;
+  font-weight: 700 !important;
+}
+
 /* Modern Minimalist Edit Profile Modal */
 .modern-backdrop {
   position: fixed;

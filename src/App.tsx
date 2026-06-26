@@ -1583,6 +1583,7 @@ function SidebarDailyPositionAccordion() {
                     <button
                       key={form.name}
                       type="button"
+                      className={isActive ? "active" : ""}
                       style={{
                         width: "100%",
                         padding: "6px 8px",
@@ -1605,7 +1606,7 @@ function SidebarDailyPositionAccordion() {
                       <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span>{form.name}</span>
                         {isCompleted && (
-                          <span style={{ color: isActive ? "#ffffff" : "var(--green)", fontWeight: 700, fontSize: "12px" }}>✓</span>
+                          <span style={{ color: isActive ? "#114c8f" : "var(--green)", fontWeight: 700, fontSize: "12px" }}>✓</span>
                         )}
                       </span>
                     </button>
@@ -2384,7 +2385,7 @@ function DailyPositionHighPriorityFaultsPanel({
     <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gridColumn: "span 2", padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <AlertTriangle size={18} style={{ color: "var(--red)" }} />
+       
           <h3 style={{ margin: 0, fontSize: "17px", color: "var(--navy)", fontWeight: 700 }}>
             Priority Active Faults
           </h3>
