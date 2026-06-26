@@ -2393,8 +2393,7 @@ function DailyPositionHighPriorityFaultsPanel({
   }, [activeFaultsQuery.data]);
 
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return formatDate24(dateStr);
   };
 
   const toLocalDateTimeValue = (date: Date) => {
@@ -2732,8 +2731,7 @@ function CategoryFaultsPageView({
   }, [selectedDivision]);
 
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return formatDate24(dateStr);
   };
 
   const toLocalDateTimeValue = (date: Date) => {
@@ -3899,8 +3897,7 @@ function DailyPositionSummaryTable({
   };
 
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return formatDate24(dateStr);
   };
 
   const getStatusFromMap = (map: Record<string, any[]>, form: typeof DAILY_POSITION_FORMS[0]): "FAULT" | "RECTIFIED" | "NORMAL" | null => {

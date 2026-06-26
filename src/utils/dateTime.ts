@@ -9,12 +9,20 @@ const validDate = (value: string | Date | null | undefined) => {
 export const formatDate24 = (value: string | Date | null | undefined) => {
   const date = validDate(value);
   if (!date) return "-";
-  return date.toLocaleDateString("en-IN", {
+  
+  const formatter = new Intl.DateTimeFormat("en-IN", {
     timeZone: APP_TIME_ZONE,
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
+    day: "numeric",
+    month: "long",
+    year: "2-digit",
   });
+  
+  const parts = formatter.formatToParts(date);
+  const day = parts.find((p) => p.type === "day")?.value || "";
+  const month = parts.find((p) => p.type === "month")?.value || "";
+  const year = parts.find((p) => p.type === "year")?.value || "";
+  
+  return `${day} ${month} ${year}`;
 };
 
 export const formatTime24 = (
