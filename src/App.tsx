@@ -1255,9 +1255,9 @@ function App() {
         ) : activeNav === "DP Form" ? (
           <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
         ) : activeNav === "DP Summary" ? (
-          <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
-            <section className="operations-grid" style={{ gridTemplateColumns: "1fr" }}>
-              <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} forceSuperAdminGrid={true} />
+          <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
+            <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
+              <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} />
             </section>
           </div>
         ) : activeNav === "DP Logs" ? (
@@ -2453,7 +2453,7 @@ function DailyPositionHighPriorityFaultsPanel({
   };
 
   return (
-    <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px", gridColumn: "span 2", padding: "20px" }}>
+    <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gridColumn: "span 2", padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <AlertTriangle size={18} style={{ color: "var(--red)" }} />
@@ -2474,7 +2474,7 @@ function DailyPositionHighPriorityFaultsPanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "220px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {activeFaultsQuery.isLoading ? (
           <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
             <div className="dp-btn-loader" style={{ borderTopColor: "var(--blue)", width: "24px", height: "24px" }} />
@@ -2490,7 +2490,7 @@ function DailyPositionHighPriorityFaultsPanel({
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-            <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff", flex: 1 }}>
+            <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflowY: "auto", background: "#fff", flex: 1 }}>
               <table className="data-table" style={{ fontSize: "12.5px" }}>
                 <thead>
                   <tr>
@@ -3154,7 +3154,7 @@ function DailyPositionCategoryPanel({
   });
 
   return (
-    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "310px" }}>
+    <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Category-wise Fault</h3>
       <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 14, paddingRight: 4 }}>
         {displayData.map(stat => {
@@ -3315,14 +3315,14 @@ function DailyPositionDashboardView({
   }, [data.dailyPositionByCategory]);
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
       <section className="kpi-grid">
         {dpKpis.map((kpi, index) => (
           <KpiCard key={kpi.id} kpi={kpi} index={index} onCategoryClick={onCategoryClick} />
         ))}
       </section>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid" style={{ flex: 1, minHeight: 0 }}>
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
@@ -4129,7 +4129,7 @@ function DailyPositionSummaryTable({
           summaryError={summaryError}
         />
       ) : (
-        <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
+        <article className="panel list-panel" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", flex: 1, minHeight: 0, height: "100%" }}>
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "flex-start", justifyContent: "space-between",
@@ -4240,7 +4240,7 @@ function DailyPositionSummaryTable({
           </div>
 
           {/* Grouped rows */}
-          <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 520 }}>
+          <div className="no-scrollbar" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
             {Object.entries(grouped).map(([category, forms]) => (
               <div key={category}>
                 {/* Category divider */}
@@ -4393,7 +4393,7 @@ function DailyPositionSummaryTableSuperAdmin({
   getRemark, onPrintClick, positionType, setPositionType, maxPickerDate, isFetching, summaryError,
 }: any) {
   return (
-    <article className="panel list-panel" style={{ padding: 0, overflow: "hidden" }}>
+    <article className="panel list-panel" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", flex: 1, minHeight: 0, height: "100%" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
         <div>
@@ -4495,7 +4495,7 @@ function DailyPositionSummaryTableSuperAdmin({
         <>
 
           {/* Grouped rows */}
-          <div className="no-scrollbar" style={{ overflowY: "auto", maxHeight: 500 }}>
+          <div className="no-scrollbar" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
             {Object.entries(grouped).map(([category, forms]: [string, any]) => (
               <div key={category}>
                 {category !== "ACTIVE FAULTS" && category !== "Wi-Fi" && (
