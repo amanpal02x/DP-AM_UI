@@ -116,4 +116,7 @@ export interface DashboardSummary {
   dailyPositionByDivision?: Array<{ division: string; count: number }>;
   dailyPositionByCategory?: Array<{ category: string; count: number }>;
   monthlyFaultsTrend?: Array<{ month: string; faults: number }>;
+  weeklyFaultsTrend?: Array<{ day: string; reported: number; resolved: number }>;
+  dailyFaultsTrend?: Array<{ hour: string; reported: number; resolved: number }>;
+  activeFaultsByDivision?: Array<{ division: string; count: number }>;
 }

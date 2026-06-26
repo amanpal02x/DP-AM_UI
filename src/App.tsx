@@ -52,7 +52,10 @@ import {
   Area,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  LineChart,
+  Line,
+  Legend
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -3138,6 +3141,199 @@ function DailyPositionCategoryPanel({
   );
 }
 
+function ActiveFaultsDivisionPanel({
+  metrics = []
+}: {
+  metrics: Array<{ division: string; count: number }>;
+}) {
+  const totalActive = metrics.reduce((sum, item) => sum + item.count, 0);
+
+  // रायपुर (Orange), बिलासपुर (Blue), नागपुर (Yellow)
+  const divColors: Record<string, string> = {
+    Raipur: "#f97316", // Orange
+    Bilaspur: "#3b82f6", // Blue
+    Nagpur: "#f5b51b", // Yellow
+    Others: "#94a3b8"
+  };
+
+  const chartData = metrics.map(item => ({
+    name: item.division,
+    value: item.count,
+    color: divColors[item.division] || divColors.Others
+  }));
+
+  // If there are zero active faults, add a dummy operational state or keep empty
+  const hasData = totalActive > 0;
+  const pieData = hasData ? chartData : [{ name: "No Active Faults", value: 1, color: "#e2e8f0" }];
+
+  return (
+    <article className="panel division-active-faults-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Division-wise Active Faults</h3>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", minHeight: 220 }}>
+        <div style={{ width: "100%", height: 180, position: "relative" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                innerRadius={55}
+                outerRadius={75}
+                paddingAngle={hasData ? 2 : 0}
+                stroke="none"
+              >
+                {pieData.map((entry, idx) => (
+                  <Cell key={entry.name || idx} fill={entry.color} />
+                ))}
+              </Pie>
+              {hasData && <Tooltip formatter={(val) => [`${val} Active`, "Faults"]} />}
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            pointerEvents: "none"
+          }}>
+            <strong style={{ fontSize: 24, fontWeight: 800, color: "var(--navy)", display: "block", lineHeight: 1 }}>{totalActive}</strong>
+            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>Active</span>
+          </div>
+        </div>
+
+        {/* Customized Legend matching the user's second screenshot */}
+        <div className="division-active-legend" style={{ display: "flex", justifyContent: "space-around", width: "100%", marginTop: 8, padding: "0 8px" }}>
+          {metrics.map((metric) => (
+            <div key={metric.division} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: divColors[metric.division] || divColors.Others }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>{metric.division}</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", marginTop: 2 }}>{metric.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionTrendsPanel({
+  weeklyTrend = [],
+  dailyTrend = []
+}: {
+  weeklyTrend: Array<{ day: string; reported: number; resolved: number }>;
+  dailyTrend: Array<{ hour: string; reported: number; resolved: number }>;
+}) {
+  const [range, setRange] = useState<"weekly" | "daily">("weekly");
+
+  const chartData = range === "weekly"
+    ? weeklyTrend
+    : dailyTrend.map(d => ({ ...d, day: d.hour })); // normalize X-axis key to "day"
+
+  // Customize custom tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ backgroundColor: "#fff", border: "1px solid #cbd5e1", padding: "8px 12px", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p style={{ margin: "0 0 4px 0", fontSize: 12, fontWeight: 700, color: "#475569" }}>{payload[0].payload.day}</p>
+          <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#3b82f6" }}>Reported: <strong style={{ fontWeight: 800 }}>{payload[0].value}</strong></p>
+          {payload[1] && (
+            <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#10b981" }}>Resolved: <strong style={{ fontWeight: 800 }}>{payload[1].value}</strong></p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <article className="panel weekly-fault-trends-panel" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
+          {range === "weekly" ? "Weekly Fault Trends" : "Daily Fault Trends"}
+        </h3>
+        <select
+          value={range}
+          onChange={(e) => setRange(e.target.value as any)}
+          style={{
+            padding: "4px 10px",
+            fontSize: 12,
+            fontWeight: 600,
+            borderRadius: 6,
+            border: "1px solid #cbd5e1",
+            outline: "none",
+            cursor: "pointer",
+            backgroundColor: "#fff",
+            color: "#475569"
+          }}
+        >
+          <option value="weekly">7 Days</option>
+          <option value="daily">Today (24h)</option>
+        </select>
+      </div>
+
+      <div style={{ flex: 1, width: "100%", height: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorReported" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.01}/>
+              </linearGradient>
+              <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0.01}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#64748b" }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#64748b" }}
+              domain={[0, 'dataMax + 2']}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="reported"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorReported)"
+              dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
+              activeDot={{ r: 6 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="resolved"
+              stroke="#10b981"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorResolved)"
+              dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
+              activeDot={{ r: 6 }}
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
+              formatter={(value) => <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{value.charAt(0).toUpperCase() + value.slice(1)}</span>}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </article>
+  );
+}
+
 function DailyPositionDashboardView({
   data,
   openPanel,
@@ -3294,6 +3490,16 @@ function DailyPositionDashboardView({
         ))}
       </section>
 
+      {/* Row 2 (Middle Section): Division Active Faults & Weekly Trends */}
+      <section className="dashboard-grid" style={{ marginTop: 0 }}>
+        <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+        <DailyPositionTrendsPanel
+          weeklyTrend={data.weeklyFaultsTrend || []}
+          dailyTrend={data.dailyFaultsTrend || []}
+        />
+      </section>
+
+      {/* Row 3 (Bottom Section): Category Breakdown & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0, flex: 1, minHeight: 0 }}>
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
