@@ -3510,27 +3510,26 @@ function DailyPositionDetailsModal({
         </button>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            Daily Position Details
-          </span>
-          <h2 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+          <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
             {detailsTitle || detailsRecord[0]?.formType || "Daily Position"}
           </h2>
-          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
-            {formatDate(selectedDate)} · {detailsRecord.length} {detailsRecord.length === 1 ? "entry" : "entries"} submitted
-          </p>
         </div>
 
         {/* Content list */}
-        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
+        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#fff" }}>
           {detailsRecord.filter((e: any) => e.status !== "DRAFT").map((entry: any, index: number) => {
             const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
             const effectiveStatus = entry.positionStatus || entry.status;
             const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
+<<<<<<< HEAD
             const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
 
+=======
+            const locationKeys = ["majorSection", "section", "stationCode", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
+            
+>>>>>>> a872d09 (model details update)
             const locationItems = Object.entries(entry.formData || {})
               .filter(([key]) => locationKeys.includes(key))
               .map(([key, value]) => {
@@ -3545,14 +3544,9 @@ function DailyPositionDetailsModal({
                 };
               });
 
-            const formFieldItems = Object.entries(entry.formData || {})
-              .filter(([key]) => {
-                if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
-                if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                if (key.endsWith("Other") || key.endsWith("Others")) return false;
-                if (locationKeys.includes(key)) return false;
-                return true;
-              })
+            const howKeys = ["natureOfFault", "nameOfFault", "videoClarity", "audioClarity", "cableCutByWhom", "cableType", "systemType"];
+            const howItems = Object.entries(entry.formData || {})
+              .filter(([key]) => howKeys.includes(key))
               .map(([key, value]) => {
                 let displayVal = value;
                 if (value === "Other" || value === "Others") {
@@ -3566,6 +3560,7 @@ function DailyPositionDetailsModal({
               });
 
             return (
+<<<<<<< HEAD
               <div key={entry.id} style={{
                 border: "1px solid var(--line)",
                 borderRadius: "10px",
@@ -3575,6 +3570,15 @@ function DailyPositionDetailsModal({
                 boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
               }}>
                 {/* Subtitle / Header inside card */}
+=======
+              <Fragment key={entry.id}>
+                <div style={{
+                  background: "#fff",
+                  position: "relative",
+                  padding: "12px 0",
+                }}>
+                 {/* Subtitle / Header inside card */}
+>>>>>>> a872d09 (model details update)
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
                   <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
                     {isSuperAdmin
@@ -3605,36 +3609,73 @@ function DailyPositionDetailsModal({
                 {/* Location Details (Priority 1) */}
                 {locationItems.length > 0 && (
                   <div style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                    marginBottom: "14px"
+                    marginBottom: "14px",
+                    borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
                   }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
-                      Location Details
-                    </span>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
                       {locationItems.map(item => (
                         <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 650 }}>{item.value}</strong>
+                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Remarks & Reason block (Priority 2 - Directly after Location Details) */}
-                {isFault ? (
+                {/* Main Information: Fault Timing (Priority 2) */}
+                {entry.failureTime && (
                   <div style={{
-                    marginBottom: "14px"
+                    marginBottom: "14px",
+                    borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
                   }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                      <div>
+                        <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
+                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
+                      </div>
+                      <div>
+                        <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
+                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
+                      </div>
+                      {entry.durationText && (
+                        <div>
+                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Nature of Fault (Priority 3) */}
+                {howItems.length > 0 && (
+                  <div style={{
+                    marginBottom: "14px",
+                    borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                      {howItems.map(item => (
+                        <div key={item.key}>
+                          <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
+                {isFault ? (
+                  <div style={{ marginBottom: "14px" }}>
+                    <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
                       Reason / Remarks
                     </span>
-                    <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.08)" }}>
-                      <strong style={{ fontWeight: 500 }}>
+                    <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                      <strong style={{ fontWeight: 700 }}>
                         {entry.reason || entry.remarks || "No reason specified"}
                         {showRemarks && ` · ${entry.remarks}`}
                       </strong>
@@ -3642,69 +3683,15 @@ function DailyPositionDetailsModal({
                   </div>
                 ) : (
                   (entry.remarks || entry.reason) && (
-                    <div style={{
-                      marginBottom: "14px"
-                    }}>
-                      <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                    <div style={{ marginBottom: "14px" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
                         Remarks
                       </span>
-                      <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(34, 197, 94, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(34, 197, 94, 0.08)" }}>
-                        <strong style={{ fontWeight: 500 }}>{entry.remarks || entry.reason}</strong>
+                      <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                        <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
                       </div>
                     </div>
                   )
-                )}
-
-                {/* Main Information: Fault Timing (Priority 3) */}
-                <div style={{
-                  background: isFault ? "rgba(239, 68, 68, 0.03)" : "rgba(34, 197, 94, 0.03)",
-                  border: `1px solid ${isFault ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)"}`,
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                  marginBottom: "14px"
-                }}>
-                  {isFault ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Failure Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.failureTime)}</strong>
-                        </div>
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Rectification Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.rectificationTime)}</strong>
-                        </div>
-                      </div>
-
-                      {entry.durationText && (
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration of Failure</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.durationText}</strong>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>✔ System Operational</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional Form Fields (Priority 4) */}
-                {formFieldItems.length > 0 && (
-                  <div style={{ marginBottom: "12px" }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
-                      Form Fields
-                    </span>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
-                      {formFieldItems.map(item => (
-                        <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{item.value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 )}
 
                 {/* Footer Metadata */}
@@ -3724,8 +3711,25 @@ function DailyPositionDetailsModal({
                   )}
                 </div>
               </div>
-            );
-          })}
+              {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (
+                <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
+                  <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
+                    <defs>
+                      <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#334155" stopOpacity={0} />
+                        <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
+                        <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
+                        <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
+                  </svg>
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
         </div>
       </div>
     </div>
