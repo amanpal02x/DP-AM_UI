@@ -124,17 +124,20 @@ const divisionOptionLabel = (division: string) => {
   return code ? `${longName} (${code})` : division;
 };
 
-const humanizeFieldName = (key: string) => {
+const humanizeFieldName = (key: string, formType?: string) => {
   const labels: Record<string, string> = {
     actionType: "Action",
     checkedAt: "Checked At",
-    icmsEntryNo: "ICMS Entry No./Docket No.",
+    icmsEntryNo: formType === "CFTM Conference"
+      ? "Failure Reg. Entry No."
+      : (formType === "Video Conferencing with Divisions" ? "Docket No." : "ICMS Entry No./Docket No."),
     stationCode: "Station",
     assetId: "Linked Asset",
     majorSection: "Major Section",
     failureTime: "Failure Time",
     rectificationTime: "Rectification Time",
     durationText: "Duration of Failure",
+    remarks: "Failures details",
   };
   if (labels[key]) return labels[key];
   return key
@@ -468,6 +471,8 @@ function SearchableDropdown({
   placeholder,
   required,
   readOnly,
+  clearable = true,
+  searchable = true,
 }: {
   options: Array<string | { value: string; label: string }>;
   value: string;
@@ -475,6 +480,8 @@ function SearchableDropdown({
   placeholder: string;
   required?: boolean;
   readOnly?: boolean;
+  clearable?: boolean;
+  searchable?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -560,13 +567,13 @@ function SearchableDropdown({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          marginRight: value && !readOnly ? "24px" : "0px",
+          marginRight: value && !readOnly && clearable ? "24px" : "0px",
           color: value ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
         }}>
           {selectedOpt ? selectedOpt.label : placeholder}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={e => e.stopPropagation()}>
-          {value && !readOnly && (
+          {value && !readOnly && clearable && (
             <span
               role="button"
               tabIndex={0}
@@ -639,25 +646,27 @@ function SearchableDropdown({
           }}
         >
           {/* Search Input Box */}
-          <div style={{ padding: "4px 4px 8px 4px" }}>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: "100%",
-                minHeight: "36px",
-                padding: "8px 12px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                fontSize: "13px",
-                outline: "none"
-              }}
-              onClick={(e) => e.stopPropagation()} // Prevent closing dropdown when clicking input
-            />
-          </div>
+          {searchable && (
+            <div style={{ padding: "4px 4px 8px 4px" }}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: "36px",
+                  padding: "8px 12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  outline: "none"
+                }}
+                onClick={(e) => e.stopPropagation()} // Prevent closing dropdown when clicking input
+              />
+            </div>
+          )}
 
           {/* Scrollable list */}
           <div style={{ overflowY: "auto", flex: 1 }}>
@@ -716,6 +725,7 @@ function DailyPositionFieldInput({
   metadata,
   selectedDivision,
   readOnly,
+  formName,
 }: {
   field: DailyPositionField;
   value: any;
@@ -724,9 +734,11 @@ function DailyPositionFieldInput({
   metadata: any;
   selectedDivision: string;
   readOnly: boolean;
+  formName: string;
 }) {
   const majorSections = metadata?.majorSections || [];
   const selectedMajor = majorSections.find((section: any) => section.name === values.majorSection);
+
   const sections = selectedMajor?.sections || [];
   const selectedDivisionAliases = divisionAliases(selectedDivision);
   const selectedSectionCodes = sectionStationCodes(values.section);
@@ -763,6 +775,30 @@ function DailyPositionFieldInput({
       searchInputRef.current.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (field.name === "stationCode") {
+      if (formName === "CFTM Conference") {
+        if (selectedDivision === "Nagpur" && value !== "NGP Div") {
+          setValue("stationCode", "NGP Div");
+        } else if (selectedDivision === "Raipur" && value !== "R Div") {
+          setValue("stationCode", "R Div");
+        }
+      } else if (formName === "Hotline") {
+        if (selectedDivision === "Nagpur" && value !== "(War Room) DM/HQ to NGP Comm. CNL") {
+          setValue("stationCode", "(War Room) DM/HQ to NGP Comm. CNL");
+        } else if (selectedDivision === "Raipur" && value !== "(War Room) DM/HQ to R Comm. CNL") {
+          setValue("stationCode", "(War Room) DM/HQ to R Comm. CNL");
+        } else if (selectedDivision === "Bilaspur") {
+          // For Bilaspur, clear any pre-filled single values from Nagpur/Raipur
+          const hotlineFixedValues = ["(War Room) DM/HQ to NGP Comm. CNL", "(War Room) DM/HQ to R Comm. CNL"];
+          if (hotlineFixedValues.includes(value)) {
+            setValue("stationCode", "");
+          }
+        }
+      }
+    }
+  }, [formName, selectedDivision, field.name, value, setValue]);
 
   if (field.name === "nameOfFault") {
     const FAULT_OPTIONS = [
@@ -1290,6 +1326,252 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "stationCode") {
+    if (formName === "CFTM Conference") {
+      let customOptions: string[] = [];
+      if (selectedDivision === "Bilaspur") {
+        customOptions = ["BSP HQ", "BSP Div"];
+      } else if (selectedDivision === "Nagpur") {
+        customOptions = ["NGP Div"];
+      } else if (selectedDivision === "Raipur") {
+        customOptions = ["R Div"];
+      }
+
+      return (
+        <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
+          <label>{field.label}{field.required && <span>*</span>}</label>
+          <SearchableDropdown
+            options={customOptions}
+            value={value}
+            onChange={(val) => setValue(field.name, val)}
+            placeholder={field.placeholder || "Select Location"}
+            required={field.required}
+            readOnly={readOnly}
+            clearable={selectedDivision !== "Nagpur" && selectedDivision !== "Raipur"}
+            searchable={selectedDivision !== "Nagpur" && selectedDivision !== "Raipur"}
+          />
+        </div>
+      );
+    }
+
+    if (formName === "Video Conferencing with Divisions") {
+      let customOptions: string[] = [];
+      if (selectedDivision === "Bilaspur") {
+        customOptions = ["5th floor", "3rd floor", "4th floor", "GM Camp Office", "DIV Office BSP"];
+      } else if (selectedDivision === "Nagpur") {
+        customOptions = ["DIV Office NGP", "STTC NITR"];
+      } else if (selectedDivision === "Raipur") {
+        customOptions = ["GM Camp Office R", "DIV Office"];
+      }
+
+      return (
+        <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
+          <label>{field.label}{field.required && <span>*</span>}</label>
+          <SearchableDropdown
+            options={customOptions}
+            value={value}
+            onChange={(val) => setValue(field.name, val)}
+            placeholder={field.placeholder || "Select Location"}
+            required={field.required}
+            readOnly={readOnly}
+          />
+        </div>
+      );
+    }
+
+    if (formName === "Hotline") {
+      // Nagpur and Raipur: single pre-filled, read-only
+      if (selectedDivision === "Nagpur" || selectedDivision === "Raipur") {
+        const fixedValue = selectedDivision === "Nagpur"
+          ? "(War Room) DM/HQ to NGP Comm. CNL"
+          : "(War Room) DM/HQ to R Comm. CNL";
+        return (
+          <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
+            <label>{field.label}{field.required && <span>*</span>}</label>
+            <input
+              type="text"
+              value={fixedValue}
+              readOnly
+              disabled
+              style={{
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: "#f8fafc",
+                color: "#64748b",
+                fontSize: "14px",
+                cursor: "not-allowed",
+                boxSizing: "border-box"
+              }}
+            />
+          </div>
+        );
+      }
+
+      // Bilaspur: multi-select checkbox dropdown
+      const HOTLINE_BSP_OPTIONS = [
+        "DPC to Crew Lobby",
+        "(War Room) DM/HQ to RB Dy. Controller",
+        "(War Room) DM/HQ to BSP By M/L",
+        "(War Room) DM/HQ to DM/DIV (War Room)"
+      ];
+
+      const hotlineParts = (value || "").split(/,\s*/).map((p: string) => p.trim()).filter(Boolean);
+      const hotlineSelected = HOTLINE_BSP_OPTIONS.filter(opt => hotlineParts.includes(opt));
+
+      const hotlineToggle = (opt: string) => {
+        if (readOnly) return;
+        let nextParts: string[];
+        if (hotlineParts.includes(opt)) {
+          nextParts = hotlineParts.filter((p: string) => p !== opt);
+        } else {
+          nextParts = [...hotlineParts.filter((p: string) => HOTLINE_BSP_OPTIONS.includes(p)), opt];
+          nextParts.sort((a, b) => HOTLINE_BSP_OPTIONS.indexOf(a) - HOTLINE_BSP_OPTIONS.indexOf(b));
+        }
+        setValue(field.name, nextParts.join(", "));
+      };
+
+      const hotlineDisplayValue = () => {
+        if (hotlineSelected.length === 0) return null;
+        return hotlineSelected.join(", ");
+      };
+
+      const filteredHotlineOptions = HOTLINE_BSP_OPTIONS.filter(opt =>
+        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const toggleHotlineDropdown = () => {
+        if (readOnly) return;
+        if (!isOpen) setSearchTerm("");
+        setIsOpen(!isOpen);
+      };
+
+      return (
+        <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+          <label>{field.label}{field.required && <span>*</span>}</label>
+          <div className="multi-dropdown" style={{ position: "relative" }}>
+            <button
+              type="button"
+              className="multi-dropdown-trigger"
+              disabled={readOnly}
+              onClick={toggleHotlineDropdown}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly ? "#f8fafc" : "#ffffff",
+                color: readOnly ? "#64748b" : "#1e293b",
+                fontSize: "14px",
+                textAlign: "left",
+                cursor: readOnly ? "not-allowed" : "pointer"
+              }}
+            >
+              <span style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                color: hotlineSelected.length ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+              }}>
+                {hotlineDisplayValue() || field.placeholder || "Select Location"}
+              </span>
+              <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
+            </button>
+
+            {isOpen && !readOnly && (
+              <div
+                className="multi-dropdown-menu"
+                style={{
+                  position: "absolute",
+                  zIndex: 100,
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  marginTop: "4px",
+                  maxHeight: "300px",
+                  display: "flex",
+                  flexDirection: "column",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  background: "#ffffff",
+                  boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                  padding: "6px"
+                }}
+              >
+                <div style={{ padding: "4px 4px 8px 4px" }}>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search location..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: "100%",
+                      minHeight: "36px",
+                      padding: "8px 12px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none"
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div style={{ overflowY: "auto", flex: 1 }}>
+                  {filteredHotlineOptions.map(opt => {
+                    const checked = hotlineSelected.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#1e293b",
+                          margin: 0,
+                          transition: "background 0.15s"
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hotlineToggle(opt);
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          className="dp-checkbox"
+                          checked={checked}
+                          disabled={readOnly}
+                          onChange={() => {}}
+                        />
+                        <span>{opt}</span>
+                      </div>
+                    );
+                  })}
+                  {filteredHotlineOptions.length === 0 && (
+                    <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                      No locations found
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     const hasOthers = value === "Others";
     const othersText = values.stationCodeOther || "";
 
@@ -1706,12 +1988,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         }
         continue;
       }
-      if (field.name === "natureOfFaultOther") {
-        if (values.natureOfFault === "Other") {
-          list.push(field);
-        }
-        continue;
-      }
       list.push(field);
       if (field.type === "select" && (values[field.name] === "Other" || values[field.name] === "Others")) {
         const otherFieldName = `${field.name}Other`;
@@ -2045,10 +2321,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         next.cableCutByWhomOther = "";
       }
 
-      if (name === "natureOfFault" && nextValue !== "Other") {
-        next.natureOfFaultOther = "";
-      }
-
       return next;
     });
   };
@@ -2066,7 +2338,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       majorSection: values.majorSection || null,
       section: values.section || null,
       stationCode: values.stationCode || null,
-      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : (station?.name || null),
+      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline") ? (values.stationCode || null) : (station?.name || null)),
       assetId: values.assetId || null,
       telecomAsset: selectedForm.name,
       status: isDraft ? "DRAFT" : (isOk ? "OPERATIONAL" : statusFromForm(selectedForm, values)),
@@ -2417,7 +2689,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         <div style={{ flex: "1 1 0" }} />
         {/* Search bar on right */}
         <div style={{ flex: "0 1 260px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Remarks, Section...</label>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Failures details, Section...</label>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -2459,7 +2731,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <th>Status</th>
               <th>Failure Time</th>
               <th>Rectification Time</th>
-              <th>Remarks</th>
+              <th>Failures details</th>
               <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
@@ -2636,6 +2908,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       metadata={metadata}
                       selectedDivision={selectedDivision}
                       readOnly={isCompletedToday && !editingRecordId}
+                      formName={selectedForm.name}
                     />
                   ))}
                 </div>
@@ -2673,7 +2946,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     <table className="data-table dp-recent-table">
                       <thead>
                         <tr>
-                          {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => (
+                           {activeFields.filter(f => f.name !== "cableCutByWhomOther").map(field => (
                             <th key={field.name}>{field.label}</th>
                           ))}
                           <th>Status</th>
@@ -2700,7 +2973,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                             }
                             className="dp-recent-row"
                           >
-                            {activeFields.filter(f => f.name !== "natureOfFaultOther" && f.name !== "cableCutByWhomOther").map(field => {
+                            {activeFields.filter(f => f.name !== "cableCutByWhomOther").map(field => {
                               let val = record.formData?.[field.name];
                               if (val === "Other" || val === "Others") {
                                 val = record.formData?.[`${field.name}Other`] || record.formData?.[`${field.name}Others`] || val;
@@ -2989,7 +3262,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     }
                     return {
                       key,
-                      label: humanizeFieldName(key),
+                      label: humanizeFieldName(key, detailsRecord.formType),
                       value: displayValue(displayVal, isAllOk)
                     };
                   });
@@ -3012,7 +3285,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
               {/* Reason & Remarks Section (Priority 2) */}
               <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Remarks</h3>
+                <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Failures details</h3>
                 <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
                   <strong style={{ fontWeight: 500 }}>
                     {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System Operational") : (
@@ -3060,7 +3333,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     }
                     return {
                       key,
-                      label: humanizeFieldName(key),
+                      label: humanizeFieldName(key, detailsRecord.formType),
                       value: displayValue(displayVal, isAllOk)
                     };
                   });

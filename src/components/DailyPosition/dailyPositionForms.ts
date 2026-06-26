@@ -47,16 +47,74 @@ const timingFields: DailyPositionField[] = [
 
 const reasonRemarkFields: DailyPositionField[] = [
   { name: "reason", label: "Reason of Failure", type: "text", required: true, placeholder: "Enter reason" },
-  { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter remarks" },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
 ];
 
 const standardFaultFields: DailyPositionField[] = [
   docketField,
   ...hierarchyFields,
-  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
-  { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
   ...timingFields,
   ...reasonRemarkFields,
+];
+
+export const CFTM_CONFERENCE_FIELDS: DailyPositionField[] = [
+  {
+    name: "icmsEntryNo",
+    label: "Failure Reg. Entry No.",
+    type: "text",
+    placeholder: "Enter Failure Reg. Entry No."
+  },
+  { name: "stationCode", label: "Location", type: "select", placeholder: "Select Location" },
+  ...timingFields,
+  {
+    name: "reason",
+    label: "Reason of Failure",
+    type: "select",
+    required: true,
+    options: ["Phone fault", "Exchange", "Cable fault", "Other"],
+    placeholder: "Select Reason of Failure"
+  },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
+];
+
+export const VIDEO_CONFERENCING_FIELDS: DailyPositionField[] = [
+  {
+    name: "icmsEntryNo",
+    label: "Docket No.",
+    type: "text",
+    placeholder: "Enter Docket No."
+  },
+  { name: "stationCode", label: "Location", type: "select", placeholder: "Select Location" },
+  ...timingFields,
+  {
+    name: "reason",
+    label: "Reason of Failure",
+    type: "select",
+    required: true,
+    options: [
+      "Codec Issues",
+      "Link Failure",
+      "Equipment Failure (Audio)",
+      "Equipment Failure (Video)",
+      "Other"
+    ],
+    placeholder: "Select Reason of Failure"
+  },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
+];
+
+export const HOTLINE_FIELDS: DailyPositionField[] = [
+  { name: "stationCode", label: "Location", type: "select", placeholder: "Select Location" },
+  ...timingFields,
+  {
+    name: "reason",
+    label: "Reason of Failure",
+    type: "select",
+    required: true,
+    options: ["Handset Failure", "Link Failure", "Cable Failure", "Other"],
+    placeholder: "Select Reason of Failure"
+  },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
 ];
 
 const exchangeFields: DailyPositionField[] = [
@@ -106,7 +164,7 @@ const exchangeFields: DailyPositionField[] = [
   },
   {
     name: "remarks",
-    label: "Remarks",
+    label: "Failures details",
     type: "textarea",
     fullWidth: true,
     placeholder: "Enter observations, troubleshooting details, action taken, or additional remarks"
@@ -116,28 +174,24 @@ const exchangeFields: DailyPositionField[] = [
 export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
   docketField,
   { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
-  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
-  { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
   { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "IPDSLAM", "Other"], placeholder: "Select Reason of Failure" },
-  { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional failures details" },
 ];
 
 export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   docketField,
-  { name: "natureOfFault", label: "Nature of Fault", type: "select", required: true, options: ["Equipment", "Link", "Power", "Other"], placeholder: "Select Nature of Fault" },
-  { name: "natureOfFaultOther", label: "Nature of Fault (Other)", type: "text", required: true, placeholder: "Enter nature of fault" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
   { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
   { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Gateway Down", "Fiber Cut", "Equipment Failure", "Power Issue", "IPDSLAM", "Other"], placeholder: "Select Reason of Failure" },
-  { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional remarks" },
+  { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations, troubleshooting details, or additional failures details" },
 ];
 
 export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
@@ -163,15 +217,15 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     badge: "HOTLINE",
     systemCode: "SECR/TEL/HOT-03",
     description: "Direct voice hotline linking General Manager to CRB.",
-    fields: standardFaultFields,
+    fields: HOTLINE_FIELDS,
   },
   {
     category: "Communication & Voice Circuits",
     name: "Video Conferencing with Divisions",
     badge: "VC-D",
     systemCode: "SECR/TEL/VC-04",
-    description: "Daily video conference link connecting HQ to divisional heads.",
-    fields: standardFaultFields,
+    description: "TPaaS video conference link connecting HQ to divisional heads",
+    fields: VIDEO_CONFERENCING_FIELDS,
   },
   {
     category: "Communication & Voice Circuits",
@@ -217,7 +271,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     badge: "CONF",
     systemCode: "SECR/TEL/CONF-06",
     description: "Conference circuit for Chief Freight Transportation Manager operations.",
-    fields: standardFaultFields,
+    fields: CFTM_CONFERENCE_FIELDS,
   },
 
   {
@@ -273,7 +327,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
       { name: "reason", label: "Reason of Failure", type: "text", required: true, placeholder: "Enter reason of cable cut (e.g. JCB digging)" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, joint type, or restoration remarks" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations, joint type, or restoration remarks" },
     ],
   },
   {
@@ -294,7 +348,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "rectifiedJoints", label: "Temporary Joints Rectified", type: "number", placeholder: "Rectified joints count" },
       { name: "rectifiedDateTime", label: "Temporary Joints Rectified (Date & Time)", type: "datetime-local", placeholder: "Select Rectified Date & Time" },
       { name: "actionPlan", label: "Action Plans & TDC to Rectify the Temporary Joints", type: "textarea", placeholder: "Enter Action Plan" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, cable splice details, or testing measurements" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations, cable splice details, or testing measurements" },
     ],
   },
   {
@@ -315,7 +369,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "rectificationTime", label: "Low Insulation rectified (Date & Time)", type: "datetime-local", placeholder: "Select Rectified Date & Time" },
       { name: "balanceInsulationFaults", label: "Balance Low Insulation Fault To be rectified", type: "number", placeholder: "Enter balance faults count" },
       { name: "actionPlanTdc", label: "Action Plan & TDC to rectify Low Insulation", type: "textarea", placeholder: "Enter Action Plan & TDC" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations, cable quad details, or testing measurements" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations, cable quad details, or testing measurements" },
     ],
   },
   {
@@ -334,7 +388,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
       { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
   },
   {
@@ -352,7 +406,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "rectificationTime", label: "Rectification Time( RT)", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
       { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
       { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
   },
   {
@@ -374,7 +428,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "toBeTestedCount", label: "Total walkie-talkies to be tested", type: "number", required: true, placeholder: "Total count to be tested" },
       { name: "testedCount", label: "Total walkie-talkies tested", type: "number", required: true, placeholder: "Total count tested" },
       { name: "balanceWalkieTalkies", label: "Balance walkie-talkies to be tested (Calculated)", type: "number", readonly: true, placeholder: "Calculated balance walkie-talkies" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter any additional details, issues faced, or test observations" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter any additional details, issues faced, or test observations" },
     ],
   },
   {
@@ -399,7 +453,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "repairStatus", label: "Repair Status", type: "select", required: true, options: ["Pending", "In Progress", "Completed"], placeholder: "Select Repair Status" },
       { name: "faultType", label: "Fault Type", type: "select", required: true, options: ["Speaker/Mic", "Battery", "Antenna", "Display", "Power/Tx/Rx", "Other"], placeholder: "Select Fault Type" },
       { name: "actionTaken", label: "Action Taken", type: "text", placeholder: "Describe action taken to repair defective sets" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter any additional observations or comments" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter any additional observations or comments" },
     ],
   },
   {
@@ -411,31 +465,12 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     fields: [
       { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
       { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
-      { name: "totalNotWorkingCctvLoc", label: "Total CCTV/ Not working CCTV (NOS) (Location)", type: "text", required: true, placeholder: "e.g. Total: 16 / Not Working: 2 (PF-1)" },
-      { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
+      { name: "totalNotWorkingCctvLoc", label: "Total CCTV/No. of faulty Camera", type: "text", required: true, placeholder: "e.g. Total: 16 / Not Working: 2 (PF-1)" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
       { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
-      { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
-    ],
-  },
-  {
-    category: "CCTV",
-    name: "CCTV Maintenance",
-    badge: "CCTV-S",
-    systemCode: "SECR/TEL/CCTVS-21",
-    description: "NVR storage check, camera cleaning, and PoE switch repairs.",
-    fields: [
-      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
-      { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
-      { name: "totalNotWorkingCctvLoc", label: "Total CCTV/ Not working CCTV (NOS) (Location)", type: "text", required: true, placeholder: "e.g. Total: 24 / Not Working: 2 (Bhilai Bazar)" },
-      { name: "liveFeedToWarRoomFailed", label: "Live Feed To War Room Failed", type: "select", required: true, options: ["Yes", "No"], placeholder: "Select Live Feed To War Room Failed" },
-      { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", placeholder: "Select Failure Date & Time" },
-      { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
-      { name: "durationText", label: "Total Duration (Hrs.Min.)", type: "text", readonly: true, placeholder: "XX hrs XX min" },
-      { name: "reason", label: "Reason Of Failure", type: "text", required: true, placeholder: "Enter reason of failure" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
+      { name: "reason", label: "Reason of Failure", type: "select", required: true, options: ["Camera Failure", "Live Feed Extention failure", "Link Failure", "Other"], placeholder: "Select Reason of Failure" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter observations or restoration details" },
     ],
   },
   {
@@ -465,7 +500,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "descriptionOfCase", label: "Description Of Case", type: "textarea", required: true, placeholder: "Enter grievance description details with date & time" },
       { name: "stComplianceDetails", label: "S&T Compliance details", type: "textarea", required: true, placeholder: "Enter S&T action taken and compliance details" },
       { name: "stComplianceDateTime", label: "S&T Compliance Date & Time", type: "datetime-local", required: true, placeholder: "Select Compliance Date & Time" },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter additional remarks or observations" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter additional remarks or observations" },
     ],
   },
   {
@@ -477,7 +512,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     statusMode: "log",
     fields: [
       { name: "logDetails", label: "Log New Telecom Position / Status Update", type: "textarea", required: true, fullWidth: true, placeholder: "Enter today's status remarks, cable faults, insulation measurements, test results, etc." },
-      { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, placeholder: "Enter remarks" },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
     ],
   },
 ];

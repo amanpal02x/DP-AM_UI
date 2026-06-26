@@ -3995,7 +3995,6 @@ function DailyPositionSummaryTable({
             totalFaults += Number(fd.pendingRepair ?? fd.openingDefective ?? 1);
             break;
           case "CCTV Monitoring":
-          case "CCTV Maintenance":
             const cctvVal = fd.totalNotWorkingCctvLoc;
             if (typeof cctvVal === "number") {
               totalFaults += cctvVal;
