@@ -1920,7 +1920,7 @@ function AssetDashboardView({
         ))}
       </section>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <ChartPanel
           title="Assets by Category"
           total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"}
@@ -2357,8 +2357,21 @@ function DailyPositionHighPriorityFaultsPanel({
     return `${mins}m`;
   };
 
-  // Limit to top 5 for premium dashboard representation
-  const displayRecords = records.slice(0, 5);
+  const [maxRecords, setMaxRecords] = useState(5);
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerHeight > 800) {
+        setMaxRecords(7);
+      } else {
+        setMaxRecords(5);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const displayRecords = records.slice(0, maxRecords);
 
   const handleViewAllClick = () => {
     onCategoryClick?.("Active Faults");

@@ -4521,3 +4521,106 @@ path:focus {
   margin-left: 3% !important;
 }
 
+/* Responsive adjustments for larger display resolutions (min-width: 1441px) */
+@media (min-width: 1441px) {
+  /* Increase layout padding & spacing for a richer filling dashboard */
+  .main {
+    padding: 20px 32px 20px 3% !important;
+  }
+
+  .kpi-grid,
+  .dashboard-grid,
+  .bottom-stats {
+    gap: 16px !important;
+  }
+
+  /* Scale KPI cards to occupy more vertical space */
+  .kpi-card {
+    min-height: 104px !important;
+    padding: 16px 20px !important;
+  }
+
+  .kpi-top strong,
+  .bottom-card strong {
+    font-size: 32px !important;
+  }
+
+  .kpi-top span,
+  .bottom-card small {
+    font-size: 14px !important;
+  }
+
+  /* Make Donut charts fill the tall panels better */
+  .donut-layout {
+    grid-template-columns: minmax(180px, 260px) minmax(180px, 1fr) !important;
+    gap: 24px !important;
+    min-height: 260px !important;
+  }
+
+  .donut-wrap {
+    width: min(100%, 260px) !important;
+  }
+
+  .legend-list {
+    gap: 10px !important;
+  }
+
+  .legend-list li {
+    font-size: 13.5px !important;
+  }
+
+  /* Increase padding inside table rows to make them feel taller and cleaner */
+  .data-table th {
+    padding: 12px 16px !important;
+    font-size: 13.5px !important;
+  }
+
+  .data-table td {
+    padding: 12px 16px !important;
+    font-size: 13.5px !important;
+  }
+  
+  .category-distribution-row {
+    gap: 8px !important;
+    padding-bottom: 2px !important;
+  }
+
+  /* Scale up tabular page headers, subtitles, and search filters across all modules */
+  .tabular-header {
+    padding: 24px 20px !important;
+    margin: -20px 0 24px 0 !important;
+  }
+
+  .header-title-section h2 {
+    font-size: 26px !important;
+  }
+
+  .header-title-section p {
+    font-size: 13.5px !important;
+  }
+
+  /* Scale up inputs, dropdowns, and form labels */
+  .search-filter-row input,
+  .dp-field input,
+  .dp-field select,
+  .dp-field textarea,
+  .dp-history-toolbar input,
+  .section-master-form input,
+  .drawer input,
+  .drawer select,
+  .drawer textarea {
+    padding: 10px 14px !important;
+    font-size: 13.5px !important;
+  }
+
+  /* Scale up layout buttons & selector toolbar items */
+  .icon-button,
+  .date-button,
+  .export-button,
+  .division-select,
+  .filter-toggle-btn {
+    height: 42px !important;
+    font-size: 13px !important;
+  }
+}
+
