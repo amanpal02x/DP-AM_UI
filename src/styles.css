@@ -344,11 +344,18 @@ textarea {
 .main {
   min-width: 0;
   margin-left: 292px;
-  padding: 12px 24px 12px 3%;
+  padding: 12px 10px 12px 10px;
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Prevent content from over-stretching on 2K/4K/ultra-wide screens */
+.main > * {
+  width: 100%;
+  max-width: 1800px;
   box-sizing: border-box;
 }
 
@@ -1709,6 +1716,7 @@ textarea {
 
   .main {
     margin-left: 250px;
+    padding: 12px 10px 12px 10px;
   }
 
   .kpi-grid {
@@ -4724,17 +4732,17 @@ path:focus {
   }
 }
 
-/* Margin offset for first KPI card to separate it from the sidebar */
+/* Margin offset for first KPI card — fixed pixel, not percentage */
 .kpi-grid>.kpi-card:first-child {
-  margin-left: 3% !important;
+  margin-left: 0 !important;
 }
 
 /* Responsive adjustments for larger display resolutions (min-width: 1441px) */
 @media (min-width: 1441px) {
 
-  /* Increase layout padding & spacing for a richer filling dashboard */
+  /* Flat padding — no percentages, no growing gaps on large screens */
   .main {
-    padding: 20px 32px 20px 3% !important;
+    padding: 16px 10px 16px 10px !important;
   }
 
   .kpi-grid,
