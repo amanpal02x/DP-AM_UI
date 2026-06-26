@@ -20,13 +20,17 @@ const toDateValue = (date = new Date()) => {
 
 export async function getDashboardSummary(division = ""): Promise<DashboardSummary> {
   const todayStr = toDateValue(new Date());
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = toDateValue(sevenDaysAgo);
 
-  // Fetch dashboard stats, active faults, today's records, and resolved records in parallel
-  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes] = await Promise.all([
+  // Fetch dashboard stats, active faults, today's records, resolved records, and weekly records in parallel
+  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes, weeklyRecordsRes] = await Promise.all([
     api.reports.dashboard(division),
     api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 200 }).catch(() => ({ data: [] })),
     api.dailyPosition.list({ division: division || "", date: todayStr, limit: 200 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 200 }).catch(() => ({ data: [] }))
+    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 200 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] }))
   ]);
 
   const stats = statsRes.data;
@@ -38,13 +42,32 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
     return !isAllOk;
   });
-  const activeFaultsCount = activeFaultsList.length;
+  // Exclude wifi faults from the active faults count because they are shown separately
+  const activeFaultsCount = activeFaultsList.filter((r: any) => {
+    const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+    return !isWifi;
+  }).length;
 
-  // 2. Calculate Faults Today Count (only today's data, excluding previous days)
-  const faultsTodayList = (todayRecordsRes.data || []).filter((r: any) => {
+  // 2. Calculate Faults Today Count (where failureTime is today)
+  const uniqueRecordsMap = new Map<string, any>();
+  for (const r of [...activeFaultsList, ...(resolvedRecordsRes.data || []), ...(todayRecordsRes.data || [])]) {
+    if (r.id) {
+      uniqueRecordsMap.set(r.id, r);
+    }
+  }
+
+  const faultsTodayList = Array.from(uniqueRecordsMap.values()).filter((r: any) => {
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    return !isAllOk;
+    if (isAllOk) return false;
+    if (!r.failureTime) return false;
+    try {
+      const failDate = new Date(r.failureTime);
+      if (isNaN(failDate.getTime())) return false;
+      return toDateValue(failDate) === todayStr;
+    } catch {
+      return false;
+    }
   });
   const faultsTodayCount = faultsTodayList.length;
 
@@ -86,6 +109,125 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   const dailyPositionByDivision = Object.entries(divisionCounts).map(([division, count]) => ({
     division,
     count
+  }));
+
+  // Group active faults by division for activeFaultsByDivision (Raipur, Bilaspur, Nagpur)
+  const activeDivCounts: Record<string, number> = { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
+  for (const r of activeFaultsList) {
+    const div = r.division;
+    if (!div) continue;
+    const lower = div.toLowerCase();
+    if (lower.includes("raipur")) activeDivCounts.Raipur++;
+    else if (lower.includes("bilaspur")) activeDivCounts.Bilaspur++;
+    else if (lower.includes("nagpur")) activeDivCounts.Nagpur++;
+  }
+  const activeFaultsByDivision = Object.entries(activeDivCounts).map(([division, count]) => ({
+    division,
+    count
+  }));
+
+  // Combine records to compute weekly reported and resolved per day
+  const uniqueWeeklyMap = new Map<string, any>();
+  for (const r of [
+    ...activeFaultsList,
+    ...(resolvedRecordsRes.data || []),
+    ...(todayRecordsRes.data || []),
+    ...(weeklyRecordsRes.data || [])
+  ]) {
+    if (r.id && r.status !== "DRAFT") {
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      if (!isAllOk) {
+        uniqueWeeklyMap.set(r.id, r);
+      }
+    }
+  }
+
+  // Create last 7 days array
+  const last7Days = [];
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = toDateValue(d);
+    last7Days.push({
+      dateStr,
+      day: weekdays[d.getDay()], // e.g. "Mon"
+      reported: 0,
+      resolved: 0
+    });
+  }
+
+  // Count reported and resolved for each day
+  for (const r of uniqueWeeklyMap.values()) {
+    if (r.failureTime) {
+      try {
+        const fDate = new Date(r.failureTime);
+        const fDateStr = toDateValue(fDate);
+        const dayBucket = last7Days.find(d => d.dateStr === fDateStr);
+        if (dayBucket) {
+          dayBucket.reported++;
+        }
+      } catch {}
+    }
+    if (r.rectificationTime) {
+      try {
+        const rDate = new Date(r.rectificationTime);
+        const rDateStr = toDateValue(rDate);
+        const dayBucket = last7Days.find(d => d.dateStr === rDateStr);
+        if (dayBucket) {
+          dayBucket.resolved++;
+        }
+      } catch {}
+    }
+  }
+
+  const weeklyFaultsTrend = last7Days.map(({ day, reported, resolved }) => ({
+    day,
+    reported,
+    resolved
+  }));
+
+  // Create daily (today's) slots in 4-hour intervals
+  const dailySlots = [
+    { hour: "00:00 - 04:00", reported: 0, resolved: 0 },
+    { hour: "04:00 - 08:00", reported: 0, resolved: 0 },
+    { hour: "08:00 - 12:00", reported: 0, resolved: 0 },
+    { hour: "12:00 - 16:00", reported: 0, resolved: 0 },
+    { hour: "16:00 - 20:00", reported: 0, resolved: 0 },
+    { hour: "20:00 - 00:00", reported: 0, resolved: 0 }
+  ];
+
+  for (const r of uniqueWeeklyMap.values()) {
+    if (r.failureTime) {
+      try {
+        const fDate = new Date(r.failureTime);
+        if (toDateValue(fDate) === todayStr) {
+          const hr = fDate.getHours();
+          const slotIdx = Math.floor(hr / 4);
+          if (slotIdx >= 0 && slotIdx < 6) {
+            dailySlots[slotIdx].reported++;
+          }
+        }
+      } catch {}
+    }
+    if (r.rectificationTime) {
+      try {
+        const rDate = new Date(r.rectificationTime);
+        if (toDateValue(rDate) === todayStr) {
+          const hr = rDate.getHours();
+          const slotIdx = Math.floor(hr / 4);
+          if (slotIdx >= 0 && slotIdx < 6) {
+            dailySlots[slotIdx].resolved++;
+          }
+        }
+      } catch {}
+    }
+  }
+
+  const dailyFaultsTrend = dailySlots.map(({ hour, reported, resolved }) => ({
+    hour,
+    reported,
+    resolved
   }));
 
   // Let's build the stats mapping:
@@ -281,6 +423,9 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     dailyPositionByDivision,
     dailyPositionByCategory,
     monthlyFaultsTrend: stats.monthlyFaultsTrend || [],
-    dailyPositionStatus: stats.dailyPositionStatus || []
+    dailyPositionStatus: stats.dailyPositionStatus || [],
+    weeklyFaultsTrend,
+    dailyFaultsTrend,
+    activeFaultsByDivision
   };
 }

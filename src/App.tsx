@@ -52,7 +52,10 @@ import {
   Area,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  LineChart,
+  Line,
+  Legend
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -223,7 +226,7 @@ const MultiSelectDropdown = ({
           aria-expanded={open}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}
         >
-          <span 
+          <span
             className={selected.length ? "multi-dropdown-value" : "multi-dropdown-placeholder"}
             style={{ marginRight: selected.length ? "24px" : "0px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}
           >
@@ -552,14 +555,14 @@ const navItems: Array<{
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM"] },
     { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
-    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
     { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
     { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
     { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
     { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
     { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] }
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
 // Fallback points for Leaflet map if DB is empty
@@ -1224,55 +1227,55 @@ function App() {
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
         <Suspense fallback={<div className="module-loading-skeleton" aria-label="Loading module" />}>
-        {viewCategoryFaults ? (
-          <CategoryFaultsPageView
-            categoryName={viewCategoryFaults}
-            onBack={() => setViewCategoryFaults(null)}
-            queries={queries}
-            showToast={showToast}
-          />
-        ) : activeNav === "Asset Dashboard" ? (
-          dashboardData ? (
-            <AssetDashboardView data={dashboardData} openPanel={openPanel} queries={queries} />
-          ) : dashboardError ? (
-            <div className="dashboard-inline-state">
-              <h3>Dashboard API unavailable.</h3>
-              <p>Please check the backend connection.</p>
+          {viewCategoryFaults ? (
+            <CategoryFaultsPageView
+              categoryName={viewCategoryFaults}
+              onBack={() => setViewCategoryFaults(null)}
+              queries={queries}
+              showToast={showToast}
+            />
+          ) : activeNav === "Asset Dashboard" ? (
+            dashboardData ? (
+              <AssetDashboardView data={dashboardData} openPanel={openPanel} queries={queries} />
+            ) : dashboardError ? (
+              <div className="dashboard-inline-state">
+                <h3>Dashboard API unavailable.</h3>
+                <p>Please check the backend connection.</p>
+              </div>
+            ) : (
+              <div className="dashboard-loading-grid" aria-label={dashboardLoading ? "Loading dashboard" : "Preparing dashboard"}>
+                {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
+              </div>
+            )
+          ) : activeNav === "Daily Position" ? (
+            dashboardData ? (
+              <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
+            ) : (
+              <div className="dashboard-loading-grid" aria-label="Loading daily position dashboard">
+                {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
+              </div>
+            )
+          ) : activeNav === "DP Form" ? (
+            <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
+          ) : activeNav === "DP Summary" ? (
+            <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
+              <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
+                <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} />
+              </section>
             </div>
+          ) : activeNav === "DP Logs" ? (
+            <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
+          ) : activeNav === "Feedback" ? (
+            role === "SUPER_ADMIN" ? (
+              <FeedbackAdminView showToast={showToast} />
+            ) : (
+              <FeedbackFormView showToast={showToast} />
+            )
+          ) : activeNav === "Sections" ? (
+            <SectionsManagementView showToast={showToast} />
           ) : (
-            <div className="dashboard-loading-grid" aria-label={dashboardLoading ? "Loading dashboard" : "Preparing dashboard"}>
-              {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
-            </div>
-          )
-        ) : activeNav === "Daily Position" ? (
-          dashboardData ? (
-            <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
-          ) : (
-            <div className="dashboard-loading-grid" aria-label="Loading daily position dashboard">
-              {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
-            </div>
-          )
-        ) : activeNav === "DP Form" ? (
-          <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
-        ) : activeNav === "DP Summary" ? (
-          <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
-            <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
-              <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} />
-            </section>
-          </div>
-        ) : activeNav === "DP Logs" ? (
-          <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
-        ) : activeNav === "Feedback" ? (
-          role === "SUPER_ADMIN" ? (
-            <FeedbackAdminView showToast={showToast} />
-          ) : (
-            <FeedbackFormView showToast={showToast} />
-          )
-        ) : activeNav === "Sections" ? (
-          <SectionsManagementView showToast={showToast} />
-        ) : (
-          <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} />
-        )}
+            <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} />
+          )}
         </Suspense>
       </main>
       <Toast message={toast} />
@@ -1356,135 +1359,88 @@ function EditProfileModal({
 
   return (
     <div
-      className="modal-backdrop"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "rgba(10, 20, 42, 0.45)",
-        backdropFilter: "blur(8px)",
-      }}
+      className="modern-backdrop"
       onClick={close}
     >
       <div
-        className="modal-card"
-        style={{
-          width: "min(460px, calc(100vw - 32px))",
-          background: "#ffffff",
-          borderRadius: "16px",
-          boxShadow: "0 24px 60px rgba(10, 20, 42, 0.22)",
-          border: "1px solid var(--line)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          animation: "zoomIn 200ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
+        className="modern-modal-card"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--navy) 0%, #1e294b 100%)",
-          color: "#fff",
-          padding: "20px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
-          <div>
-            <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", color: "var(--blue)" }}>
-              Account Settings
-            </span>
-            <h3 style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 850 }}>
-              Edit Profile Credentials
+        <div className="modern-modal-header">
+          <div className="modern-modal-header-text">
+            <h3 className="modern-modal-title">
+              Edit Profile
             </h3>
+            <p className="modern-modal-subtitle">
+              Manage your credentials and settings
+            </p>
           </div>
           <button
             onClick={close}
-            style={{
-              background: "rgba(255,255,255,0.1)",
-              border: 0,
-              color: "#fff",
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              cursor: "pointer",
-            }}
+            className="modern-modal-close-btn"
             aria-label="Close"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSave} style={{ padding: 24, display: "grid", gap: 16 }}>
-          <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
+        <form onSubmit={handleSave} className="modern-modal-body">
+          <label className="modern-form-field">
             Full Name
             <input
               required
-              style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
+              className="modern-input"
               value={name}
               onChange={e => setName(e.target.value)}
             />
           </label>
 
-          <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
+          <label className="modern-form-field">
             Username (Read-Only)
             <input
               readOnly
-              style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f1f5f9", color: "var(--muted)", cursor: "not-allowed", fontWeight: 550 }}
+              className="modern-input"
               value={user?.username || ""}
             />
           </label>
 
           {showDesignationField && (
-            <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
+            <label className="modern-form-field">
               Designation
               <input
-                style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
+                className="modern-input"
                 value={designation}
                 onChange={e => setDesignation(e.target.value)}
               />
             </label>
           )}
 
-          <label style={{ display: "grid", gap: 6, fontWeight: 700, fontSize: 13, color: "var(--navy)", textAlign: "left" }}>
+          <label className="modern-form-field">
             New Password
             <input
               type="password"
-              placeholder="Leave blank to keep current password"
-              style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "#f8fafc", color: "var(--navy)", fontWeight: 550 }}
+              placeholder="Leave blank to remain unchanged"
+              className="modern-input"
               value={password}
               onChange={e => setPassword(e.target.value)}
             />
           </label>
 
           {/* Footer Actions */}
-          <div style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 12,
-            borderTop: "1px solid var(--line)",
-            paddingTop: 16,
-            marginTop: 8
-          }}>
+          <div className="modern-modal-footer">
             <button
               type="button"
-              className="export-button"
+              className="modern-btn modern-btn-secondary"
               onClick={close}
-              style={{ background: "#f1f5f9", color: "#334155", borderColor: "#cbd5e1", margin: 0, minHeight: 38 }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="export-button"
+              className="modern-btn modern-btn-primary"
               disabled={loading}
-              style={{ margin: 0, minHeight: 38 }}
             >
               {loading ? "Saving..." : "Save Changes"}
             </button>
@@ -1559,7 +1515,7 @@ function SidebarDailyPositionAccordion() {
       // Also sync state if it's out of date (e.g. after a new submission)
       setCompletedForms(reconciled);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sidebarRecordsQuery.isSuccess, sidebarRecordsQuery.isFetching, sidebarRecordsQuery.data?.data]);
 
   return (
@@ -1632,8 +1588,8 @@ function SidebarDailyPositionAccordion() {
                         padding: "6px 8px",
                         borderRadius: "4px",
                         border: "none",
-                        background: isActive ? "var(--blue)" : "transparent",
-                        color: isActive ? "#ffffff" : "var(--navy)",
+                        background: isActive ? "#ffffff" : "transparent",
+                        color: isActive ? "#114c8f" : "rgba(255, 255, 255, 0.85)",
                         fontSize: "11px",
                         fontWeight: isActive ? 700 : 500,
                         textAlign: "left",
@@ -1676,7 +1632,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
 
   const visibleNav = navItems.filter((item) => {
     if (!item.roles.includes(role)) return false;
-    if (item.label === "Feedback") return false;
+    if (item.label === "Feedback" && role !== "SUPER_ADMIN") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
     const isDpLink = ["Daily Position", "DP Form", "DP Summary", "DP Logs"].includes(item.label);
     if (isAssetLink && !hasAccessAssets) return false;
@@ -1684,23 +1640,23 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     return true;
   });
 
-  const feedbackItem = navItems.find((item) => item.label === "Feedback" && item.roles.includes(role));
+  const feedbackItem = navItems.find((item) => item.label === "Feedback" && item.roles.includes(role) && role !== "SUPER_ADMIN");
 
   const isFeedbackActive = activeNav === "Feedback";
   const feedbackStyle = isFeedbackActive
     ? {
-      background: "linear-gradient(135deg, var(--blue) 0%, #0056cc 100%)",
-      color: "#ffffff",
+      background: "#ffffff",
+      color: "#114c8f",
       fontWeight: 800,
-      boxShadow: "0 4px 12px rgba(11, 109, 255, 0.25)",
+      boxShadow: "0 4px 12px rgba(13, 59, 111, 0.15)",
       border: "none",
       marginTop: "auto",
       marginBottom: "8px"
     }
     : {
-      background: "linear-gradient(135deg, rgba(11, 109, 255, 0.05) 0%, rgba(11, 109, 255, 0.12) 100%)",
-      border: "1px solid rgba(11, 109, 255, 0.25)",
-      color: "var(--blue)",
+      background: "rgba(255, 255, 255, 0.08)",
+      border: "1px solid rgba(255, 255, 255, 0.18)",
+      color: "rgba(255, 255, 255, 0.9)",
       fontWeight: 750,
       marginTop: "auto",
       marginBottom: "8px"
@@ -1821,76 +1777,35 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
           onMouseEnter={() => setShowProfileCard(true)}
           onMouseLeave={() => setShowProfileCard(false)}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            padding: "10px 14px",
-            borderRadius: "10px",
-            border: "1px solid var(--line)",
-            background: "rgba(255, 255, 255, 0.6)",
             marginTop: feedbackItem ? "0" : "auto"
           }}
         >
           {/* Visual Avatar */}
-          <div
-            className="profile-avatar"
-            style={{
-              width: 38,
-              height: 38,
-              fontSize: 14,
-              fontWeight: 700,
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%)",
-              color: "#fff",
-              flexShrink: 0
-            }}
-          >
+          <div className="profile-avatar">
             {user.name[0].toUpperCase()}
           </div>
 
           {/* User Details */}
           <div className="user-info" style={{ cursor: "pointer", flex: 1, minWidth: 0 }}>
-            <strong style={{ display: "block", fontSize: 13, color: "var(--navy)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name}</strong>
-            <small style={{ display: "block", fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.designation || user.role}</small>
+            <strong style={{ display: "block", fontSize: "12.5px", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name}</strong>
+            <small style={{ display: "block", fontSize: "10.5px", color: "rgba(255, 255, 255, 0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.designation || user.role}</small>
           </div>
 
           {/* Actions Button Group */}
           <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
             <button
-              className="logout-btn"
+              className="profile-action-btn"
               onClick={onEditProfile}
               title="Edit Profile"
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "var(--blue)",
-                padding: "6px",
-                borderRadius: "4px",
-                cursor: "pointer",
-                display: "grid",
-                placeItems: "center"
-              }}
             >
-              <Edit size={16} />
+              <Edit size={13} />
             </button>
             <button
-              className="logout-btn"
+              className="profile-action-btn sign-out"
               onClick={logout}
               title="Sign Out"
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "var(--red)",
-                padding: "6px",
-                borderRadius: "4px",
-                cursor: "pointer",
-                display: "grid",
-                placeItems: "center"
-              }}
             >
-              <LogOut size={16} />
+              <LogOut size={13} />
             </button>
           </div>
           {showProfileCard && (
@@ -2008,7 +1923,7 @@ function AssetDashboardView({
         ))}
       </section>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <ChartPanel
           title="Assets by Category"
           total={data.kpis.find(kpi => kpi.id === "assets")?.value || "0"}
@@ -2296,11 +2211,13 @@ function DailyPositionStatusPanel({
 function DailyPositionHighPriorityFaultsPanel({
   userDivision,
   showToast,
-  queries
+  queries,
+  onCategoryClick
 }: {
   userDivision: string;
   showToast: (msg: string) => void;
   queries: any;
+  onCategoryClick?: (categoryName: string) => void;
 }) {
   const { role, setActiveNav, setDpHistoryFilter, setDpHistoryCategoryFilter } = useAppStore();
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -2333,7 +2250,7 @@ function DailyPositionHighPriorityFaultsPanel({
     const catLower = (category || "").toLowerCase();
     const nameLower = (name || "").toLowerCase();
 
-    // High Priority: Cable Infrastructure, Control & ICMS Position and FOIS (VSAT)
+    // High Priority: Cable Infrastructure, Control & ICMS Position and FOIS 
     if (
       catLower.includes("cable infrastructure") ||
       catLower.includes("cable infrasturucture") ||
@@ -2381,14 +2298,14 @@ function DailyPositionHighPriorityFaultsPanel({
     return [...filtered].sort((a: any, b: any) => {
       const weightA = getPriorityWeight(a.category, a.formType || a.name);
       const weightB = getPriorityWeight(b.category, b.formType || b.name);
-      
+
       if (weightA !== weightB) {
         return weightA - weightB;
       }
-      
+
       const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
       const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
-      return timeA - timeB;
+      return timeB - timeA;
     });
   }, [activeFaultsQuery.data]);
 
@@ -2443,13 +2360,24 @@ function DailyPositionHighPriorityFaultsPanel({
     return `${mins}m`;
   };
 
-  // Limit to top 5 for premium dashboard representation
-  const displayRecords = records.slice(0, 5);
+  const [maxRecords, setMaxRecords] = useState(5);
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerHeight > 800) {
+        setMaxRecords(7);
+      } else {
+        setMaxRecords(5);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const displayRecords = records.slice(0, maxRecords);
 
   const handleViewAllClick = () => {
-    setActiveNav("DP Logs");
-    setDpHistoryFilter("active-faults");
-    setDpHistoryCategoryFilter("");
+    onCategoryClick?.("Active Faults");
   };
 
   return (
@@ -2460,18 +2388,7 @@ function DailyPositionHighPriorityFaultsPanel({
           <h3 style={{ margin: 0, fontSize: "17px", color: "var(--navy)", fontWeight: 700 }}>
             Priority Active Faults
           </h3>
-          {records.length > 0 && (
-            <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", borderRadius: "12px" }}>
-              {records.length} Pending
-            </span>
-          )}
         </div>
-        <button
-          onClick={handleViewAllClick}
-          style={{ fontSize: "12px", color: "var(--blue)", border: 0, background: "none", fontWeight: 600, padding: 0, cursor: "pointer" }}
-        >
-          View All Active Faults
-        </button>
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -2490,37 +2407,20 @@ function DailyPositionHighPriorityFaultsPanel({
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-            <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflowY: "auto", background: "#fff", flex: 1 }}>
+            <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflowY: "auto", background: "#fff", flex: 1, paddingBottom: "6px" }}>
               <table className="data-table" style={{ fontSize: "12.5px" }}>
                 <thead>
                   <tr>
-                    <th>Priority</th>
-                    <th>Category / Name</th>
+                    <th>Circuit Name</th>
                     <th>Location</th>
-                    <th>Duration</th>
+                    <th>Remarks</th>
                     <th style={{ textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayRecords.map((r: any) => {
-                    const priority = getPriorityInfo(r.category, r.formType || r.name);
                     return (
                       <tr key={r.id} style={{ transition: "background 0.2s" }} className="hover-row">
-                        <td>
-                          <span style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "2px 8px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "12px",
-                            color: priority.color,
-                            backgroundColor: priority.bg,
-                            border: `1px solid ${priority.border}`
-                          }}>
-                            {priority.label}
-                          </span>
-                        </td>
                         <td>
                           <div style={{ display: "flex", flexDirection: "column" }}>
                             <strong style={{ color: "var(--navy)" }}>{r.formType || r.name}</strong>
@@ -2533,12 +2433,24 @@ function DailyPositionHighPriorityFaultsPanel({
                             <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase" }}>{r.division} Division</span>
                           </div>
                         </td>
-                        <td style={{ fontWeight: 600, color: "var(--navy)" }}>
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span>{getFailureDurationText(r.failureTime)}</span>
-                            <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: "normal" }}>
-                              {r.failureTime ? new Date(r.failureTime).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }) : ""}
-                            </span>
+                        <td>
+                          <div
+                            style={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              fontSize: "11.5px",
+                              color: "var(--muted)",
+                              lineHeight: "1.3",
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                              maxWidth: "250px"
+                            }}
+                            title={r.remarks || r.reason || "-"}
+                          >
+                            {r.remarks || r.reason || "-"}
                           </div>
                         </td>
                         <td style={{ textAlign: "right" }}>
@@ -2663,7 +2575,7 @@ function DailyPositionHighPriorityFaultsPanel({
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
-                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
@@ -2713,9 +2625,17 @@ function CategoryFaultsPageView({
   queries?: any;
   showToast?: (msg: string) => void;
 }) {
+  const isTodayQuery = categoryName.toLowerCase().includes("today") || categoryName.toLowerCase().includes("resolved");
+
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
-    queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }),
+    queryFn: () => {
+      const params: any = { limit: 500 };
+      if (!isTodayQuery) {
+        params.isFaulty = "true";
+      }
+      return api.dailyPosition.list(params);
+    },
   });
 
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -2777,15 +2697,41 @@ function CategoryFaultsPageView({
     }
   });
 
+  const toDateValue = (date = new Date()) => {
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+  };
+  const todayStr = toDateValue(new Date());
+
   const records = (faultsQuery.data?.data || []).filter((r: any) => {
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
     if (isAllOk) return false;
 
-    // Special check for "Wi-Fi"
-    if (categoryName.toLowerCase() === "wi-fi") {
+    const lowerCat = categoryName.toLowerCase();
+
+    // 1. Active Faults
+    if (lowerCat === "active faults") {
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return isWifi;
+      return !isWifi && !r.rectificationTime; // Must be active
+    }
+
+    // 2. Wi-Fi Faults
+    if (lowerCat === "wi-fi") {
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return isWifi && !r.rectificationTime; // Must be active
+    }
+
+    // 3. Faults Reported Today
+    if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+      const isTodayVal = r.failureTime && toDateValue(new Date(r.failureTime)) === todayStr;
+      return isTodayVal;
+    }
+
+    // 4. Faults Resolved Today
+    if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+      const isResolvedToday = r.rectificationTime && toDateValue(new Date(r.rectificationTime)) === todayStr;
+      return isResolvedToday;
     }
 
     return r.category?.toLowerCase() === categoryName?.toLowerCase();
@@ -2813,7 +2759,7 @@ function CategoryFaultsPageView({
   const filteredRecords = useMemo(() => {
     return sortedRecords.filter((r: any) => {
       if (selectedDivision && r.division !== selectedDivision) return false;
-      
+
       const stationVal = r.stationCode || r.stationName || r.section || "";
       if (selectedStation && stationVal !== selectedStation) return false;
 
@@ -2827,11 +2773,11 @@ function CategoryFaultsPageView({
         const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
 
         const match = division.includes(query) ||
-                      category.includes(query) ||
-                      formType.includes(query) ||
-                      station.includes(query) ||
-                      remarks.includes(query) ||
-                      customFields.includes(query);
+          category.includes(query) ||
+          formType.includes(query) ||
+          station.includes(query) ||
+          remarks.includes(query) ||
+          customFields.includes(query);
         if (!match) return false;
       }
       return true;
@@ -2850,17 +2796,27 @@ function CategoryFaultsPageView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            Category-wise Fault Log
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
-            {categoryName} Faults
+            {(() => {
+              const lower = categoryName.toLowerCase();
+              if (lower === "active faults") return "Active Faults";
+              if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
+              if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
+              return `${categoryName} Faults`;
+            })()}
           </h2>
           <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
-            {faultsQuery.isLoading ? "Loading faults..." : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
+            {faultsQuery.isLoading
+              ? "Loading faults..."
+              : categoryName.toLowerCase().includes("resolved")
+                ? `${records.length} resolved faults found`
+                : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
           </p>
         </div>
         <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-          ← Back to Dashboard
+          ← Back
         </button>
       </div>
 
@@ -2873,7 +2829,7 @@ function CategoryFaultsPageView({
           </div>
         ) : records.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
-            No active faults found for {categoryName}.
+            {categoryName.toLowerCase().includes("resolved") ? "No resolved faults found." : `No active faults found for ${categoryName}.`}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
@@ -2913,7 +2869,7 @@ function CategoryFaultsPageView({
                 <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                   </span>
                   <input
                     type="text"
@@ -2959,75 +2915,75 @@ function CategoryFaultsPageView({
                   </thead>
                   <tbody>
                     {filteredRecords.map((record: any) => (
-                  <tr key={record.id}>
-                    <td>{record.division}</td>
-                    <td>{record.stationCode || record.stationName || record.section || "-"}</td>
-                    <td>{formatDateTime(record.failureTime)}</td>
-                    <td>
-                      {record.rectificationTime ? (
-                        formatDateTime(record.rectificationTime)
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRectifyingRecord(record);
-                            setRectificationTimeInput(toLocalDateTimeValue(new Date()));
-                          }}
-                          style={{
-                            color: "var(--red)",
-                            fontWeight: 700,
-                            background: "rgba(239, 68, 68, 0.08)",
-                            border: "1px solid rgba(239, 68, 68, 0.2)",
-                            borderRadius: "4px",
-                            padding: "2px 8px",
-                            fontSize: "11px",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center"
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.15)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.08)"; }}
-                          title="Click to rectify fault"
-                        >
-                          Active
-                        </button>
-                      )}
-                    </td>
-                    <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span>{record.remarks || record.reason || "-"}</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRecord(record)}
-                          style={{
-                            alignSelf: "flex-start",
-                            fontSize: "11px",
-                            color: "var(--blue)",
-                            border: "none",
-                            background: "none",
-                            padding: 0,
-                            cursor: "pointer",
-                            fontWeight: 650,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px"
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                        >
-                          <Eye size={12} /> View Detail
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <tr key={record.id}>
+                        <td>{record.division}</td>
+                        <td>{record.stationCode || record.stationName || record.section || "-"}</td>
+                        <td>{formatDateTime(record.failureTime)}</td>
+                        <td>
+                          {record.rectificationTime ? (
+                            formatDateTime(record.rectificationTime)
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRectifyingRecord(record);
+                                setRectificationTimeInput(toLocalDateTimeValue(new Date()));
+                              }}
+                              style={{
+                                color: "var(--red)",
+                                fontWeight: 700,
+                                background: "rgba(239, 68, 68, 0.08)",
+                                border: "1px solid rgba(239, 68, 68, 0.2)",
+                                borderRadius: "4px",
+                                padding: "2px 8px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center"
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.15)"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239, 68, 68, 0.08)"; }}
+                              title="Click to rectify fault"
+                            >
+                              Active
+                            </button>
+                          )}
+                        </td>
+                        <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <span>{record.remarks || record.reason || "-"}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRecord(record)}
+                              style={{
+                                alignSelf: "flex-start",
+                                fontSize: "11px",
+                                color: "var(--blue)",
+                                border: "none",
+                                background: "none",
+                                padding: 0,
+                                cursor: "pointer",
+                                fontWeight: 650,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                            >
+                              <Eye size={12} /> View Detail
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
-    )}
-  </div>
 
       {selectedRecord && (
         <DailyPositionDetailsModal
@@ -3094,7 +3050,7 @@ function CategoryFaultsPageView({
                   value={rectificationTimeInput}
                   max={toLocalDateTimeValue(new Date())}
                   onChange={(e) => setRectificationTimeInput(e.target.value)}
-                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
@@ -3185,6 +3141,199 @@ function DailyPositionCategoryPanel({
   );
 }
 
+function ActiveFaultsDivisionPanel({
+  metrics = []
+}: {
+  metrics: Array<{ division: string; count: number }>;
+}) {
+  const totalActive = metrics.reduce((sum, item) => sum + item.count, 0);
+
+  // रायपुर (Orange), बिलासपुर (Blue), नागपुर (Yellow)
+  const divColors: Record<string, string> = {
+    Raipur: "#f97316", // Orange
+    Bilaspur: "#3b82f6", // Blue
+    Nagpur: "#f5b51b", // Yellow
+    Others: "#94a3b8"
+  };
+
+  const chartData = metrics.map(item => ({
+    name: item.division,
+    value: item.count,
+    color: divColors[item.division] || divColors.Others
+  }));
+
+  // If there are zero active faults, add a dummy operational state or keep empty
+  const hasData = totalActive > 0;
+  const pieData = hasData ? chartData : [{ name: "No Active Faults", value: 1, color: "#e2e8f0" }];
+
+  return (
+    <article className="panel division-active-faults-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Division-wise Active Faults</h3>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", minHeight: 220 }}>
+        <div style={{ width: "100%", height: 180, position: "relative" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                innerRadius={55}
+                outerRadius={75}
+                paddingAngle={hasData ? 2 : 0}
+                stroke="none"
+              >
+                {pieData.map((entry, idx) => (
+                  <Cell key={entry.name || idx} fill={entry.color} />
+                ))}
+              </Pie>
+              {hasData && <Tooltip formatter={(val) => [`${val} Active`, "Faults"]} />}
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            pointerEvents: "none"
+          }}>
+            <strong style={{ fontSize: 24, fontWeight: 800, color: "var(--navy)", display: "block", lineHeight: 1 }}>{totalActive}</strong>
+            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>Active</span>
+          </div>
+        </div>
+
+        {/* Customized Legend matching the user's second screenshot */}
+        <div className="division-active-legend" style={{ display: "flex", justifyContent: "space-around", width: "100%", marginTop: 8, padding: "0 8px" }}>
+          {metrics.map((metric) => (
+            <div key={metric.division} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: divColors[metric.division] || divColors.Others }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>{metric.division}</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", marginTop: 2 }}>{metric.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DailyPositionTrendsPanel({
+  weeklyTrend = [],
+  dailyTrend = []
+}: {
+  weeklyTrend: Array<{ day: string; reported: number; resolved: number }>;
+  dailyTrend: Array<{ hour: string; reported: number; resolved: number }>;
+}) {
+  const [range, setRange] = useState<"weekly" | "daily">("weekly");
+
+  const chartData = range === "weekly"
+    ? weeklyTrend
+    : dailyTrend.map(d => ({ ...d, day: d.hour })); // normalize X-axis key to "day"
+
+  // Customize custom tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ backgroundColor: "#fff", border: "1px solid #cbd5e1", padding: "8px 12px", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <p style={{ margin: "0 0 4px 0", fontSize: 12, fontWeight: 700, color: "#475569" }}>{payload[0].payload.day}</p>
+          <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#3b82f6" }}>Reported: <strong style={{ fontWeight: 800 }}>{payload[0].value}</strong></p>
+          {payload[1] && (
+            <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#10b981" }}>Resolved: <strong style={{ fontWeight: 800 }}>{payload[1].value}</strong></p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <article className="panel weekly-fault-trends-panel" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
+          {range === "weekly" ? "Weekly Fault Trends" : "Daily Fault Trends"}
+        </h3>
+        <select
+          value={range}
+          onChange={(e) => setRange(e.target.value as any)}
+          style={{
+            padding: "4px 10px",
+            fontSize: 12,
+            fontWeight: 600,
+            borderRadius: 6,
+            border: "1px solid #cbd5e1",
+            outline: "none",
+            cursor: "pointer",
+            backgroundColor: "#fff",
+            color: "#475569"
+          }}
+        >
+          <option value="weekly">7 Days</option>
+          <option value="daily">Today (24h)</option>
+        </select>
+      </div>
+
+      <div style={{ flex: 1, width: "100%", height: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorReported" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.01}/>
+              </linearGradient>
+              <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0.01}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#64748b" }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fontWeight: 600, fill: "#64748b" }}
+              domain={[0, 'dataMax + 2']}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="reported"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorReported)"
+              dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
+              activeDot={{ r: 6 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="resolved"
+              stroke="#10b981"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorResolved)"
+              dot={{ r: 4, strokeWidth: 1.5, fill: "#fff" }}
+              activeDot={{ r: 6 }}
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
+              formatter={(value) => <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{value.charAt(0).toUpperCase() + value.slice(1)}</span>}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </article>
+  );
+}
+
 function DailyPositionDashboardView({
   data,
   openPanel,
@@ -3217,6 +3366,21 @@ function DailyPositionDashboardView({
     return filtered.length;
   }, [activeFaultsQuery.data]);
 
+  const activeFaultsCountClient = useMemo(() => {
+    if (!activeFaultsQuery.data) {
+      const faultsKpi = data.kpis.find(k => k.id === "activeFaults");
+      return faultsKpi ? faultsKpi.value : "0";
+    }
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return !isWifi && !isAllOk;
+    });
+    return String(filtered.length);
+  }, [activeFaultsQuery.data, data.kpis]);
+
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
@@ -3227,7 +3391,7 @@ function DailyPositionDashboardView({
   };
 
   const dpKpis = useMemo(() => {
-    const faultsKpi = data.kpis.find(k => k.id === "activeFaults") || {
+    const originalFaultsKpi = data.kpis.find(k => k.id === "activeFaults") || {
       id: "activeFaults",
       label: "Active Faults",
       value: "0",
@@ -3235,11 +3399,15 @@ function DailyPositionDashboardView({
       tone: "red",
       series: [0, 0, 0, 0, 0]
     };
+    const faultsKpi = {
+      ...originalFaultsKpi,
+      value: activeFaultsCountClient
+    };
     const wifiKpi = {
       id: "wifiFaults",
       label: "Wi-Fi Faults",
       value: String(wifiFaultsCount),
-      detail: "Active Wi-Fi faults",
+      detail: "",
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
@@ -3259,8 +3427,8 @@ function DailyPositionDashboardView({
       tone: "green",
       series: [0, 0, 0, 0, 0]
     };
-    return [faultsKpi, wifiKpi, faultsTodayKpi, resolvedTodayKpi];
-  }, [data.kpis, wifiFaultsCount]);
+    return [faultsKpi, faultsTodayKpi, resolvedTodayKpi, wifiKpi];
+  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -3315,19 +3483,30 @@ function DailyPositionDashboardView({
   }, [data.dailyPositionByCategory]);
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
       <section className="kpi-grid">
         {dpKpis.map((kpi, index) => (
           <KpiCard key={kpi.id} kpi={kpi} index={index} onCategoryClick={onCategoryClick} />
         ))}
       </section>
 
-      <section className="dashboard-grid" style={{ flex: 1, minHeight: 0 }}>
+      {/* Row 2 (Middle Section): Division Active Faults & Weekly Trends */}
+      <section className="dashboard-grid" style={{ marginTop: 0 }}>
+        <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+        <DailyPositionTrendsPanel
+          weeklyTrend={data.weeklyFaultsTrend || []}
+          dailyTrend={data.dailyFaultsTrend || []}
+        />
+      </section>
+
+      {/* Row 3 (Bottom Section): Category Breakdown & Priority Table */}
+      <section className="dashboard-grid" style={{ marginTop: 0, flex: 1, minHeight: 0 }}>
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
           queries={queries}
+          onCategoryClick={onCategoryClick}
         />
       </section>
     </div>
@@ -3347,17 +3526,13 @@ function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: numbe
     } else if (kpi.label === "Under Maintenance") {
       useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "UNDER_MAINTENANCE" });
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
-      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "active-faults", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
+      onCategoryClick?.("Active Faults");
     } else if (kpi.id === "wifiFaults" || kpi.label === "Wi-Fi Faults") {
       onCategoryClick?.("Wi-Fi");
     } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved Today" || kpi.label === "Resolved Today") {
-      useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "resolved-faults", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
+      onCategoryClick?.("Resolved Today");
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
-      if (role === "TESTROOM") {
-        useAppStore.setState({ activeNav: "DP Form" });
-      } else {
-        useAppStore.setState({ activeNav: "DP Logs", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
-      }
+      onCategoryClick?.("Faults Today");
     }
   };
 
@@ -3541,27 +3716,20 @@ function DailyPositionDetailsModal({
         </button>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            Daily Position Details
-          </span>
-          <h2 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+          <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
             {detailsTitle || detailsRecord[0]?.formType || "Daily Position"}
           </h2>
-          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
-            {formatDate(selectedDate)} · {detailsRecord.length} {detailsRecord.length === 1 ? "entry" : "entries"} submitted
-          </p>
         </div>
 
         {/* Content list */}
-        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#f8fafc" }}>
+        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#fff" }}>
           {detailsRecord.filter((e: any) => e.status !== "DRAFT").map((entry: any, index: number) => {
             const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
             const effectiveStatus = entry.positionStatus || entry.status;
             const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
-            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-            
+            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
             const locationItems = Object.entries(entry.formData || {})
               .filter(([key]) => locationKeys.includes(key))
               .map(([key, value]) => {
@@ -3576,14 +3744,9 @@ function DailyPositionDetailsModal({
                 };
               });
 
-            const formFieldItems = Object.entries(entry.formData || {})
-              .filter(([key]) => {
-                if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
-                if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                if (key.endsWith("Other") || key.endsWith("Others")) return false;
-                if (locationKeys.includes(key)) return false;
-                return true;
-              })
+            const howKeys = ["natureOfFault", "nameOfFault", "videoClarity", "audioClarity", "cableCutByWhom", "cableType", "systemType"];
+            const howItems = Object.entries(entry.formData || {})
+              .filter(([key]) => howKeys.includes(key))
               .map(([key, value]) => {
                 let displayVal = value;
                 if (value === "Other" || value === "Others") {
@@ -3597,14 +3760,12 @@ function DailyPositionDetailsModal({
               });
 
             return (
-              <div key={entry.id} style={{
-                border: "1px solid var(--line)",
-                borderRadius: "10px",
-                padding: "16px 20px",
-                background: "#fff",
-                position: "relative",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-              }}>
+              <Fragment key={entry.id}>
+                <div style={{
+                  background: "#fff",
+                  position: "relative",
+                  padding: "12px 0",
+                }}>
                  {/* Subtitle / Header inside card */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
                   <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
@@ -3636,36 +3797,73 @@ function DailyPositionDetailsModal({
                 {/* Location Details (Priority 1) */}
                 {locationItems.length > 0 && (
                   <div style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    padding: "12px 14px",
-                    marginBottom: "14px"
+                    marginBottom: "14px",
+                    borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
                   }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
-                      Location Details
-                    </span>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
                       {locationItems.map(item => (
                         <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 650 }}>{item.value}</strong>
+                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Remarks & Reason block (Priority 2 - Directly after Location Details) */}
-                {isFault ? (
+                {/* Main Information: Fault Timing (Priority 2) */}
+                {entry.failureTime && (
                   <div style={{
-                    marginBottom: "14px"
+                    marginBottom: "14px",
+                    borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
                   }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                      <div>
+                        <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
+                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
+                      </div>
+                      <div>
+                        <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
+                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
+                      </div>
+                      {entry.durationText && (
+                        <div>
+                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Nature of Fault (Priority 3) */}
+                {howItems.length > 0 && (
+                  <div style={{
+                    marginBottom: "14px",
+                    borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                    paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                      {howItems.map(item => (
+                        <div key={item.key}>
+                          <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                          <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
+                {isFault ? (
+                  <div style={{ marginBottom: "14px" }}>
+                    <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
                       Reason / Remarks
                     </span>
-                    <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.08)" }}>
-                      <strong style={{ fontWeight: 500 }}>
+                    <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                      <strong style={{ fontWeight: 700 }}>
                         {entry.reason || entry.remarks || "No reason specified"}
                         {showRemarks && ` · ${entry.remarks}`}
                       </strong>
@@ -3673,69 +3871,15 @@ function DailyPositionDetailsModal({
                   </div>
                 ) : (
                   (entry.remarks || entry.reason) && (
-                    <div style={{
-                      marginBottom: "14px"
-                    }}>
-                      <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                    <div style={{ marginBottom: "14px" }}>
+                      <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
                         Remarks
                       </span>
-                      <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: "rgba(34, 197, 94, 0.02)", padding: "10px 12px", borderRadius: "6px", border: "1px solid rgba(34, 197, 94, 0.08)" }}>
-                        <strong style={{ fontWeight: 500 }}>{entry.remarks || entry.reason}</strong>
+                      <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                        <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
                       </div>
                     </div>
                   )
-                )}
-
-                {/* Main Information: Fault Timing (Priority 3) */}
-                <div style={{
-                  background: isFault ? "rgba(239, 68, 68, 0.03)" : "rgba(34, 197, 94, 0.03)",
-                  border: `1px solid ${isFault ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)"}`,
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                  marginBottom: "14px"
-                }}>
-                  {isFault ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Failure Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.failureTime)}</strong>
-                        </div>
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Rectification Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{formatDateTime24(entry.rectificationTime)}</strong>
-                        </div>
-                      </div>
-
-                      {entry.durationText && (
-                        <div>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration of Failure</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)" }}>{entry.durationText}</strong>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>✔ System Operational</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional Form Fields (Priority 4) */}
-                {formFieldItems.length > 0 && (
-                  <div style={{ marginBottom: "12px" }}>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "8px" }}>
-                      Form Fields
-                    </span>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
-                      {formFieldItems.map(item => (
-                        <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 500 }}>{item.value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 )}
 
                 {/* Footer Metadata */}
@@ -3755,8 +3899,25 @@ function DailyPositionDetailsModal({
                   )}
                 </div>
               </div>
-            );
-          })}
+              {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (
+                <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
+                  <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
+                    <defs>
+                      <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#334155" stopOpacity={0} />
+                        <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
+                        <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
+                        <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
+                  </svg>
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
         </div>
       </div>
     </div>
@@ -3870,7 +4031,7 @@ function DailyPositionSummaryTable({
 
   const displayedForms = useMemo(() => {
     const base = DAILY_POSITION_FORMS.filter(
-      form => form.category !== "Daily Log" && form.name !== "Daily Position Log" && form.name !== "Wi-Fi"
+      form => form.category !== "Daily Log" && form.name !== "Daily Position Log"
     );
     return base;
   }, []);
@@ -4059,7 +4220,7 @@ function DailyPositionSummaryTable({
             locLabel = "Location";
             locValue = entry.location || entry.formData?.location;
           }
-          
+
           const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
           let truncatedRemark = "";
           if (rawRemark) {
@@ -4129,247 +4290,247 @@ function DailyPositionSummaryTable({
         />
       ) : (
         <article className="panel list-panel" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", flex: 1, minHeight: 0, height: "100%" }}>
-      {/* Header */}
-      <div style={{
-        display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-        padding: "16px 20px 12px", borderBottom: "1px solid var(--line)"
-      }}>
-        <div>
-          <div className="position-summary-title-row">
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
-              Position Summary
-            </h3>
-            <input
-              type="date"
-              value={selectedDate}
-              max={maxPickerDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-              className="position-date-picker"
-            />
-          </div>
-          <div className="position-tabs" role="tablist" aria-label="Position period">
-            <button type="button" className={positionType === "MORNING" ? "active" : ""} onClick={() => selectPositionType("MORNING")}>Morning Position</button>
-            <button type="button" className={positionType === "CURRENT" ? "active" : ""} onClick={() => selectPositionType("CURRENT")}>Current Position</button>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
-          <button
-            onClick={() => setIsPrintOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              border: "1px solid var(--blue)",
-              borderRadius: 8,
-              padding: "6px 12px",
-              fontSize: 12,
-              color: "#fff",
-              background: "var(--blue)",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "background 0.2s"
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "var(--blue-hover)"}
-            onMouseLeave={e => e.currentTarget.style.background = "var(--blue)"}
-          >
-            <Printer size={14} /> Print Summary
-          </button>
-          {isSuperAdmin && (
-            <ClearableSelect
-              value={selectedDivision}
-              onChange={setSelectedDivision}
-              style={{
-                border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
-                fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
-                fontFamily: "inherit"
-              }}
-            >
-              <option value="">Select Division</option>
-              {DIVISIONS.map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </ClearableSelect>
-          )}
-          {!isSuperAdmin && (
-            <span style={{
-              border: "1px solid var(--blue-soft)", borderRadius: 8, padding: "6px 10px",
-              fontSize: 12, color: "var(--blue)", background: "var(--blue-soft)", fontWeight: 600
-            }}>
-              📍 {userDivision}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Loading state */}
-      {dpQuery.isLoading && (
-        <div style={{ padding: "48px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--muted)", fontSize: 13 }}>
-          <div className="inline-spinner">
-            <div className="loader-outer-ring"></div>
-            <div className="loader-spinner-gradient"></div>
-            <div className="loader-clock-hand-minute"></div>
-            <div className="loader-clock-hand-hour"></div>
-            <div className="loader-center-dot"></div>
-          </div>
-          <span>Loading summary…</span>
-        </div>
-      )}
-
-      {summaryError && (
-        <div className="position-summary-error">Unable to load this position. Please retry or check the backend connection.</div>
-      )}
-
-      {!dpQuery.isLoading && (
-        <>
-          {/* Table header */}
+          {/* Header */}
           <div style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
-            padding: "8px 20px",
-            background: "var(--page)",
-            borderBottom: "1px solid var(--line)",
-            gap: 12
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+            padding: "16px 20px 12px", borderBottom: "1px solid var(--line)"
           }}>
-            {["NAME OF CIRCUIT", "STATUS", "FAULTS", "KEY REMARK", ""].map((col, i) => (
-              <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                {col}
-              </span>
-            ))}
-          </div>
-
-          {/* Grouped rows */}
-          <div className="no-scrollbar" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
-            {Object.entries(grouped).map(([category, forms]) => (
-              <div key={category}>
-                {/* Category divider */}
-                {category !== "Wi-Fi" && (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "6px 20px 5px", background: "#f4f7fb",
-                    borderBottom: "1px solid var(--line)"
-                  }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      {category}
-                    </span>
-                  </div>
-                )}
-
-                {/* Form rows */}
-                {forms.map(form => {
-                  const status = getStatus(form);
-                  const remark = getRemark(entriesByForm, form);
-                  const isFault = status === "FAULT";
-                  const isRectified = status === "RECTIFIED";
-                  const noData = status === null;
-                  const faultCount = isFault ? getFaultCount(entriesByForm, form) : "-";
-
-                  return (
-                    <div
-                      key={form.systemCode}
-                      onClick={() => handleRowClick(form)}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
-                        alignItems: "center",
-                        padding: "0 20px",
-                        height: 44,
-                        gap: 12,
-                        cursor: "pointer",
-                        borderLeft: `3px solid ${isFault ? "var(--red)" : isRectified ? "var(--blue)" : noData ? "var(--line)" : "var(--green)"}`,
-                        background: isFault ? "rgba(255,51,40,0.04)" : "#fff",
-                        borderBottom: "1px solid var(--line)",
-                        transition: "background 0.15s"
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.background = "var(--blue-soft)";
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.background = isFault ? "rgba(255,51,40,0.04)" : "#fff";
-                      }}
-                    >
-                      {/* Form name */}
-                      <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {form.name}
-                      </span>
-
-                      {/* Status pill */}
-                      <span>
-                        {noData ? (
-                          <span style={{ fontSize: 11, color: "var(--muted)" }}>No entry</span>
-                        ) : (
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700,
-                            color: "#fff",
-                            background: isFault ? "var(--red)" : isRectified ? "var(--blue)" : "var(--green)"
-                          }}>
-                            {isFault ? "FAULTY" : isRectified ? "RECTIFIED" : "ALL OK"}
-                          </span>
-                        )}
-                      </span>
-
-                      {/* Faults count */}
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isFault ? "var(--red)" : "var(--muted)", paddingLeft: 4 }}>
-                        {faultCount}
-                      </span>
-
-                      {/* Key remark */}
-                      <span style={{
-                        fontSize: 12, color: remark ? "var(--navy)" : "var(--muted)",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                      }}>
-                        {remark || "—"}
-                      </span>
-
-                      {/* Chevron */}
-                      <span style={{ fontSize: 16, color: "var(--line)", textAlign: "right" }}>›</span>
-                    </div>
-                  );
-                })}
+            <div>
+              <div className="position-summary-title-row">
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
+                  Position Summary
+                </h3>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={maxPickerDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }}
+                  className="position-date-picker"
+                />
               </div>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div style={{
-            padding: "8px 20px", background: "var(--page)",
-            borderTop: "1px solid var(--line)",
-            display: "flex", justifyContent: "space-between", alignItems: "center"
-          }}>
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { label: "ALL OK", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
-                { label: "Fault", color: "var(--red)", bg: "var(--red-soft)", count: displayedForms.filter(f => getStatus(f) === "FAULT").length },
-                { label: "Rectified", color: "var(--blue)", bg: "var(--blue-soft)", count: displayedForms.filter(f => getStatus(f) === "RECTIFIED").length },
-                { label: "No Entry", color: "var(--muted)", bg: "var(--line)", count: displayedForms.filter(f => getStatus(f) === null).length },
-              ].map(s => (
-                <span key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
-                  <span style={{ color: s.color, fontWeight: 700 }}>{s.count}</span>
-                  <span style={{ color: "var(--muted)" }}>{s.label}</span>
-                </span>
-              ))}
+              <div className="position-tabs" role="tablist" aria-label="Position period">
+                <button type="button" className={positionType === "MORNING" ? "active" : ""} onClick={() => selectPositionType("MORNING")}>Morning Position</button>
+                <button type="button" className={positionType === "CURRENT" ? "active" : ""} onClick={() => selectPositionType("CURRENT")}>Current Position</button>
+              </div>
             </div>
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>
-              {formatDate(selectedDate)} · {userDivision} Division
-            </span>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+              <button
+                onClick={() => setIsPrintOpen(true)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  border: "1px solid var(--blue)",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  color: "#fff",
+                  background: "var(--blue)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--blue-hover)"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--blue)"}
+              >
+                <Printer size={14} /> Print Summary
+              </button>
+              {isSuperAdmin && (
+                <ClearableSelect
+                  value={selectedDivision}
+                  onChange={setSelectedDivision}
+                  style={{
+                    border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px",
+                    fontSize: 13, color: "var(--navy)", background: "#fff", cursor: "pointer",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  <option value="">Select Division</option>
+                  {DIVISIONS.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </ClearableSelect>
+              )}
+              {!isSuperAdmin && (
+                <span style={{
+                  border: "1px solid var(--blue-soft)", borderRadius: 8, padding: "6px 10px",
+                  fontSize: 12, color: "var(--blue)", background: "var(--blue-soft)", fontWeight: 600
+                }}>
+                  📍 {userDivision}
+                </span>
+              )}
+            </div>
           </div>
-        </>
-      )}
 
-      {/* Details modal */}
-      {detailsRecord && (
-        <DailyPositionDetailsModal
-          detailsRecord={detailsRecord}
-          detailsTitle={detailsTitle}
-          selectedDate={selectedDate}
-          formatDate={formatDate}
-          onClose={() => setDetailsRecord(null)}
-          role={user?.role}
-          queries={queries}
-        />
-      )}
+          {/* Loading state */}
+          {dpQuery.isLoading && (
+            <div style={{ padding: "48px 32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--muted)", fontSize: 13 }}>
+              <div className="inline-spinner">
+                <div className="loader-outer-ring"></div>
+                <div className="loader-spinner-gradient"></div>
+                <div className="loader-clock-hand-minute"></div>
+                <div className="loader-clock-hand-hour"></div>
+                <div className="loader-center-dot"></div>
+              </div>
+              <span>Loading summary…</span>
+            </div>
+          )}
+
+          {summaryError && (
+            <div className="position-summary-error">Unable to load this position. Please retry or check the backend connection.</div>
+          )}
+
+          {!dpQuery.isLoading && (
+            <>
+              {/* Table header */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
+                padding: "8px 20px",
+                background: "var(--page)",
+                borderBottom: "1px solid var(--line)",
+                gap: 12
+              }}>
+                {["NAME OF CIRCUIT", "STATUS", "FAULTS", "KEY REMARK", ""].map((col, i) => (
+                  <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {col}
+                  </span>
+                ))}
+              </div>
+
+              {/* Grouped rows */}
+              <div className="no-scrollbar" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+                {Object.entries(grouped).map(([category, forms]) => (
+                  <div key={category}>
+                    {/* Category divider */}
+                    {category !== "Wi-Fi" && (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "6px 20px 5px", background: "#f4f7fb",
+                        borderBottom: "1px solid var(--line)"
+                      }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          {category}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Form rows */}
+                    {forms.map(form => {
+                      const status = getStatus(form);
+                      const remark = getRemark(entriesByForm, form);
+                      const isFault = status === "FAULT";
+                      const isRectified = status === "RECTIFIED";
+                      const noData = status === null;
+                      const faultCount = isFault ? getFaultCount(entriesByForm, form) : "-";
+
+                      return (
+                        <div
+                          key={form.systemCode}
+                          onClick={() => handleRowClick(form)}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1.2fr 100px 80px 1.5fr 24px",
+                            alignItems: "center",
+                            padding: "0 20px",
+                            height: 44,
+                            gap: 12,
+                            cursor: "pointer",
+                            borderLeft: `3px solid ${isFault ? "var(--red)" : isRectified ? "var(--blue)" : noData ? "var(--line)" : "var(--green)"}`,
+                            background: isFault ? "rgba(255,51,40,0.04)" : "#fff",
+                            borderBottom: "1px solid var(--line)",
+                            transition: "background 0.15s"
+                          }}
+                          onMouseEnter={e => {
+                            (e.currentTarget as HTMLElement).style.background = "var(--blue-soft)";
+                          }}
+                          onMouseLeave={e => {
+                            (e.currentTarget as HTMLElement).style.background = isFault ? "rgba(255,51,40,0.04)" : "#fff";
+                          }}
+                        >
+                          {/* Form name */}
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--navy)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {form.name}
+                          </span>
+
+                          {/* Status pill */}
+                          <span>
+                            {noData ? (
+                              <span style={{ fontSize: 11, color: "var(--muted)" }}>No entry</span>
+                            ) : (
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                color: "#fff",
+                                background: isFault ? "var(--red)" : isRectified ? "var(--blue)" : "var(--green)"
+                              }}>
+                                {isFault ? "FAULTY" : isRectified ? "RECTIFIED" : "ALL OK"}
+                              </span>
+                            )}
+                          </span>
+
+                          {/* Faults count */}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isFault ? "var(--red)" : "var(--muted)", paddingLeft: 4 }}>
+                            {faultCount}
+                          </span>
+
+                          {/* Key remark */}
+                          <span style={{
+                            fontSize: 12, color: remark ? "var(--navy)" : "var(--muted)",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                          }}>
+                            {remark || "—"}
+                          </span>
+
+                          {/* Chevron */}
+                          <span style={{ fontSize: 16, color: "var(--line)", textAlign: "right" }}>›</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: "8px 20px", background: "var(--page)",
+                borderTop: "1px solid var(--line)",
+                display: "flex", justifyContent: "space-between", alignItems: "center"
+              }}>
+                <div style={{ display: "flex", gap: 12 }}>
+                  {[
+                    { label: "ALL OK", color: "var(--green)", bg: "var(--green-soft)", count: displayedForms.filter(f => getStatus(f) === "NORMAL").length },
+                    { label: "Fault", color: "var(--red)", bg: "var(--red-soft)", count: displayedForms.filter(f => getStatus(f) === "FAULT").length },
+                    { label: "Rectified", color: "var(--blue)", bg: "var(--blue-soft)", count: displayedForms.filter(f => getStatus(f) === "RECTIFIED").length },
+                    { label: "No Entry", color: "var(--muted)", bg: "var(--line)", count: displayedForms.filter(f => getStatus(f) === null).length },
+                  ].map(s => (
+                    <span key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                      <span style={{ color: s.color, fontWeight: 700 }}>{s.count}</span>
+                      <span style={{ color: "var(--muted)" }}>{s.label}</span>
+                    </span>
+                  ))}
+                </div>
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {formatDate(selectedDate)} · {userDivision} Division
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Details modal */}
+          {detailsRecord && (
+            <DailyPositionDetailsModal
+              detailsRecord={detailsRecord}
+              detailsTitle={detailsTitle}
+              selectedDate={selectedDate}
+              formatDate={formatDate}
+              onClose={() => setDetailsRecord(null)}
+              role={user?.role}
+              queries={queries}
+            />
+          )}
 
         </article>
       )}
@@ -4403,7 +4564,7 @@ function DailyPositionSummaryTableSuperAdmin({
               value={selectedDate}
               max={maxPickerDate}
               onChange={(event: any) => setSelectedDate(event.target.value)}
-              onClick={(event: any) => { try { event.currentTarget.showPicker(); } catch (err) {} }}
+              onClick={(event: any) => { try { event.currentTarget.showPicker(); } catch (err) { } }}
               className="position-date-picker"
             />
           </div>
@@ -4533,7 +4694,7 @@ function DailyPositionSummaryTableSuperAdmin({
                     {DIVISIONS.map((div: string) => {
                       const map = divisionMaps[div] || {};
                       const status = getStatusFromMap(map, form);
-                      
+
                       // Pre-calculate faultDetails if status is FAULT
                       let faultDetails: any[] = [];
                       if (status === "FAULT") {
@@ -4547,12 +4708,12 @@ function DailyPositionSummaryTableSuperAdmin({
                           })
                           .map((entry: any) => {
                             const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
-                            
+
                             // Map location to name/code
                             let locLabel = "";
                             let locValue = "";
                             const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
-                            
+
                             if (codeOrName) {
                               locLabel = "St. Code";
                               const sList = queries?.stationsQuery?.data?.data || [];
@@ -4576,7 +4737,7 @@ function DailyPositionSummaryTableSuperAdmin({
                               locLabel = "Exchange";
                               locValue = entry.formData.exchangeName;
                             }
-                            
+
                             const rawRemark = entry.reason || entry.remarks || entry.logDetails || entry.descriptionOfCase || "";
                             let truncatedRemark = "";
                             if (rawRemark) {
@@ -4628,12 +4789,12 @@ function DailyPositionSummaryTableSuperAdmin({
                                     <div style={{ textAlign: "center", width: "100%", fontWeight: 800 }}>FAULT</div>
                                   ) : (
                                     faultDetails.map((detail: any, idx: number) => (
-                                      <div key={idx} style={{ 
-                                        width: "100%", 
-                                        display: "flex", 
-                                        flexDirection: "row", 
-                                        alignItems: "center", 
-                                        gap: "4px", 
+                                      <div key={idx} style={{
+                                        width: "100%",
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        gap: "4px",
                                         whiteSpace: "nowrap",
                                         overflow: "hidden",
                                         textOverflow: "ellipsis"
@@ -5776,7 +5937,7 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
                 <tbody>
                   {filteredFeedbacks.map((fb: any) => {
                     const attachments = Array.isArray(fb.files) ? fb.files : [];
-                    
+
                     // Parse form name prefix if exists
                     const match = fb.description?.match(/^\[Form:\s*([^\]]+)\]\n?([\s\S]*)$/);
                     const formName = match ? match[1] : null;
@@ -8202,7 +8363,7 @@ function ActionPanel({
           </label>
           <label>
             {requiredLabel("Date of Installation")}
-            <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+            <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
           </label>
           <label>
             {requiredLabel("Work Name")}
@@ -8244,11 +8405,11 @@ function ActionPanel({
             <>
               <label>
                 {requiredLabel("Maintenance From")}
-                <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+                <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
               </label>
               <label>
                 {requiredLabel("Maintenance To")}
-                <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+                <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
               </label>
             </>
           )}
@@ -8613,7 +8774,7 @@ function ActionPanel({
             </label>
             <label>
               {requiredLabel("Date of Installation")}
-              <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+              <input required type="date" value={assetDop} onChange={e => setAssetDop(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
             </label>
             <label>
               {requiredLabel("Work Name")}
@@ -8655,11 +8816,11 @@ function ActionPanel({
               <>
                 <label>
                   {requiredLabel("Maintenance From")}
-                  <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+                  <input required type="date" value={assetMaintenanceFrom} onChange={e => setAssetMaintenanceFrom(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
                 </label>
                 <label>
                   {requiredLabel("Maintenance To")}
-                  <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }} />
+                  <input required type="date" value={assetMaintenanceTo} onChange={e => setAssetMaintenanceTo(e.target.value)} onClick={e => { try { e.currentTarget.showPicker(); } catch (err) { } }} />
                 </label>
               </>
             )}
@@ -8813,12 +8974,12 @@ function ActionPanel({
             </label>
             <label>
               Category
-            <ClearableSelect value={gateCategory} onChange={setGateCategory}>
-              <option value="">Select Category</option>
-              <option value="Interlocked">Interlocked</option>
-              <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
-              <option value="Special / Other Gates">Special / Other Gates</option>
-            </ClearableSelect>
+              <ClearableSelect value={gateCategory} onChange={setGateCategory}>
+                <option value="">Select Category</option>
+                <option value="Interlocked">Interlocked</option>
+                <option value="Manned Non-Interlocked">Manned Non-Interlocked</option>
+                <option value="Special / Other Gates">Special / Other Gates</option>
+              </ClearableSelect>
             </label>
             <label>
               Section
