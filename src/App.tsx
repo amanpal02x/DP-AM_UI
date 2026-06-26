@@ -3523,13 +3523,7 @@ function DailyPositionDetailsModal({
             const effectiveStatus = entry.positionStatus || entry.status;
             const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
             const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
-<<<<<<< HEAD
-            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-
-=======
-            const locationKeys = ["majorSection", "section", "stationCode", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
-            
->>>>>>> a872d09 (model details update)
+            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
             const locationItems = Object.entries(entry.formData || {})
               .filter(([key]) => locationKeys.includes(key))
               .map(([key, value]) => {
@@ -3560,17 +3554,6 @@ function DailyPositionDetailsModal({
               });
 
             return (
-<<<<<<< HEAD
-              <div key={entry.id} style={{
-                border: "1px solid var(--line)",
-                borderRadius: "10px",
-                padding: "16px 20px",
-                background: "#fff",
-                position: "relative",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-              }}>
-                {/* Subtitle / Header inside card */}
-=======
               <Fragment key={entry.id}>
                 <div style={{
                   background: "#fff",
@@ -3578,7 +3561,6 @@ function DailyPositionDetailsModal({
                   padding: "12px 0",
                 }}>
                  {/* Subtitle / Header inside card */}
->>>>>>> a872d09 (model details update)
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
                   <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
                     {isSuperAdmin
