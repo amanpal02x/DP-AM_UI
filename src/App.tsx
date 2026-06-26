@@ -3825,7 +3825,7 @@ function DailyPositionSummaryTable({
 
   const displayedForms = useMemo(() => {
     const base = DAILY_POSITION_FORMS.filter(
-      form => form.category !== "Daily Log" && form.name !== "Daily Position Log" && form.name !== "Wi-Fi"
+      form => form.category !== "Daily Log" && form.name !== "Daily Position Log"
     );
     return base;
   }, []);
