@@ -4202,7 +4202,7 @@ function DailyPositionSummaryTable({
           let locValue = "";
           const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
           if (codeOrName) {
-            locLabel = "St. Code";
+            locLabel = "St.";
             const sList = queries?.stationsQuery?.data?.data || [];
             const found = sList.find(
               (s: any) =>
@@ -4233,7 +4233,7 @@ function DailyPositionSummaryTable({
             }
           }
           const parts = [];
-          if (failureText) parts.push(`Ft.: ${failureText}`);
+          if (failureText) parts.push(`FT.: ${failureText}`);
           if (locValue) parts.push(`${locLabel} : ${locValue}`);
           if (truncatedRemark) parts.push(`Remark : ${truncatedRemark}`);
           return parts.join(" ");
@@ -4716,7 +4716,7 @@ function DailyPositionSummaryTableSuperAdmin({
                             const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
 
                             if (codeOrName) {
-                              locLabel = "St. Code";
+                              locLabel = "St.";
                               const sList = queries?.stationsQuery?.data?.data || [];
                               const found = sList.find(
                                 (s: any) =>
@@ -4802,7 +4802,7 @@ function DailyPositionSummaryTableSuperAdmin({
                                       }}>
                                         {detail.failureText && (
                                           <span style={{ whiteSpace: "nowrap" }}>
-                                            <span>Ft.: </span>
+                                            <span>FT.: </span>
                                             <span style={{ fontWeight: 800 }}>{detail.failureText}</span>
                                           </span>
                                         )}
