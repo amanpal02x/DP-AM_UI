@@ -118,7 +118,6 @@ export const HOTLINE_FIELDS: DailyPositionField[] = [
 ];
 
 const exchangeFields: DailyPositionField[] = [
-  { name: "stationCode", label: "Station/Location", type: "select", placeholder: "Select Station/Location" },
   docketField,
   {
     name: "exchangeName",
@@ -234,8 +233,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/VPHONE-05",
     description: "SIP-based video telephone terminals for Board communications.",
     fields: [
-      requiredDocketField,
-      ...hierarchyFields,
+      { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
       {
         name: "videoPhoneLocation",
         label: "Video Phone in Chamber of PHOD",
@@ -262,7 +260,15 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "videoClarity", label: "Video Clarity", type: "select", required: true, options: ["Excellent", "Good", "Satisfactory", "Poor", "No Video"], placeholder: "Select Video Clarity" },
       { name: "audioClarity", label: "Audio Clarity", type: "select", required: true, options: ["Excellent", "Good", "Satisfactory", "Poor", "No Audio"], placeholder: "Select Audio Clarity" },
       ...timingFields,
-      ...reasonRemarkFields,
+      {
+        name: "reason",
+        label: "Reason of Failure",
+        type: "select",
+        required: true,
+        options: ["Phone Fault", "Exchange", "Cable Fault", "PoE Switch", "Others"],
+        placeholder: "Select Reason of Failure"
+      },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
     ],
   },
   {

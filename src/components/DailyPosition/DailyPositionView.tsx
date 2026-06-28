@@ -256,7 +256,7 @@ function SearchableStationDropdown({
         }}>
           {selectedStation ? (selectedStation.code === "Others" ? "Others" : `${selectedStation.name} (${selectedStation.code})`) : placeholder}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {value && !readOnly && (
             <span
               role="button"
@@ -572,7 +572,7 @@ function SearchableDropdown({
         }}>
           {selectedOpt ? selectedOpt.label : placeholder}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {value && !readOnly && clearable && (
             <span
               role="button"
