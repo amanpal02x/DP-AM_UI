@@ -112,8 +112,11 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   }));
 
   // Group active faults by division for activeFaultsByDivision (Raipur, Bilaspur, Nagpur)
+  // Exclude Wi-Fi faults — they are tracked separately via the Wi-Fi Faults counter
   const activeDivCounts: Record<string, number> = { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
   for (const r of activeFaultsList) {
+    const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+    if (isWifi) continue; // skip Wi-Fi faults
     const div = r.division;
     if (!div) continue;
     const lower = div.toLowerCase();
