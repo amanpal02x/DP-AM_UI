@@ -3238,7 +3238,7 @@ function DailyPositionTrendsPanel({
       return (
         <div style={{ backgroundColor: "#fff", border: "1px solid #cbd5e1", padding: "8px 12px", borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <p style={{ margin: "0 0 4px 0", fontSize: 12, fontWeight: 700, color: "#475569" }}>{payload[0].payload.day}</p>
-          <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#3b82f6" }}>Reported: <strong style={{ fontWeight: 800 }}>{payload[0].value}</strong></p>
+          <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#ef4444" }}>Reported: <strong style={{ fontWeight: 800 }}>{payload[0].value}</strong></p>
           {payload[1] && (
             <p style={{ margin: "0", fontSize: 12, fontWeight: 600, color: "#10b981" }}>Resolved: <strong style={{ fontWeight: 800 }}>{payload[1].value}</strong></p>
           )}
@@ -3279,8 +3279,8 @@ function DailyPositionTrendsPanel({
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorReported" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.01}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.01}/>
               </linearGradient>
               <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
@@ -3304,7 +3304,7 @@ function DailyPositionTrendsPanel({
             <Area
               type="monotone"
               dataKey="reported"
-              stroke="#3b82f6"
+              stroke="#ef4444"
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorReported)"
