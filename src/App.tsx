@@ -2,6 +2,9 @@ import { useState, useEffect, Fragment, useRef, useMemo, lazy, Suspense } from "
 import type { ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
+import bgSketch from "./assets/bg-sketch.png";
+import irLogo from "./assets/ir-logo.png";
+import secrHq from "./assets/secr_hq.jpg";
 import {
   AlertTriangle,
   BarChart3,
@@ -40,7 +43,10 @@ import {
   Send,
   Eye,
   EyeOff,
-  Printer
+  Printer,
+  Phone,
+  Briefcase,
+  ArrowRight
 } from "lucide-react";
 import {
   Cell,
@@ -9653,83 +9659,111 @@ function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) =>
 
   return (
     <div style={{ animation: "fadeIn 0.2s ease-in-out" }}>
-      <h3 style={{ margin: "0 0 4px 0", fontSize: "20px", fontWeight: "800", color: "#0f172a" }}>Sign Up</h3>
-      <p style={{ margin: "0 0 16px 0", fontSize: "13.5px", color: "#64748b", fontWeight: "500" }}>Create a new self-registered Staff account</p>
+      <div className="auth-card-header">
+        <h3 className="auth-card-title">Sign Up</h3>
+        <p className="auth-card-subtitle">Create a new self-registered Staff account</p>
+      </div>
 
       {errorMsg && <div className="auth-error">{errorMsg}</div>}
 
-      <div style={{
-        background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
-        border: "1px solid #bfdbfe",
-        borderRadius: "10px",
-        padding: "12px 14px",
-        fontSize: "12.5px",
-        color: "#1e40af",
-        fontWeight: "600",
-        textAlign: "left",
-        marginBottom: "16px",
-        lineHeight: "1.4",
-        boxShadow: "0 2px 4px rgba(37, 99, 235, 0.04)"
-      }}>
-        ℹ️ Your <strong>mobile number</strong> will act as both your username and default password.
-      </div>
-
-      <form onSubmit={otpSent ? handleSignup : handleRequestOtp}>
-        <label>
-          Full Name
-          <input required value={name} onChange={e => setName(e.target.value)} placeholder="Enter your full name" />
-        </label>
-        <label>
-          Designation
-          <input required value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. SSE/Tele/Bilaspur" />
-        </label>
-        <label>
-          Mobile Number
-          <input required type="tel" maxLength={10} value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g, ""))} placeholder="10-digit mobile number" />
-        </label>
-        <label>
-          Division
-          <select required value={division} onChange={e => setDivision(e.target.value)}>
-            <option value="Bilaspur">Bilaspur</option>
-            <option value="Raipur">Raipur</option>
-            <option value="Nagpur">Nagpur</option>
-          </select>
-        </label>
-
-        {otpSent && (
-          <label style={{ animation: "fadeIn 0.2s ease-in-out" }}>
-            Enter OTP
+      <form onSubmit={otpSent ? handleSignup : handleRequestOtp} className="auth-form">
+        <div className="auth-field-group">
+          <span className="auth-label">Full Name</span>
+          <div className="auth-input-wrapper">
+            <CircleUserRound className="auth-input-icon" size={18} />
             <input
               required
-              type="text"
-              maxLength={6}
-              value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
-              placeholder="Enter 6-digit OTP"
+              className="auth-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Enter your full name"
             />
-          </label>
+          </div>
+        </div>
+
+        <div className="auth-field-group">
+          <span className="auth-label">Designation</span>
+          <div className="auth-input-wrapper">
+            <Briefcase className="auth-input-icon" size={18} />
+            <input
+              required
+              className="auth-input"
+              value={designation}
+              onChange={e => setDesignation(e.target.value)}
+              placeholder="e.g. SSE/Tele/Bilaspur"
+            />
+          </div>
+        </div>
+
+        <div className="auth-field-group">
+          <span className="auth-label">Mobile Number</span>
+          <div className="auth-input-wrapper">
+            <Phone className="auth-input-icon" size={18} />
+            <input
+              required
+              type="tel"
+              maxLength={10}
+              className="auth-input"
+              value={mobile}
+              onChange={e => setMobile(e.target.value.replace(/\D/g, ""))}
+              placeholder="10-digit mobile number"
+              disabled={otpSent}
+            />
+          </div>
+        </div>
+
+        <div className="auth-field-group">
+          <span className="auth-label">Division</span>
+          <div className="auth-input-wrapper">
+            <MapIcon className="auth-input-icon" size={18} />
+            <select
+              required
+              className="auth-input auth-select"
+              value={division}
+              onChange={e => setDivision(e.target.value)}
+              disabled={otpSent}
+            >
+              <option value="Bilaspur">Bilaspur</option>
+              <option value="Raipur">Raipur</option>
+              <option value="Nagpur">Nagpur</option>
+            </select>
+          </div>
+        </div>
+
+        {otpSent && (
+          <div className="auth-field-group" style={{ animation: "fadeIn 0.2s ease-in-out" }}>
+            <span className="auth-label">Enter OTP</span>
+            <div className="auth-input-wrapper">
+              <Lock className="auth-input-icon" size={18} />
+              <input
+                required
+                type="text"
+                maxLength={6}
+                className="auth-input"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+                placeholder="Enter 6-digit OTP"
+              />
+            </div>
+          </div>
         )}
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Please wait..." : (otpSent ? "Verify & Register" : "Request OTP")}
+        <button type="submit" className="auth-submit-btn" disabled={loading}>
+          {loading ? "Please wait..." : (
+            <>
+              {otpSent ? "Verify & Register" : "Request OTP"}
+              <ArrowRight size={16} />
+            </>
+          )}
         </button>
       </form>
 
-      <div style={{ marginTop: "18px", fontSize: "14px", color: "#64748b" }}>
+      <div className="auth-footer-text">
         Already registered?{" "}
         <button
           type="button"
+          className="auth-link"
           onClick={onSuccess}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--blue)",
-            fontWeight: "750",
-            cursor: "pointer",
-            textDecoration: "underline",
-            padding: 0,
-            fontSize: "inherit"
-          }}
         >
           Sign In
         </button>
@@ -9740,6 +9774,7 @@ function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) =>
 
 function AuthView({ showToast }: { showToast: (msg: string) => void }) {
   const [isSignup, setIsSignup] = useState(false);
+  const [activeTab, setActiveTab] = useState<"username" | "phone">("username");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -9749,12 +9784,21 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
   const [loading, setLoading] = useState(false);
   const { setToken, setUser } = useAppStore();
 
-  const isOtpMode = /^[0-9]+$/.test(username) && username.length > 5;
+  const isOtpMode = activeTab === "phone";
 
   useEffect(() => {
     setOtpSent(false);
     setOtp("");
   }, [username]);
+
+  const handleTabChange = (tab: "username" | "phone") => {
+    setActiveTab(tab);
+    setUsername("");
+    setPassword("");
+    setOtp("");
+    setOtpSent(false);
+    setErrorMsg("");
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -9775,6 +9819,10 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    if (!/^[0-9]{10}$/.test(username)) {
+      setErrorMsg("Mobile number must be exactly 10 digits.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.auth.sendOtp({ mobile: username });
@@ -9807,447 +9855,549 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
     }
   };
 
-
   return (
-    <div className="auth-container">
+    <div className="auth-page-container">
       <style>{`
-        .auth-container {
-          display: grid;
-          place-items: center;
-          min-height: 100vh;
-          background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-          padding: 20px;
-        }
-        .auth-box {
+        .auth-page-container {
+          position: relative;
           width: 100%;
-          max-width: 420px;
-          background: rgba(255, 255, 255, 0.97);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 40px rgba(11, 109, 255, 0.1);
-          border-radius: 16px;
-          padding: 40px 32px;
-          text-align: center;
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .auth-box:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.35), 0 0 50px rgba(11, 109, 255, 0.15);
-        }
-        .auth-logo {
-          width: 54px;
-          height: 54px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
-          color: #fff;
+          height: 100vh;
+          background-color: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 850;
-          font-size: 19px;
-          margin: 0 auto 20px;
-          box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
-          border: 2px solid #fff;
-        }
-        .auth-box h2 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 800;
-          color: #0f172a;
-          letter-spacing: -0.5px;
-        }
-        .auth-box p.auth-sub {
-          color: #64748b;
-          margin: 6px 0 20px;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        .auth-box form {
-          display: grid;
-          gap: 16px;
-          text-align: left;
-        }
-        .auth-box label {
-          display: grid;
-          gap: 6px;
-          font-weight: 650;
-          font-size: 13px;
-          color: #334155;
-        }
-        .auth-box input, .auth-box select {
-          width: 100%;
-          height: 44px;
-          padding: 0 14px;
-          border: 1.5px solid #cbd5e1;
-          border-radius: 8px;
-          background: #ffffff;
-          outline: 0;
-          font-size: 14.5px;
-          color: #0f172a;
-          transition: all 0.2s ease;
+          overflow: hidden;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           box-sizing: border-box;
         }
-        .auth-box input:hover {
-          border-color: #94a3b8;
-        }
-        .auth-box input:focus, .auth-box select:focus {
-          border-color: var(--blue);
-          box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.15);
-        }
-        .auth-box button[type="submit"] {
-          height: 46px;
-          background: linear-gradient(135deg, #0b6dff 0%, #0052cc 100%);
-          color: #fff;
-          border: 0;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 15px;
-          margin-top: 6px;
-          cursor: pointer;
-          box-shadow: 0 4px 14px rgba(11, 109, 255, 0.35);
-          transition: all 0.2s ease;
-          width: 100%;
-        }
-        .auth-box button[type="submit"]:hover {
-          background: linear-gradient(135deg, #257eff 0%, #0b6dff 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(11, 109, 255, 0.45);
-        }
-        .auth-box button[type="submit"]:active {
-          transform: translateY(0);
-        }
-        .auth-box button[type="submit"]:disabled {
-          opacity: 0.65;
-          cursor: not-allowed;
-          transform: none;
-        }
-        .auth-error {
-          background: #fef2f2;
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          color: #dc2626;
-          padding: 12px;
-          border-radius: 8px;
-          font-size: 13px;
-          margin-bottom: 4px;
-          text-align: left;
-          font-weight: 500;
-        }
-        .auth-tab-row {
-          display: flex;
-          gap: 0;
-          margin-bottom: 20px;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 10px;
-          overflow: hidden;
-        }
-        .auth-tab-btn {
-          flex: 1;
-          height: 40px;
-          border: 0;
-          background: #f8fafc;
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-          color: #64748b;
-          transition: all 0.2s ease;
-        }
-        .auth-tab-btn.active {
-          background: var(--blue);
-          color: #fff;
-        }
-        .auth-tab-btn:first-child { border-radius: 8px 0 0 8px; }
-        .auth-tab-btn:last-child { border-radius: 0 8px 8px 0; }
-        .sidebar-footer {
-          margin-top: auto;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px;
-          border-top: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.4);
-          border-radius: 8px;
-        }
-        .user-info {
-          display: flex;
-          flex-direction: column;
-          text-align: left;
-        }
-        .logout-btn {
-          background: transparent;
-          border: 0;
-          color: var(--red);
-          cursor: pointer;
-          padding: 6px;
-          border-radius: 4px;
-        }
-        .logout-btn:hover {
-          background: rgba(255, 51, 40, 0.1);
-        }
-        .data-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: left;
-          font-size: 14px;
-          margin-top: 10px;
-        }
-        .data-table th, .data-table td {
-          padding: 12px;
-          border-bottom: 1px solid #edf1f7;
-        }
-        .data-table th {
-          font-weight: 750;
-          color: var(--muted);
-          background: #f7faff;
-        }
-        .capabilities-badges {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-        }
-        .cap-badge {
-          font-size: 10px;
-          font-weight: 850;
-          padding: 2px 6px;
-          border-radius: 4px;
-          color: #fff;
-        }
-        .cap-badge.blue { background: var(--blue); }
-        .cap-badge.green { background: var(--green); }
-        .cap-badge.amber { background: var(--amber); }
-        .cap-badge.purple { background: var(--purple); }
-        .cap-badge.teal { background: var(--teal); }
-        .action-btn {
-          background: transparent;
-          border: 0;
-          font-weight: 750;
-          font-size: 13.5px;
-          cursor: pointer;
-          margin-left: 8px;
-        }
-        .text-blue { color: var(--blue); }
-        .text-red { color: var(--red); }
-        .clickable-link {
-          color: var(--blue);
-          cursor: pointer;
-        }
-        .clickable-link:hover {
-          text-decoration: underline;
-        }
-        .form-drawer {
-          display: grid;
-          gap: 15px;
-        }
-        .form-drawer label, .form-field {
-          display: grid;
-          gap: 5px;
-          font-weight: 700;
-          font-size: 13.5px;
-        }
-        .field-label {
-          display: inline-flex;
-          align-items: baseline;
-          gap: 2px;
-          width: fit-content;
-        }
-        .required-mark {
-          color: var(--red);
-          font-weight: 900;
-          line-height: 1;
-        }
-        .form-drawer input, .form-drawer select, .form-drawer textarea {
-          width: 100%;
-          padding: 8px 12px;
-          border: 1px solid var(--line);
-          border-radius: 6px;
-          outline: 0;
-          font-size: 14px;
-        }
-        .form-drawer input[type="checkbox"] {
-          width: 16px;
-          height: 16px;
-          padding: 0;
-          margin: 0;
-          cursor: pointer;
-          accent-color: var(--blue);
-        }
-        .multi-dropdown {
-          position: relative;
-        }
-        .multi-dropdown-trigger {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          width: 100%;
-          min-height: 38px;
-          padding: 8px 12px;
-          border: 1px solid var(--line);
-          border-radius: 6px;
-          background: #fff;
-          cursor: pointer;
-          font-weight: 700;
-          font-size: 14px;
-          color: var(--ink);
-          text-align: left;
-        }
-        .multi-dropdown-trigger.open {
-          border-color: var(--blue);
-          box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.12);
-        }
-        .multi-dropdown-value {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          color: var(--ink);
-        }
-        .multi-dropdown-placeholder {
-          color: var(--muted);
-          font-weight: 650;
-        }
-        .multi-dropdown-menu {
+        .auth-bg-sketch {
           position: absolute;
-          z-index: 20;
-          top: calc(100% - 1px);
-          left: 0;
+          top: 0;
           right: 0;
-          display: grid;
-          gap: 0;
-          max-height: 220px;
-          overflow-y: auto;
-          padding: 0;
-          border: 1px solid #9ca3af;
-          border-radius: 0;
-          background: #fff;
-          box-shadow: none;
+          bottom: 0;
+          left: 0;
+          background-repeat: no-repeat;
+          background-position: center;
+          background-size: cover;
+          opacity: 0.12;
+          pointer-events: none;
+          z-index: 0;
         }
-        .form-drawer .multi-dropdown-option {
+        .auth-wrapper {
+          position: relative;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-evenly;
+          width: 100%;
+          height: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 20px 40px;
+          z-index: 1;
+          box-sizing: border-box;
+        }
+        .auth-left {
           display: flex;
           align-items: center;
           justify-content: flex-start;
-          gap: 8px;
+          flex: 1.1;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .auth-circle-frame {
+          position: relative;
+          width: min(700px, 70vw, 100vh);
+          height: min(700px, 70vw, 100vh);
+          border-radius: 50%;
+          border: 10px solid #0076c0;
+          padding: 12px;
+          background: #ffffff;
+          overflow: visible;
+          box-shadow: 0 20px 50px rgba(0, 76, 192, 0.12);
+          transform: translate(-27%, -22%);
+          box-sizing: border-box;
+        }
+        .auth-hq-img {
           width: 100%;
-          margin: 0;
-          padding: 6px 14px;
-          min-height: 26px;
-          border: 0;
-          border-radius: 0;
-          background: #fff;
-          color: var(--ink);
-          font-weight: 600;
-          font-size: 13px;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        }
+        .auth-ir-logo {
+          position: absolute;
+          bottom: -15px;
+          right: 15px;
+          width: min(200px, 16vw, 26vh);
+          height: min(200px, 16vw, 26vh);
+          border-radius: 50%;
+          border: 4px solid #0076c0;
+          padding: 6px;
+          background-color: #ffffff;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+          z-index: 2;
+          box-sizing: border-box;
+        }
+        .auth-right {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0.9;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .auth-card {
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+          width: 100%;
+          max-width: 420px;
+          padding: 30px;
+          border: 1px solid #f1f5f9;
+          z-index: 2;
+          box-sizing: border-box;
+        }
+        .auth-card-header {
           text-align: left;
-          font-family: inherit;
+          margin-bottom: 20px;
+        }
+        .auth-card-title {
+          font-size: 24px;
+          font-weight: 600;
+          color: #1e293b;
+          margin: 0 0 6px 0;
+        }
+        .auth-card-subtitle {
+          font-size: 13.5px;
+          color: #64748b;
+          margin: 0;
+          font-weight: 500;
+          line-height: 1.5;
+        }
+        .auth-tabs {
+          display: flex;
+          border-bottom: 1.5px solid #cbd5e1;
+          margin-bottom: 20px;
+        }
+        .auth-tab-btn {
+          flex: 1;
+          padding: 12px 0;
+          border: none;
+          background: transparent;
+          font-size: 12.5px;
+          font-weight: 700;
+          text-align: center;
+          cursor: pointer;
+          color: #94a3b8;
+          letter-spacing: 0.8px;
+          transition: all 0.2s ease;
+          text-transform: uppercase;
+        }
+        .auth-tab-btn:hover {
+          color: #64748b;
+        }
+        .auth-tab-btn.active {
+          color: #0076c0;
+        }
+        .auth-tab-indicator {
+          position: absolute;
+          bottom: -1.5px;
+          height: 2.5px;
+          background-color: #0076c0;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .auth-form {
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        }
+        .auth-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          text-align: left;
+        }
+        .auth-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #475569;
+        }
+        .auth-input-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .auth-input-icon {
+          position: absolute;
+          left: 14px;
+          color: #94a3b8;
+          pointer-events: none;
+        }
+        .auth-input {
+          width: 100%;
+          height: 44px;
+          padding: 0 14px 0 42px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 8px;
+          font-size: 14px;
+          color: #1e293b;
+          background: #ffffff;
+          outline: none;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+        .auth-input:hover {
+          border-color: #94a3b8;
+        }
+        .auth-input:focus {
+          border-color: #0076c0;
+          box-shadow: 0 0 0 3px rgba(0, 118, 192, 0.1);
+        }
+        .auth-password-toggle {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: #94a3b8;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px;
+        }
+        .auth-action-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 4px;
+          font-size: 13px;
+        }
+        .auth-checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #64748b;
+          font-weight: 500;
+          cursor: pointer;
+          user-select: none;
+        }
+        .auth-custom-checkbox {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 16px;
+          height: 16px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 50%;
+          outline: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          background: #fff;
+          padding: 0;
+          margin: 0;
+        }
+        .auth-custom-checkbox:hover {
+          border-color: #94a3b8;
+        }
+        .auth-custom-checkbox:checked {
+          background-color: #0076c0;
+          border-color: #0076c0;
+        }
+        .auth-custom-checkbox:checked::after {
+          content: "";
+          width: 6px;
+          height: 6px;
+          background-color: #fff;
+          border-radius: 50%;
+        }
+        .auth-link {
+          color: #0076c0;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+          background: transparent;
+          border: none;
+          padding: 0;
+          font-size: inherit;
+        }
+        .auth-link:hover {
+          text-decoration: underline;
+        }
+        .auth-submit-btn {
+          width: 100%;
+          height: 46px;
+          background: #0076c0;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          font-size: 14.5px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(0, 118, 192, 0.15);
+        }
+        .auth-submit-btn:hover:not(:disabled) {
+          background: #005fa3;
+          box-shadow: 0 6px 16px rgba(0, 118, 192, 0.25);
+        }
+        .auth-submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .auth-footer-text {
+          margin-top: 16px;
+          font-size: 13px;
+          color: #94a3b8;
+          text-align: center;
+          font-weight: 500;
+        }
+        .auth-footer-text a {
+          color: #0076c0;
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .auth-footer-text a:hover {
+          text-decoration: underline;
+        }
+        .auth-select {
+          appearance: none;
+          background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 14px center;
+          background-size: 16px;
+          padding-right: 40px !important;
           cursor: pointer;
         }
-        .form-drawer .multi-dropdown-option:hover {
-          background: #e5e7eb;
+        .auth-error {
+          background: #fff5f5;
+          border: 1px solid #fed7d7;
+          color: #c53030;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          margin-bottom: 16px;
+          text-align: left;
         }
-        .form-drawer .multi-dropdown-option.selected {
-          background: #777;
-          color: #fff;
+        @media (max-width: 1023px) {
+          .auth-left {
+            display: none;
+          }
+          .auth-wrapper {
+            padding: 20px;
+            justify-content: center;
+          }
+          .auth-right {
+            flex: 1;
+            max-width: 420px;
+          }
+          .auth-bg-sketch {
+            background-size: 95% auto;
+            opacity: 0.06;
+          }
         }
-        .form-drawer textarea {
-          height: 80px;
-          resize: vertical;
-        }
-        .open { color: var(--red); }
-        .in-progress { color: var(--amber); }
-        .resolved { color: var(--green); }
-        .closed { color: var(--green); }
-        .table-responsive {
-          overflow-x: auto;
-          width: 100%;
+        @media (max-height: 550px) {
+          .auth-page-container {
+            height: auto;
+            min-height: 100vh;
+            overflow-y: auto;
+          }
+          .auth-wrapper {
+            height: auto;
+            min-height: 100vh;
+          }
         }
       `}</style>
-      <div className="auth-box">
-        <div className="railway-mark auth-logo">IR</div>
-        <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a" }}>SECR Telecom</h2>
-        <p className="auth-sub" style={{ marginBottom: "24px" }}>South East Central Railway — Telecom Management</p>
 
-        {isSignup ? (
-          <StaffSignupForm showToast={showToast} onSuccess={() => setIsSignup(false)} />
-        ) : (
-          <>
-            {errorMsg && <div className="auth-error">{errorMsg}</div>}
-            <form onSubmit={isOtpMode ? (otpSent ? handleVerifyOtp : handleSendOtp) : handleLogin}>
-              <label>
-                Username / Mobile No.
-                <input required value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter username or mobile number" />
-              </label>
-              
-              {!isOtpMode && (
-                <label>
-                  Password
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <input
-                      required
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Enter password"
-                      style={{ paddingRight: "44px" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#64748b",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "4px"
-                      }}
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </label>
-              )}
+      <div className="auth-bg-sketch" style={{ backgroundImage: `url(${bgSketch})` }}></div>
 
-              {isOtpMode && otpSent && (
-                <label style={{ animation: "fadeIn 0.2s ease-in-out" }}>
-                  Enter OTP
-                  <input
-                    required
-                    type="text"
-                    maxLength={6}
-                    value={otp}
-                    onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
-                    placeholder="Enter 6-digit OTP"
+      <div className="auth-wrapper">
+        <div className="auth-left">
+          <div className="auth-circle-frame">
+            <img src={secrHq} alt="SECR HQ" className="auth-hq-img" />
+            <img src={irLogo} alt="Indian Railways Logo" className="auth-ir-logo" />
+          </div>
+        </div>
+
+        <div className="auth-right">
+          <div className="auth-card">
+            {isSignup ? (
+              <StaffSignupForm showToast={showToast} onSuccess={() => setIsSignup(false)} />
+            ) : (
+              <>
+                <div className="auth-card-header">
+                  <h3 className="auth-card-title">Login</h3>
+                  <p className="auth-card-subtitle">Access your smart procurement portal</p>
+                </div>
+
+                {errorMsg && <div className="auth-error">{errorMsg}</div>}
+
+                <div className="auth-tabs" style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className={`auth-tab-btn ${activeTab === "username" ? "active" : ""}`}
+                    onClick={() => handleTabChange("username")}
+                  >
+                    Username
+                  </button>
+                  <button
+                    type="button"
+                    className={`auth-tab-btn ${activeTab === "phone" ? "active" : ""}`}
+                    onClick={() => handleTabChange("phone")}
+                  >
+                    Phone Number
+                  </button>
+                  <div
+                    className="auth-tab-indicator"
+                    style={{
+                      width: "50%",
+                      left: activeTab === "username" ? "0%" : "50%"
+                    }}
                   />
-                </label>
-              )}
+                </div>
 
-              <button type="submit" disabled={loading}>
-                {loading ? "Please wait..." : (isOtpMode ? (otpSent ? "Verify & Sign In" : "Request OTP") : "Sign In")}
-              </button>
-            </form>
-            <div style={{ marginTop: "20px", fontSize: "14px", color: "#64748b" }}>
-              New Staff member?{" "}
-              <button
-                type="button"
-                onClick={() => { setIsSignup(true); setErrorMsg(""); }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--blue)",
-                  fontWeight: "750",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  padding: 0,
-                  fontSize: "inherit"
-                }}
-              >
-                Sign Up
-              </button>
-            </div>
-          </>
-        )}
+                <form
+                  onSubmit={
+                    activeTab === "phone"
+                      ? otpSent
+                        ? handleVerifyOtp
+                        : handleSendOtp
+                      : handleLogin
+                  }
+                  className="auth-form"
+                >
+                  {activeTab === "username" ? (
+                    <>
+                      <div className="auth-field-group">
+                        <span className="auth-label">Username</span>
+                        <div className="auth-input-wrapper">
+                          <CircleUserRound className="auth-input-icon" size={18} />
+                          <input
+                            required
+                            className="auth-input"
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            placeholder="Enter username"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="auth-field-group">
+                        <span className="auth-label">Password</span>
+                        <div className="auth-input-wrapper">
+                          <Lock className="auth-input-icon" size={18} />
+                          <input
+                            required
+                            type={showPassword ? "text" : "password"}
+                            className="auth-input"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            style={{ paddingRight: "44px" }}
+                          />
+                          <button
+                            type="button"
+                            className="auth-password-toggle"
+                            onClick={() => setShowPassword(!showPassword)}
+                            title={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="auth-field-group">
+                        <span className="auth-label">Phone Number</span>
+                        <div className="auth-input-wrapper">
+                          <Phone className="auth-input-icon" size={18} />
+                          <input
+                            required
+                            type="tel"
+                            maxLength={10}
+                            className="auth-input"
+                            value={username}
+                            onChange={e => setUsername(e.target.value.replace(/\D/g, ""))}
+                            placeholder="Enter 10-digit mobile number"
+                            disabled={otpSent}
+                          />
+                        </div>
+                      </div>
+
+                      {otpSent && (
+                        <div className="auth-field-group" style={{ animation: "fadeIn 0.2s ease-in-out" }}>
+                          <span className="auth-label">Enter OTP</span>
+                          <div className="auth-input-wrapper">
+                            <Lock className="auth-input-icon" size={18} />
+                            <input
+                              required
+                              type="text"
+                              maxLength={6}
+                              className="auth-input"
+                              value={otp}
+                              onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+                              placeholder="Enter 6-digit OTP"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="auth-action-row">
+                    <label className="auth-checkbox-label">
+                      <input type="checkbox" className="auth-custom-checkbox" />
+                      <span>Remember me</span>
+                    </label>
+                    
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" disabled={loading}>
+                    {loading ? "Please wait..." : (
+                      <>
+                        {activeTab === "phone" ? (otpSent ? "Verify & Sign In" : "Request OTP") : "Login"}
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="auth-footer-text" style={{ marginTop: "20px" }}>
+                  New Staff member?{" "}
+                  <button
+                    type="button"
+                    className="auth-link"
+                    onClick={() => {
+                      setIsSignup(true);
+                      setErrorMsg("");
+                    }}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+
+                <div className="auth-footer-text" style={{ marginTop: "24px" }}>
+                  © 2026 SEC Railway Bilaspur |{" "}
+                  <button
+                    type="button"
+                    className="auth-link"
+                    style={{ fontWeight: "500", fontSize: "13px", color: "#94a3b8" }}
+                    onClick={() => showToast("Privacy Policy coming soon.")}
+                  >
+                    Privacy
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
