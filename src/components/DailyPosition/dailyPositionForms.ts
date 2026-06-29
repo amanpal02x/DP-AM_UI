@@ -143,14 +143,6 @@ const exchangeFields: DailyPositionField[] = [
     ],
     placeholder: "Select Name of Exchange"
   },
-  {
-    name: "nameOfFault",
-    label: "Name of Fault",
-    type: "select",
-    required: true,
-    options: ["SIP Down", "VoIP Trunk Down", "MDF Card Fault", "Power Issue", "Other"],
-    placeholder: "Select Name of Fault"
-  },
   { name: "failureTime", label: "Failure Date & Time", type: "datetime-local", placeholder: "Select Failure Date & Time" },
   { name: "rectificationTime", label: "Rectification Time (RT)", type: "datetime-local", placeholder: "Select Rectification Time" },
   {
@@ -208,7 +200,20 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     badge: "FOIS",
     systemCode: "SECR/TEL/FOIS-02",
     description: "Freight Operations Information System terminal connectivity and central host communications.",
-    fields: standardFaultFields,
+    fields: [
+      docketField,
+      { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
+      ...timingFields,
+      {
+        name: "reason",
+        label: "Reason of Failure",
+        type: "select",
+        required: true,
+        options: ["Link Failure", "Equipment Failure", "Others"],
+        placeholder: "Select Reason of Failure"
+      },
+      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter failures details" },
+    ],
   },
   {
     category: "Communication & Voice Circuits",
@@ -233,27 +238,21 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/VPHONE-05",
     description: "SIP-based video telephone terminals for Board communications.",
     fields: [
-      { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
       {
         name: "videoPhoneLocation",
         label: "Video Phone in Chamber of PHOD",
         type: "select",
         required: true,
         options: [
-          "PCSTE",
-          "PCE",
-          "PCEE",
-          "PCCM",
-          "PCME",
-          "PCOM",
-          "PCPO",
-          "PCMM",
-          "PCMD",
-          "PFA",
-          "DCCM",
-          "PCSO",
-          "PCSC",
-          "Other"
+          "GM/SECR - 213",
+          "PCE SECR - 713",
+          "PCAO C SECR - 763",
+          "PCEE SECR - 313",
+          "PCSTE SECR - 813",
+          "PCOM SECR - 913",
+          "PCCM SECR - 963",
+          "PCME - SECR - 413",
+          "Others"
         ],
         placeholder: "Select Video Phone in Chamber of PHOD"
       },

@@ -759,11 +759,20 @@ function DailyPositionFieldInput({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // FOIS two-level dropdown state
+  const [foisCategory, setFoisCategory] = useState<string>("");
+  const [foisSubOpen, setFoisSubOpen] = useState(false);
+  const [foisSubSearch, setFoisSubSearch] = useState("");
+  const foisSubRef = useRef<HTMLDivElement>(null);
+  const foisSubSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+      }
+      if (foisSubRef.current && !foisSubRef.current.contains(event.target as Node)) {
+        setFoisSubOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -1069,13 +1078,41 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "reason") {
-    const rawOptions = field.options || [
-      "Cable Cut",
-      "Link Failure",
-      "Equipment Failure (STM / MUX)",
-      "Mux Card",
-      "Power Supply"
-    ];
+    // Division-specific options for Exchange form
+    const EXCHANGE_OPTIONS: Record<string, string[]> = {
+      Raipur: [
+        "Link Failure", "Phone Failure", "Equipment Failure",
+        "R-BSP 2mbps", "R-BSP (RCIL) 2mbps", "R-DURG 2mbps", "R-DURG (RCIL) 2mbps",
+        "R-BMY 2mbps", "R-BYT 2mbps", "NGN 1 (RCIL) 2mbps", "NGN 2 (RCIL) 2mbps",
+        "Others",
+      ],
+      Nagpur: [
+        "Link Failure", "Phone Failure", "Equipment Failure",
+        "Nainpur 2mbps", "NGN 2mbps", "Bilaspur 2mbps", "Raipur 2mbps",
+        "Rajnandgaon 2mbps", "Dongargarh 2mbps", "Gondia 2mbps", "Nagbhir 2mbps",
+        "Tumsar 2mbps", "Itwari / KAV 2mbps", "Mount Road 2mbps",
+        "NIR TS 2mbps", "Chhindwara 2mbps",
+        "Others",
+      ],
+      Bilaspur: [
+        "Link Failure", "Phone Failure", "Equipment Failure",
+        "APR 2mbps", "SDL 2mbps", "UMR 2mbps", "CPH 2mbps", "BRJN 2mbps",
+        "RIG 2mbps", "MDGR 2mbps", "R 2mbps", "NGP 2mbps", "NGN 2mbps",
+        "BSPR - UMR 2mbps", "BSPR - SDL 2mbps", "BRJN - RIG 2mbps",
+        "R - NGP 2mbps", "MDGR - BJRI 2mbps",
+        "Others",
+      ],
+    };
+
+    const rawOptions = (formName === "Exchange" && EXCHANGE_OPTIONS[selectedDivision])
+      ? EXCHANGE_OPTIONS[selectedDivision]
+      : (field.options || [
+          "Cable Cut",
+          "Link Failure",
+          "Equipment Failure (STM / MUX)",
+          "Mux Card",
+          "Power Supply"
+        ]);
     const REASON_OPTIONS = rawOptions.filter(opt => opt !== "Other" && opt !== "Others");
 
     const parts = (value || "").split(/,\s*/).map((p: string) => {
@@ -1168,7 +1205,32 @@ function DailyPositionFieldInput({
             }}>
               {displaySelected()}
             </span>
-            <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+              {(selectedOptions.length > 0 || hasOthers) && !readOnly && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setValue(field.name, "");
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#94a3b8",
+                    cursor: "pointer",
+                    padding: "2px 4px",
+                    borderRadius: "4px",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = "#94a3b8"; }}
+                >
+                  <X size={14} />
+                </span>
+              )}
+              <ChevronDown size={16} style={{ color: "#64748b" }} />
+            </div>
           </button>
 
           {isOpen && !readOnly && (
@@ -1349,6 +1411,277 @@ function DailyPositionFieldInput({
             clearable={selectedDivision !== "Nagpur" && selectedDivision !== "Raipur"}
             searchable={selectedDivision !== "Nagpur" && selectedDivision !== "Raipur"}
           />
+        </div>
+      );
+    }
+
+    if (formName === "FOIS") {
+      const FOIS_LOCATIONS: Record<string, Record<string, string[]>> = {
+        Bilaspur: {
+          "FOIS VSAT": [
+            "BURHAR COLLIERY",
+            "BHATGAON COLLIERY SDG, KARANJI",
+            "BIJURI COLLIERY SDG, BJRI",
+            "BELPAHAR OPEN CAST MINES- I, II, V",
+            "BELPAHAR OPEN CAST MINES-III & IV",
+            "DUMAN HILL COLLIREY DTL.",
+            "GEVRA PROJECT JUNADIH COLLIERY I & II",
+            "GEVRA PROJECT JUNADIH COLLIERY III & IV",
+            "JAI NAGAR COLLIERY SDG.",
+            "LAFARGE INDIA PVT. LTD.",
+            "NEW KUSMUNDA COLLIRY SDG",
+            "OLD KUSMUNDA COLLIERY SDG",
+            "BHARAT ALUMUNIUM Co. LTD KORBA",
+            "RAJ NAGAR COLLIERY",
+            "SANJAY GANDHI THERMAL PVT. LTD",
+            "DIPIKA SIDING OF SECL-I & REJECTION",
+            "HIND ENERGY & COAL BENEFICATION/GTW",
+            "PVT SDG OF SIPAT SUPER THERMAL",
+            "SURGUJA CORRIDOR, SURAJPUR",
+          ],
+          "FOIS ROUTER": [
+            "ACBPL", "Akaltara", "Ambikapur", "Amlai", "Anuppur",
+            "Baikunthpur Road", "Baradwar", "Belpahar", "Bhupdeopur",
+            "Bijuri", "Bilaspur", "Bishrampur", "Brajrajnagar", "Champa",
+            "Chandia Road", "Chirimiri", "Gatora", "Gevra Road", "Ghutku",
+            "Himgir", "Jairamnagar", "Jaithari", "Jamga", "Janjgir-Naila",
+            "Kamalpurgram", "Kargi Road", "Karonji", "Katora", "Kharsia",
+            "Kirodimalnagar", "Korba", "Kotarlia", "Kothari Road", "Kotma",
+            "Lajkura", "Nowrozabad", "Parsa Siding", "Pendra Road", "Raigarh",
+            "Robertson", "Rupaund", "Shahdol", "Singhpur", "Surajpur Road",
+            "Uslapur",
+          ],
+        },
+        Nagpur: {
+          "FOIS VSAT": ["BHANDARA SUNFLAG"],
+          "FOIS ROUTER": [
+            "Adani Siding", "Amgaon", "Balaghat", "Bargi", "Binaiki",
+            "Chacher", "Chanda Fort", "Chhindwara", "Chiraidongri", "Dongargargh",
+            "Dongri Buzurg", "Dumri Khurd", "Garha", "Gobarwahi", "Gondia",
+            "Itwari", "Jabalpur Lobby", "Kachewani", "Kalamna", "Kanhan",
+            "Katangi", "Kelod", "Kelzer", "Khaprikheda", "Koradi", "Murhipar",
+            "Nagbhir", "Nagpur", "Nagpur Lobby", "Nainpur", "Ntpc Mouda",
+            "Padriganj", "Patangsaongi", "Rajnandgaon", "Ramtek", "Rasmara",
+            "Saoner", "Tirodi", "Tumsar Road", "Wadsa",
+          ],
+        },
+        Raipur: {
+          "FOIS VSAT": [
+            "L&T siding HN",
+            "Raipur Infrastructural Handling",
+            "Grassim siding HN",
+            "Jamul cement works Jamul",
+            "Goods Shed Mandhar",
+            "NSPCL siding BIA",
+          ],
+          "FOIS ROUTER": [
+            "Baikunth Ph", "Balod", "Belha", "Bhatapara", "Bhilai",
+            "Bhilai Marshalling Yard", "Dagori", "Dallirajhara", "Dhadhapara",
+            "Durg", "Mandhar", "Mandir Hasuad", "Maroda", "Nipaniya",
+            "Raipur", "Silyari", "Tilda",
+          ],
+        },
+      };
+
+      const divisionData = FOIS_LOCATIONS[selectedDivision] || {};
+      const categories = Object.keys(divisionData);
+
+      // Parse stored value: "FOIS VSAT - SUBLOCATION" or "FOIS ROUTER - SUBLOCATION"
+      const parseFoisValue = (v: string) => {
+        for (const cat of ["FOIS VSAT", "FOIS ROUTER"]) {
+          if (v && v.startsWith(cat + " - ")) {
+            return { cat, sub: v.slice(cat.length + 3) };
+          }
+        }
+        return { cat: "", sub: "" };
+      };
+
+      const { cat: storedCat, sub: storedSub } = parseFoisValue(value || "");
+
+      // hoveredCat drives the sub-panel (reuse foisCategory state)
+      const hoveredCat = foisCategory;
+
+      const subOptions = hoveredCat && divisionData[hoveredCat] ? divisionData[hoveredCat] : [];
+      const filteredSubs = subOptions.filter((opt: string) =>
+        opt.toLowerCase().includes(foisSubSearch.toLowerCase())
+      );
+
+      // Display label on trigger
+      const triggerLabel = storedSub
+        ? `${storedCat} › ${storedSub}`
+        : "Select Location";
+
+      const openFoisMain = () => {
+        if (readOnly) return;
+        setIsOpen(prev => !prev);
+        setFoisCategory("");
+        setFoisSubSearch("");
+        setFoisSubOpen(false);
+      };
+
+      const handleCatHover = (cat: string) => {
+        setFoisCategory(cat);
+        setFoisSubSearch("");
+      };
+
+      const handleSubSelect = (sub: string) => {
+        setValue(field.name, `${hoveredCat} - ${sub}`);
+        setIsOpen(false);
+        setFoisCategory("");
+        setFoisSubSearch("");
+        setFoisSubOpen(false);
+      };
+
+      return (
+        <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+          <label>{field.label}{field.required && <span>*</span>}</label>
+
+          {/* Trigger button */}
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={openFoisMain}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              minHeight: "42px",
+              padding: "10px 14px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              background: readOnly ? "#f8fafc" : "#ffffff",
+              color: readOnly ? "#64748b" : storedSub ? "#1e293b" : "#94a3b8",
+              fontSize: "14px",
+              textAlign: "left",
+              cursor: readOnly ? "not-allowed" : "pointer",
+            }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {triggerLabel}
+            </span>
+            <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px", flexShrink: 0 }} />
+          </button>
+
+          {/* Cascading dropdown */}
+          {isOpen && !readOnly && (
+            <div style={{
+              position: "absolute",
+              zIndex: 200,
+              top: "100%",
+              left: 0,
+              marginTop: "4px",
+              display: "flex",
+              flexDirection: "row",
+              border: "1px solid #cbd5e1",
+              borderRadius: "10px",
+              background: "#ffffff",
+              boxShadow: "0 12px 30px rgba(0,0,0,0.13)",
+              minWidth: "200px",
+              overflow: "visible",
+            }}>
+              {/* Left panel: categories */}
+              <div style={{
+                minWidth: "160px",
+                padding: "6px",
+                borderRight: hoveredCat ? "1px solid #e2e8f0" : "none",
+                borderRadius: hoveredCat ? "10px 0 0 10px" : "10px",
+              }}>
+                {categories.map(cat => (
+                  <div
+                    key={cat}
+                    onMouseEnter={() => handleCatHover(cat)}
+                    onClick={() => handleCatHover(cat)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "9px 12px",
+                      borderRadius: "7px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: hoveredCat === cat ? 700 : 500,
+                      color: hoveredCat === cat ? "#1d4ed8" : storedCat === cat ? "#1d4ed8" : "#1e293b",
+                      background: hoveredCat === cat ? "#eff6ff" : storedCat === cat ? "#f0f9ff" : "transparent",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <span>{cat}</span>
+                    <span style={{ fontSize: "12px", color: "#94a3b8", marginLeft: "8px" }}>›</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Right panel: sub-locations (shown when a category is hovered) */}
+              {hoveredCat && (
+                <div style={{
+                  minWidth: "260px",
+                  maxWidth: "320px",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "6px",
+                  borderRadius: "0 10px 10px 0",
+                }}>
+                  {/* Search */}
+                  <div style={{ padding: "4px 4px 6px 4px" }}>
+                    <input
+                      ref={foisSubSearchRef}
+                      type="text"
+                      autoFocus
+                      placeholder={`Search ${hoveredCat}...`}
+                      value={foisSubSearch}
+                      onChange={e => setFoisSubSearch(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        width: "100%",
+                        minHeight: "34px",
+                        padding: "7px 11px",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        background: "#f8fafc",
+                      }}
+                    />
+                  </div>
+                  {/* Sub-location list */}
+                  <div style={{ overflowY: "auto", maxHeight: "240px", flex: 1 }}>
+                    {filteredSubs.length > 0 ? filteredSubs.map((opt: string) => (
+                      <div
+                        key={opt}
+                        onClick={() => handleSubSelect(opt)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: opt === storedSub && storedCat === hoveredCat ? "#1d4ed8" : "#1e293b",
+                          background: opt === storedSub && storedCat === hoveredCat ? "#eff6ff" : "transparent",
+                          transition: "background 0.1s",
+                        }}
+                        onMouseEnter={e => {
+                          if (!(opt === storedSub && storedCat === hoveredCat))
+                            e.currentTarget.style.background = "#f1f5f9";
+                        }}
+                        onMouseLeave={e => {
+                          if (!(opt === storedSub && storedCat === hoveredCat))
+                            e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        {opt}
+                      </div>
+                    )) : (
+                      <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                        No results found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -1989,7 +2322,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         continue;
       }
       list.push(field);
-      if (field.type === "select" && (values[field.name] === "Other" || values[field.name] === "Others")) {
+      if (field.name !== "reason" && field.type === "select" && (values[field.name] === "Other" || values[field.name] === "Others")) {
         const otherFieldName = `${field.name}Other`;
         const hasExplicitOther = activeFields.some(f => f.name === otherFieldName || f.name === `${field.name}Others`);
         if (!hasExplicitOther) {
