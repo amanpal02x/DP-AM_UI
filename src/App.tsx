@@ -550,18 +550,18 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM"] },
-    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM"] },
-    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
-    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN", "VIEWER", "TESTROOM"] },
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM", "STAFF"] },
+    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "STAFF"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM", "STAFF"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
@@ -2385,7 +2385,7 @@ function DailyPositionHighPriorityFaultsPanel({
     <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gridColumn: "span 2", padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-       
+
           <h3 style={{ margin: 0, fontSize: "17px", color: "var(--navy)", fontWeight: 700 }}>
             Priority Active Faults
           </h3>
@@ -3279,12 +3279,12 @@ function DailyPositionTrendsPanel({
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorReported" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.01}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.01} />
               </linearGradient>
               <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0.01}/>
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -3767,158 +3767,158 @@ function DailyPositionDetailsModal({
                   position: "relative",
                   padding: "12px 0",
                 }}>
-                 {/* Subtitle / Header inside card */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
-                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
-                    {isSuperAdmin
-                      ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
-                      : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
-                    }
-                  </h4>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                    {detailsRecord.length > 1 && (
-                      <span style={{
-                        fontSize: "10px", fontWeight: 700, color: "var(--blue)",
-                        background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
-                      }}>
-                        Entry #{index + 1}
-                      </span>
-                    )}
-                    <span style={{
-                      display: "inline-flex", alignItems: "center",
-                      padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
-                      color: "#fff",
-                      background: isFault ? "var(--red)" : "var(--green)"
-                    }}>
-                      {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Location Details (Priority 1) */}
-                {locationItems.length > 0 && (
-                  <div style={{
-                    marginBottom: "14px",
-                    borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                    paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
-                  }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                      {locationItems.map(item => (
-                        <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Main Information: Fault Timing (Priority 2) */}
-                {entry.failureTime && (
-                  <div style={{
-                    marginBottom: "14px",
-                    borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                    paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
-                  }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                      <div>
-                        <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
-                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
-                      </div>
-                      <div>
-                        <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
-                        <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
-                      </div>
-                      {entry.durationText && (
-                        <div>
-                          <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
-                        </div>
+                  {/* Subtitle / Header inside card */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
+                      {isSuperAdmin
+                        ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
+                        : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
+                      }
+                    </h4>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                      {detailsRecord.length > 1 && (
+                        <span style={{
+                          fontSize: "10px", fontWeight: 700, color: "var(--blue)",
+                          background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                        }}>
+                          Entry #{index + 1}
+                        </span>
                       )}
+                      <span style={{
+                        display: "inline-flex", alignItems: "center",
+                        padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                        color: "#fff",
+                        background: isFault ? "var(--red)" : "var(--green)"
+                      }}>
+                        {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
+                      </span>
                     </div>
                   </div>
-                )}
 
-                {/* Nature of Fault (Priority 3) */}
-                {howItems.length > 0 && (
-                  <div style={{
-                    marginBottom: "14px",
-                    borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                    paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
-                  }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                      {howItems.map(item => (
-                        <div key={item.key}>
-                          <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
-                          <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                  {/* Location Details (Priority 1) */}
+                  {locationItems.length > 0 && (
+                    <div style={{
+                      marginBottom: "14px",
+                      borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                      paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
+                    }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                        {locationItems.map(item => (
+                          <div key={item.key}>
+                            <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Main Information: Fault Timing (Priority 2) */}
+                  {entry.failureTime && (
+                    <div style={{
+                      marginBottom: "14px",
+                      borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                      paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
+                    }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                        <div>
+                          <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
                         </div>
-                      ))}
+                        <div>
+                          <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
+                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
+                        </div>
+                        {entry.durationText && (
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
-                {isFault ? (
-                  <div style={{ marginBottom: "14px" }}>
-                    <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
-                      Reason / Remarks
-                    </span>
-                    <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
-                      <strong style={{ fontWeight: 700 }}>
-                        {entry.reason || entry.remarks || "No reason specified"}
-                        {showRemarks && ` · ${entry.remarks}`}
-                      </strong>
+                  {/* Nature of Fault (Priority 3) */}
+                  {howItems.length > 0 && (
+                    <div style={{
+                      marginBottom: "14px",
+                      borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                      paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                    }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                        {howItems.map(item => (
+                          <div key={item.key}>
+                            <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                            <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  (entry.remarks || entry.reason) && (
+                  )}
+
+                  {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
+                  {isFault ? (
                     <div style={{ marginBottom: "14px" }}>
                       <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
-                        Remarks
+                        Reason / Remarks
                       </span>
                       <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
-                        <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
+                        <strong style={{ fontWeight: 700 }}>
+                          {entry.reason || entry.remarks || "No reason specified"}
+                          {showRemarks && ` · ${entry.remarks}`}
+                        </strong>
                       </div>
                     </div>
-                  )
-                )}
-
-                {/* Footer Metadata */}
-                <div style={{
-                  borderTop: "1px solid #f1f5f9",
-                  paddingTop: "10px",
-                  marginTop: "12px",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "6px 12px",
-                  fontSize: "11px",
-                  color: "var(--muted)"
-                }}>
-                  <span>Submitted: {formatDateTime24(entry.createdAt)}</span>
-                  {isSuperAdmin && entry.createdByUsername && (
-                    <span>• User: {entry.createdByUsername}</span>
+                  ) : (
+                    (entry.remarks || entry.reason) && (
+                      <div style={{ marginBottom: "14px" }}>
+                        <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                          Remarks
+                        </span>
+                        <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                          <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
+                        </div>
+                      </div>
+                    )
                   )}
+
+                  {/* Footer Metadata */}
+                  <div style={{
+                    borderTop: "1px solid #f1f5f9",
+                    paddingTop: "10px",
+                    marginTop: "12px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px 12px",
+                    fontSize: "11px",
+                    color: "var(--muted)"
+                  }}>
+                    <span>Submitted: {formatDateTime24(entry.createdAt)}</span>
+                    {isSuperAdmin && entry.createdByUsername && (
+                      <span>• User: {entry.createdByUsername}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (
-                <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
-                  <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
-                    <defs>
-                      <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#334155" stopOpacity={0} />
-                        <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
-                        <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
-                        <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#334155" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
-                  </svg>
-                </div>
-              )}
-            </Fragment>
-          );
-        })}
+                {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (
+                  <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
+                    <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
+                      <defs>
+                        <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#334155" stopOpacity={0} />
+                          <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
+                          <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
+                          <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
+                    </svg>
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -6616,6 +6616,7 @@ function ModuleView({
           const normDiv = normalizeDivision(u.division).toLowerCase();
           return (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (u.mobile && u.mobile.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (u.role && u.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (u.designation && u.designation.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (u.division && u.division.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -6630,7 +6631,7 @@ function ModuleView({
                   <tr>
                     <th style={{ width: "60px" }}>#</th>
                     <th>Name</th>
-                    <th>Username</th>
+                    <th>Username / Mobile No.</th>
                     <th>Role</th>
                     <th>Designation</th>
                     <th>Division</th>
@@ -6654,7 +6655,7 @@ function ModuleView({
                             {u.name}
                           </strong>
                         </td>
-                        <td>{u.username}</td>
+                        <td>{u.mobile ? u.mobile : u.username}</td>
                         <td><span className="pill info">{u.role}</span></td>
                         <td>{u.designation || "-"}</td>
                         <td>{normalizeDivision(u.division) || "HQ"}</td>
@@ -6796,8 +6797,8 @@ function ModuleView({
   };
 
   const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
 
   const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
     (activeNav === "Master List" && canEditStations) ||
@@ -7632,8 +7633,8 @@ function ActionPanel({
   const queryClient = useQueryClient();
   const { role } = useAppStore();
   const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TECHNICIAN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
   const stations = queries.stationsQuery?.data?.data || [];
   const uniqueDivisions = Array.from(new Set(stations.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
 
@@ -8251,7 +8252,7 @@ function ActionPanel({
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
                   <option value="SSE">SSE</option>
-                  <option value="TECHNICIAN">TECHNICIAN</option>
+                  <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
                   <option value="ALL_DIVISION_VIEWER">ALL_DIVISION_VIEWER</option>
@@ -8259,7 +8260,7 @@ function ActionPanel({
               ) : (
                 <>
                   <option value="SSE">SSE</option>
-                  <option value="TECHNICIAN">TECHNICIAN</option>
+                  <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
               )}
@@ -9044,7 +9045,7 @@ function ActionPanel({
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
                   <option value="SSE">SSE</option>
-                  <option value="TECHNICIAN">TECHNICIAN</option>
+                  <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
                   <option value="ALL_DIVISION_VIEWER">ALL_DIVISION_VIEWER</option>
@@ -9052,7 +9053,7 @@ function ActionPanel({
               ) : (
                 <>
                   <option value="SSE">SSE</option>
-                  <option value="TECHNICIAN">TECHNICIAN</option>
+                  <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
               )}
@@ -9546,37 +9547,179 @@ function ActionPanel({
   );
 }
 
-// Authentication View (Glassmorphism layout overlay)
-function AuthView({ showToast }: { showToast: (msg: string) => void }) {
-  const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) => void; onSuccess: () => void }) {
   const [name, setName] = useState("");
-  const [roleInput, setRoleInput] = useState<UserRole>("SSE");
   const [designation, setDesignation] = useState("");
-  const [divisionInput, setDivisionInput] = useState("Raipur");
+  const [mobile, setMobile] = useState("");
+  const [division, setDivision] = useState("Bilaspur");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const { setToken, setUser } = useAppStore();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  useEffect(() => {
+    setOtpSent(false);
+    setOtp("");
+  }, [mobile]);
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    if (!/^[0-9]{10}$/.test(mobile)) {
+      setErrorMsg("Mobile number must be exactly 10 digits.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.auth.sendSignupOtp({ mobile });
+      setOtpSent(true);
+      showToast(res.message || "Signup OTP sent successfully.");
+      if (res.devOtp) {
+        showToast(`[Dev Mode] OTP sent: ${res.devOtp}`);
+        setOtp(res.devOtp);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to send signup OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    if (!/^[0-9]{10}$/.test(mobile)) {
+      setErrorMsg("Mobile number must be exactly 10 digits.");
+      return;
+    }
+    if (!otp) {
+      setErrorMsg("Please enter the OTP.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.auth.signup({ name, designation, mobile, division, otp });
+      setToken(res.token);
+      setUser(res.data);
+      showToast("Staff account created. Welcome!");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ animation: "fadeIn 0.2s ease-in-out" }}>
+      <h3 style={{ margin: "0 0 4px 0", fontSize: "20px", fontWeight: "800", color: "#0f172a" }}>Sign Up</h3>
+      <p style={{ margin: "0 0 16px 0", fontSize: "13.5px", color: "#64748b", fontWeight: "500" }}>Create a new self-registered Staff account</p>
+
+      {errorMsg && <div className="auth-error">{errorMsg}</div>}
+
+      <div style={{
+        background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+        border: "1px solid #bfdbfe",
+        borderRadius: "10px",
+        padding: "12px 14px",
+        fontSize: "12.5px",
+        color: "#1e40af",
+        fontWeight: "600",
+        textAlign: "left",
+        marginBottom: "16px",
+        lineHeight: "1.4",
+        boxShadow: "0 2px 4px rgba(37, 99, 235, 0.04)"
+      }}>
+        ℹ️ Your <strong>mobile number</strong> will act as both your username and default password.
+      </div>
+
+      <form onSubmit={otpSent ? handleSignup : handleRequestOtp}>
+        <label>
+          Full Name
+          <input required value={name} onChange={e => setName(e.target.value)} placeholder="Enter your full name" />
+        </label>
+        <label>
+          Designation
+          <input required value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. SSE/Tele/Bilaspur" />
+        </label>
+        <label>
+          Mobile Number
+          <input required type="tel" maxLength={10} value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g, ""))} placeholder="10-digit mobile number" />
+        </label>
+        <label>
+          Division
+          <select required value={division} onChange={e => setDivision(e.target.value)}>
+            <option value="Bilaspur">Bilaspur</option>
+            <option value="Raipur">Raipur</option>
+            <option value="Nagpur">Nagpur</option>
+          </select>
+        </label>
+
+        {otpSent && (
+          <label style={{ animation: "fadeIn 0.2s ease-in-out" }}>
+            Enter OTP
+            <input
+              required
+              type="text"
+              maxLength={6}
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+              placeholder="Enter 6-digit OTP"
+            />
+          </label>
+        )}
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Please wait..." : (otpSent ? "Verify & Register" : "Request OTP")}
+        </button>
+      </form>
+
+      <div style={{ marginTop: "18px", fontSize: "14px", color: "#64748b" }}>
+        Already registered?{" "}
+        <button
+          type="button"
+          onClick={onSuccess}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--blue)",
+            fontWeight: "750",
+            cursor: "pointer",
+            textDecoration: "underline",
+            padding: 0,
+            fontSize: "inherit"
+          }}
+        >
+          Sign In
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AuthView({ showToast }: { showToast: (msg: string) => void }) {
+  const [isSignup, setIsSignup] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { setToken, setUser } = useAppStore();
+
+  const isOtpMode = /^[0-9]+$/.test(username) && username.length > 5;
+
+  useEffect(() => {
+    setOtpSent(false);
+    setOtp("");
+  }, [username]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setLoading(true);
     try {
-      if (isRegister) {
-        await api.auth.register({
-          username,
-          password,
-          name,
-          role: roleInput,
-          designation: (roleInput === "SUPER_ADMIN" || roleInput === "DIVISIONAL_ADMIN") ? undefined : designation,
-          division: roleInput === "SUPER_ADMIN" ? undefined : divisionInput
-        });
-        showToast("Registration successful! Logging in.");
-      }
-
       const loginRes = await api.auth.login({ username, password });
       setToken(loginRes.token);
       setUser(loginRes.data);
@@ -9587,6 +9730,42 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
       setLoading(false);
     }
   };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await api.auth.sendOtp({ mobile: username });
+      setOtpSent(true);
+      showToast(res.message || "OTP sent successfully.");
+      if (res.devOtp) {
+        showToast(`[Dev Mode] OTP sent: ${res.devOtp}`);
+        setOtp(res.devOtp);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await api.auth.verifyOtp({ mobile: username, otp });
+      setToken(res.token);
+      setUser(res.data);
+      showToast("Access granted. SECR Telecom active.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Invalid or expired OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="auth-container">
@@ -9600,8 +9779,8 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         }
         .auth-box {
           width: 100%;
-          max-width: 400px;
-          background: rgba(255, 255, 255, 0.95);
+          max-width: 420px;
+          background: rgba(255, 255, 255, 0.97);
           border: 1px solid rgba(255, 255, 255, 0.2);
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 40px rgba(11, 109, 255, 0.1);
           border-radius: 16px;
@@ -9627,10 +9806,6 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           margin: 0 auto 20px;
           box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
           border: 2px solid #fff;
-          transition: transform 0.5s ease;
-        }
-        .auth-box:hover .auth-logo {
-          transform: rotate(360deg);
         }
         .auth-box h2 {
           margin: 0;
@@ -9639,9 +9814,9 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           color: #0f172a;
           letter-spacing: -0.5px;
         }
-        .auth-box p {
+        .auth-box p.auth-sub {
           color: #64748b;
-          margin: 6px 0 24px;
+          margin: 6px 0 20px;
           font-size: 14px;
           font-weight: 500;
         }
@@ -9668,11 +9843,12 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           font-size: 14.5px;
           color: #0f172a;
           transition: all 0.2s ease;
+          box-sizing: border-box;
         }
         .auth-box input:hover {
           border-color: #94a3b8;
         }
-        .auth-box input:focus {
+        .auth-box input:focus, .auth-box select:focus {
           border-color: var(--blue);
           box-shadow: 0 0 0 3px rgba(11, 109, 255, 0.15);
         }
@@ -9684,10 +9860,11 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           border-radius: 8px;
           font-weight: 700;
           font-size: 15px;
-          margin-top: 10px;
+          margin-top: 6px;
           cursor: pointer;
           box-shadow: 0 4px 14px rgba(11, 109, 255, 0.35);
           transition: all 0.2s ease;
+          width: 100%;
         }
         .auth-box button[type="submit"]:hover {
           background: linear-gradient(135deg, #257eff 0%, #0b6dff 100%);
@@ -9697,6 +9874,11 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         .auth-box button[type="submit"]:active {
           transform: translateY(0);
         }
+        .auth-box button[type="submit"]:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+          transform: none;
+        }
         .auth-error {
           background: #fef2f2;
           border: 1px solid rgba(239, 68, 68, 0.2);
@@ -9704,10 +9886,35 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           padding: 12px;
           border-radius: 8px;
           font-size: 13px;
-          margin-bottom: 18px;
+          margin-bottom: 4px;
           text-align: left;
           font-weight: 500;
         }
+        .auth-tab-row {
+          display: flex;
+          gap: 0;
+          margin-bottom: 20px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 10px;
+          overflow: hidden;
+        }
+        .auth-tab-btn {
+          flex: 1;
+          height: 40px;
+          border: 0;
+          background: #f8fafc;
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+          color: #64748b;
+          transition: all 0.2s ease;
+        }
+        .auth-tab-btn.active {
+          background: var(--blue);
+          color: #fff;
+        }
+        .auth-tab-btn:first-child { border-radius: 8px 0 0 8px; }
+        .auth-tab-btn:last-child { border-radius: 0 8px 8px 0; }
         .sidebar-footer {
           margin-top: auto;
           display: flex;
@@ -9912,88 +10119,94 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
       `}</style>
       <div className="auth-box">
         <div className="railway-mark auth-logo">IR</div>
-        <h2>Login to Access</h2>
-        <p>{isRegister ? "Register New Account" : "Sign In to Management Portal"}</p>
+        <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a" }}>SECR Telecom</h2>
+        <p className="auth-sub" style={{ marginBottom: "24px" }}>South East Central Railway — Telecom Management</p>
 
-        {errorMsg && <div className="auth-error">{errorMsg}</div>}
-
-        <form onSubmit={handleAuth}>
-          {isRegister && (
-            <>
+        {isSignup ? (
+          <StaffSignupForm showToast={showToast} onSuccess={() => setIsSignup(false)} />
+        ) : (
+          <>
+            {errorMsg && <div className="auth-error">{errorMsg}</div>}
+            <form onSubmit={isOtpMode ? (otpSent ? handleVerifyOtp : handleSendOtp) : handleLogin}>
               <label>
-                Full Name
-                <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. R. K. Sharma" />
+                Username / Mobile No.
+                <input required value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter username or mobile number" />
               </label>
-              {(roleInput as string) !== "SUPER_ADMIN" && (roleInput as string) !== "DIVISIONAL_ADMIN" && (
+              
+              {!isOtpMode && (
                 <label>
-                  Designation
-                  <input required={(roleInput as string) !== "SUPER_ADMIN" && (roleInput as string) !== "DIVISIONAL_ADMIN"} value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. SSE/Tele/Raipur" />
+                  Password
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <input
+                      required
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      style={{ paddingRight: "44px" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#64748b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "4px"
+                      }}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </label>
               )}
-              <label>
-                System Role
-                <ClearableSelect value={roleInput} onChange={val => setRoleInput(val as UserRole)}>
-                  <option value="">Select Role</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
-                  <option value="DIVISIONAL_ADMIN">Divisional Admin</option>
-                  <option value="SSE">SSE (Senior Section Engineer)</option>
-                  <option value="TECHNICIAN">Technician</option>
-                  <option value="TESTROOM">Testroom</option>
-                </ClearableSelect>
-              </label>
-              {(roleInput as string) !== "SUPER_ADMIN" && (
-                <label>
-                  Division
-                  <ClearableSelect value={divisionInput} onChange={setDivisionInput}>
-                    <option value="">Select Division</option>
-                    {["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)}
-                  </ClearableSelect>
+
+              {isOtpMode && otpSent && (
+                <label style={{ animation: "fadeIn 0.2s ease-in-out" }}>
+                  Enter OTP
+                  <input
+                    required
+                    type="text"
+                    maxLength={6}
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Enter 6-digit OTP"
+                  />
                 </label>
               )}
-            </>
-          )}
-          <label>
-            Username
-            <input required value={username} onChange={e => setUsername(e.target.value)} placeholder="username" />
-          </label>
-          <label>
-            Password
-            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <input
-                required
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="password"
-                style={{ paddingRight: "44px" }}
-              />
+
+              <button type="submit" disabled={loading}>
+                {loading ? "Please wait..." : (isOtpMode ? (otpSent ? "Verify & Sign In" : "Request OTP") : "Sign In")}
+              </button>
+            </form>
+            <div style={{ marginTop: "20px", fontSize: "14px", color: "#64748b" }}>
+              New Staff member?{" "}
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => { setIsSignup(true); setErrorMsg(""); }}
                 style={{
-                  position: "absolute",
-                  right: "12px",
-                  background: "transparent",
+                  background: "none",
                   border: "none",
+                  color: "var(--blue)",
+                  fontWeight: "750",
                   cursor: "pointer",
-                  color: "#64748b",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "4px"
+                  textDecoration: "underline",
+                  padding: 0,
+                  fontSize: "inherit"
                 }}
-                title={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                Sign Up
               </button>
             </div>
-          </label>
-          <button type="submit" disabled={loading}>
-            {loading ? "Please wait..." : isRegister ? "Register & Login" : "Sign In"}
-          </button>
-        </form>
-
-        {/* Registration is disabled */}
+          </>
+        )}
       </div>
     </div>
   );

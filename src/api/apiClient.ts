@@ -109,6 +109,10 @@ export const api = {
   auth: {
     login: (body: any) => request<any>("POST", "/api/auth/login", body),
     register: (body: any) => request<any>("POST", "/api/auth/register", body),
+    signup: (body: any) => request<any>("POST", "/api/auth/signup", body),
+    sendOtp: (body: any) => request<any>("POST", "/api/auth/send-otp", body),
+    verifyOtp: (body: any) => request<any>("POST", "/api/auth/verify-otp", body),
+    sendSignupOtp: (body: any) => request<any>("POST", "/api/auth/send-signup-otp", body),
     getProfile: () => request<ApiResponse<any>>("GET", "/api/auth/profile"),
     getUsers: (params?: any) => {
       const q = new URLSearchParams(params).toString();

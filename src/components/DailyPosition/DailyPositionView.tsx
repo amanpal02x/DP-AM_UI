@@ -2227,7 +2227,6 @@ const RealTimeClock = () => {
 
 export default function DailyPositionView({ role, division, user, mode, showToast }: DailyPositionViewProps) {
   const queryClient = useQueryClient();
-  const canFill = role === "TESTROOM";
   const {
     dpSelectedCategory: selectedCategory,
     dpSelectedFormName: selectedFormName,
@@ -2244,9 +2243,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpHistoryFormTypeFilter: setHistoryFormType
   } = useAppStore();
 
+  const canFill = role === "TESTROOM" || (role === "STAFF" && selectedCategory === "Testing & Maintenance");
+
   const [localViewMode, setLocalViewMode] = useState<"form" | "history" | null>(null);
   const viewMode = localViewMode || mode || (canFill ? "form" : "history");
   const canChooseDivision = role === "SUPER_ADMIN";
+  // Staff are locked to their own division — cannot change it
+  const isDivisionLocked = role === "STAFF";
 
   const [selectedDivision, setSelectedDivision] = useState(division || "");
   const [selectedDate, setSelectedDate] = useState(toDateValue());
@@ -2522,7 +2525,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const [historySearch, setHistorySearch] = useState("");
-  const [historyDivision, setHistoryDivision] = useState("");
+  const [historyDivision, setHistoryDivision] = useState(role === "STAFF" ? (division || "") : "");
   const [historyStatus, setHistoryStatus] = useState("");
 
   const uniqueCategories = useMemo(() => {
@@ -2996,9 +2999,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <ClearableSelect
             value={historyDivision}
             onChange={setHistoryDivision}
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+            disabled={role === "STAFF"}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: role === "STAFF" ? "#f1f5f9" : "#fff", cursor: role === "STAFF" ? "not-allowed" : "default" }}
           >
-            <option value="">All Divisions</option>
+            {role !== "STAFF" && <option value="">All Divisions</option>}
             <option value="Bilaspur">Bilaspur</option>
             <option value="Raipur">Raipur</option>
             <option value="Nagpur">Nagpur</option>
@@ -3041,7 +3045,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             type="button"
             onClick={() => {
               setHistorySearch("");
-              setHistoryDivision("");
+              setHistoryDivision(role === "STAFF" ? (division || "") : "");
               setHistoryStatus("");
               setHistoryCategory("");
               setHistoryFormType("");
@@ -3164,11 +3168,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         </div>
       </section>
 
-      {(canFill || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
+      {(canFill || role === "STAFF" || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
         <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
             <form onSubmit={handleSubmit}>
               <div className="dp-form-scrollable-container">
+                {!canFill && (
+                  <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#475569", fontWeight: 600, marginBottom: 12 }}>
+                    🔒 This category is read-only. Staff can only write under "Testing & Maintenance".
+                  </div>
+                )}
                 <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
                   <div>
                     <h3 style={{ margin: 0 }}>
@@ -3240,35 +3249,37 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={isCompletedToday && !editingRecordId}
+                      readOnly={!canFill || (isCompletedToday && !editingRecordId)}
                       formName={selectedForm.name}
                     />
                   ))}
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", marginBottom: "16px" }}>
-                  <button
-                    type="button"
-                    className="export-button"
-                    onClick={handleAddRecord}
-                    disabled={isCompletedToday || !!editingRecordId || isAddingRecord}
-                    style={{
-                      cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer"
-                    }}
-                  >
-                    {isAddingRecord ? (
-                      <>
-                        <span className="dp-btn-loader" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={16} />
-                        Add Record
-                      </>
-                    )}
-                  </button>
-                </div>
+                {canFill && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", marginBottom: "16px" }}>
+                    <button
+                      type="button"
+                      className="export-button"
+                      onClick={handleAddRecord}
+                      disabled={isCompletedToday || !!editingRecordId || isAddingRecord}
+                      style={{
+                        cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      {isAddingRecord ? (
+                        <>
+                          <span className="dp-btn-loader" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          Add Record
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 <section className="dp-recent-form-records">
                   <div className="dp-recent-header">
@@ -3431,119 +3442,121 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </section>
               </div>
 
-              <div className="dp-form-actions">
-                {editingRecordId && (
-                  <button
-                    className="export-button"
-                    type="button"
-                    style={{ background: "transparent", color: "var(--muted)", borderColor: "var(--line)", marginRight: "auto" }}
-                    onClick={handleCancelEdit}
-                  >
-                    Cancel
-                  </button>
-                )}
-                {!editingRecordId && (() => {
-                  const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
-                  const hasDrafts = draftsCount > 0;
-                  const isCurrentFormEmpty = isFormEmpty();
-                  const showWarning = !isCurrentFormEmpty;
-                  const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts;
-                  
-                  return (
-                    <button 
-                      className="export-button ok-button" 
-                      type="button" 
-                      onClick={handleOk} 
-                      disabled={isOkButtonDisabled}
-                      onMouseEnter={() => setIsOkHovered(true)}
-                      onMouseLeave={() => setIsOkHovered(false)}
-                      style={{
-                        opacity: (showWarning || hasDrafts) ? 0.6 : 1,
-                        cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
-                        transition: "all 0.2s ease-in-out",
-                        ...(showWarning && isOkHovered && !hasDrafts ? {
-                          background: "#ef4444",
-                          borderColor: "#ef4444",
-                          color: "#fff",
-                          opacity: 1
-                        } : {})
-                      }}
+              {canFill && (
+                <div className="dp-form-actions">
+                  {editingRecordId && (
+                    <button
+                      className="export-button"
+                      type="button"
+                      style={{ background: "transparent", color: "var(--muted)", borderColor: "var(--line)", marginRight: "auto" }}
+                      onClick={handleCancelEdit}
                     >
-                      {isSubmittingAllOk ? (
-                        <>
-                          <span className="dp-btn-loader" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          {hasDrafts ? (
-                            <Ban size={16} />
-                          ) : (showWarning && isOkHovered ? (
-                            <Ban size={16} />
-                          ) : (
-                            <CheckCircle2 size={16} />
-                          ))}
-                          ALL OK
-                        </>
-                      )}
+                      Cancel
                     </button>
-                  );
-                })()}
-                {editingRecordId && (
-                  <button 
-                    className="export-button" 
-                    type="submit" 
-                    disabled={isSavingDraft || createRecord.isPending || updateRecord.isPending}
-                  >
-                    {isSavingDraft ? (
-                      <>
-                        <span className="dp-btn-loader" />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} />
-                        Update Daily Position
-                      </>
-                    )}
-                  </button>
-                )}
-                {!editingRecordId && (() => {
-                  const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
-                  const hasNoDrafts = draftsCount === 0;
-                  const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId);
-                  const isSubmitDisabledStyle = isHtmlDisabled || hasNoDrafts;
-                  return (
+                  )}
+                  {!editingRecordId && (() => {
+                    const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
+                    const hasDrafts = draftsCount > 0;
+                    const isCurrentFormEmpty = isFormEmpty();
+                    const showWarning = !isCurrentFormEmpty;
+                    const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts;
+                    
+                    return (
+                      <button 
+                        className="export-button ok-button" 
+                        type="button" 
+                        onClick={handleOk} 
+                        disabled={isOkButtonDisabled}
+                        onMouseEnter={() => setIsOkHovered(true)}
+                        onMouseLeave={() => setIsOkHovered(false)}
+                        style={{
+                          opacity: (showWarning || hasDrafts) ? 0.6 : 1,
+                          cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
+                          transition: "all 0.2s ease-in-out",
+                          ...(showWarning && isOkHovered && !hasDrafts ? {
+                            background: "#ef4444",
+                            borderColor: "#ef4444",
+                            color: "#fff",
+                            opacity: 1
+                          } : {})
+                        }}
+                      >
+                        {isSubmittingAllOk ? (
+                          <>
+                            <span className="dp-btn-loader" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            {hasDrafts ? (
+                              <Ban size={16} />
+                            ) : (showWarning && isOkHovered ? (
+                              <Ban size={16} />
+                            ) : (
+                              <CheckCircle2 size={16} />
+                            ))}
+                            ALL OK
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
+                  {editingRecordId && (
                     <button 
                       className="export-button" 
-                      type="button" 
-                      onClick={handleSaveAndNext} 
-                      disabled={isHtmlDisabled}
-                      style={{
-                        opacity: isSubmitDisabledStyle ? 0.6 : 1,
-                        cursor: isSubmitDisabledStyle ? "not-allowed" : "pointer",
-                        transition: "all 0.2s ease-in-out"
-                      }}
+                      type="submit" 
+                      disabled={isSavingDraft || createRecord.isPending || updateRecord.isPending}
                     >
-                      {isSavingAndNext ? (
+                      {isSavingDraft ? (
                         <>
                           <span className="dp-btn-loader" />
-                          Submitting...
+                          Updating...
                         </>
                       ) : (
                         <>
-                          {isSubmitDisabledStyle ? (
-                            <Ban size={16} />
-                          ) : (
-                            <Send size={16} />
-                          )}
-                          Submit
+                          <Send size={16} />
+                          Update Daily Position
                         </>
                       )}
                     </button>
-                  );
-                })()}
-              </div>
+                  )}
+                  {!editingRecordId && (() => {
+                    const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
+                    const hasNoDrafts = draftsCount === 0;
+                    const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId);
+                    const isSubmitDisabledStyle = isHtmlDisabled || hasNoDrafts;
+                    return (
+                      <button 
+                        className="export-button" 
+                        type="button" 
+                        onClick={handleSaveAndNext} 
+                        disabled={isHtmlDisabled}
+                        style={{
+                          opacity: isSubmitDisabledStyle ? 0.6 : 1,
+                          cursor: isSubmitDisabledStyle ? "not-allowed" : "pointer",
+                          transition: "all 0.2s ease-in-out"
+                        }}
+                      >
+                        {isSavingAndNext ? (
+                          <>
+                            <span className="dp-btn-loader" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            {isSubmitDisabledStyle ? (
+                              <Ban size={16} />
+                            ) : (
+                              <Send size={16} />
+                            )}
+                            Submit
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
+                </div>
+              )}
             </form>
           </main>
         </section>
