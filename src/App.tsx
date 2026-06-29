@@ -484,7 +484,7 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  activeNav: getCachedUser() && getCachedUser().accessDailyPosition === false && getCachedUser().accessAssets === true
+  activeNav: getCachedUser() && getCachedUser().role !== "STAFF" && getCachedUser().accessDailyPosition === false && getCachedUser().accessAssets === true
     ? "Asset Dashboard"
     : "Daily Position",
   role: getCachedUser() ? getCachedUser().role : "VIEWER",
@@ -550,18 +550,18 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM", "STAFF"] },
     { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "STAFF"] },
-    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM", "STAFF"] },
-    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "VIEWER", "TESTROOM"] },
-    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "VIEWER", "TESTROOM"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
@@ -1080,7 +1080,15 @@ function App() {
   // Route redirection guard based on user access flags
   useEffect(() => {
     if (!token || !user) return;
-    const hasAssetAccess = user.accessAssets !== false;
+
+    // Check if the current nav item is allowed for the user's role
+    const currentNavItem = navItems.find(item => item.label === activeNav);
+    if (currentNavItem && !currentNavItem.roles.includes(role)) {
+      useAppStore.getState().setActiveNav("Daily Position");
+      return;
+    }
+
+    const hasAssetAccess = user.role !== "STAFF" && user.accessAssets !== false;
     const hasDailyPositionAccess = user.accessDailyPosition !== false;
 
     const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
@@ -1095,7 +1103,7 @@ function App() {
         useAppStore.getState().setActiveNav("Asset Dashboard");
       }
     }
-  }, [activeNav, user, token]);
+  }, [activeNav, user, role, token]);
 
   const queryClient = useQueryClient();
 
@@ -1628,7 +1636,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [dpDropdownOpen, setDpDropdownOpen] = useState(true);
 
-  const hasAccessAssets = user?.accessAssets !== false;
+  const hasAccessAssets = user?.role !== "STAFF" && user?.accessAssets !== false;
   const hasAccessDailyPosition = user?.accessDailyPosition !== false;
 
   const visibleNav = navItems.filter((item) => {
@@ -8245,7 +8253,20 @@ function ActionPanel({
           </label>
           <label>
             System Role
-            <ClearableSelect value={addRole} onChange={val => setAddRole(val as UserRole)}>
+            <ClearableSelect
+              value={addRole}
+              onChange={val => {
+                const role = val as UserRole;
+                setAddRole(role);
+                if (role === "STAFF") {
+                  setAddAccessAssets(false);
+                  setAddAccessDailyPosition(true);
+                } else {
+                  setAddAccessAssets(true);
+                  setAddAccessDailyPosition(true);
+                }
+              }}
+            >
               <option value="">Select Role</option>
               {currentRole === "SUPER_ADMIN" ? (
                 <>
@@ -8294,8 +8315,8 @@ function ActionPanel({
           <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>Module Access Privileges</span>
             <div style={{ display: "grid", gap: 8 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
-                <input type="checkbox" checked={addAccessAssets} onChange={e => setAddAccessAssets(e.target.checked)} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: addRole === "STAFF" ? "not-allowed" : "pointer", userSelect: "none", opacity: addRole === "STAFF" ? 0.6 : 1 }}>
+                <input type="checkbox" disabled={addRole === "STAFF"} checked={addRole === "STAFF" ? false : addAccessAssets} onChange={e => setAddAccessAssets(e.target.checked)} />
                 Access Assets Module
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
@@ -9038,7 +9059,19 @@ function ActionPanel({
           </label>
           <label>
             System Role
-            <ClearableSelect value={newRole} onChange={setNewRole}>
+            <ClearableSelect
+              value={newRole}
+              onChange={val => {
+                setNewRole(val);
+                if (val === "STAFF") {
+                  setEditAccessAssets(false);
+                  setEditAccessDailyPosition(true);
+                } else {
+                  setEditAccessAssets(true);
+                  setEditAccessDailyPosition(true);
+                }
+              }}
+            >
               <option value="">Select Role</option>
               {currentRole === "SUPER_ADMIN" ? (
                 <>
@@ -9078,8 +9111,8 @@ function ActionPanel({
           <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>Module Access Privileges</span>
             <div style={{ display: "grid", gap: 8 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
-                <input type="checkbox" checked={editAccessAssets} onChange={e => setEditAccessAssets(e.target.checked)} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: newRole === "STAFF" ? "not-allowed" : "pointer", userSelect: "none", opacity: newRole === "STAFF" ? 0.6 : 1 }}>
+                <input type="checkbox" disabled={newRole === "STAFF"} checked={newRole === "STAFF" ? false : editAccessAssets} onChange={e => setEditAccessAssets(e.target.checked)} />
                 Access Assets Module
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", userSelect: "none" }}>
@@ -9599,7 +9632,15 @@ function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) =>
     }
     setLoading(true);
     try {
-      const res = await api.auth.signup({ name, designation, mobile, division, otp });
+      const res = await api.auth.signup({
+        name,
+        designation,
+        mobile,
+        division,
+        otp,
+        accessAssets: false,
+        accessDailyPosition: true
+      });
       setToken(res.token);
       setUser(res.data);
       showToast("Staff account created. Welcome!");
