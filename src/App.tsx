@@ -9906,7 +9906,9 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           box-sizing: border-box;
         }
         .auth-circle-frame {
-          position: relative;
+          position: absolute;
+          left: 0;
+          top: 0;
           width: min(700px, 70vw, 100vh);
           height: min(700px, 70vw, 100vh);
           border-radius: 50%;
@@ -9915,8 +9917,9 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           background: #ffffff;
           overflow: visible;
           box-shadow: 0 20px 50px rgba(0, 76, 192, 0.12);
-          transform: translate(-27%, -22%);
+          transform: translate(-13%, -22%);
           box-sizing: border-box;
+          z-index: 1;
         }
         .auth-hq-img {
           width: 100%;
@@ -10189,6 +10192,9 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           .auth-left {
             display: none;
           }
+          .auth-circle-frame {
+            display: none;
+          }
           .auth-wrapper {
             padding: 20px;
             justify-content: center;
@@ -10196,10 +10202,6 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
           .auth-right {
             flex: 1;
             max-width: 420px;
-          }
-          .auth-bg-sketch {
-            background-size: 95% auto;
-            opacity: 0.06;
           }
         }
         @media (max-height: 550px) {
@@ -10217,12 +10219,14 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
 
       <div className="auth-bg-sketch" style={{ backgroundImage: `url(${bgSketch})` }}></div>
 
+      <div className="auth-circle-frame">
+        <img src={secrHq} alt="SECR HQ" className="auth-hq-img" />
+        <img src={irLogo} alt="Indian Railways Logo" className="auth-ir-logo" />
+      </div>
+
       <div className="auth-wrapper">
         <div className="auth-left">
-          <div className="auth-circle-frame">
-            <img src={secrHq} alt="SECR HQ" className="auth-hq-img" />
-            <img src={irLogo} alt="Indian Railways Logo" className="auth-ir-logo" />
-          </div>
+          {/* Spacer block to balance layout on desktop */}
         </div>
 
         <div className="auth-right">
@@ -10233,7 +10237,7 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
               <>
                 <div className="auth-card-header">
                   <h3 className="auth-card-title">Login</h3>
-                  <p className="auth-card-subtitle">Access your smart procurement portal</p>
+                  <p className="auth-card-subtitle">Secure access to Railway Daily Position Portal</p>
                 </div>
 
                 {errorMsg && <div className="auth-error">{errorMsg}</div>}
