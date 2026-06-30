@@ -590,6 +590,13 @@ textarea {
   margin-top: 10px;
 }
 
+.dashboard-grid-unequal {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1.6fr !important;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .operations-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4019,7 +4026,11 @@ textarea {
   }
 
   .dashboard-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-grid-unequal {
+    grid-template-columns: 1fr 1fr 1.5fr !important;
   }
 
   .bottom-stats {
@@ -4032,7 +4043,8 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .dashboard-grid {
+  .dashboard-grid,
+  .dashboard-grid-unequal {
     grid-template-columns: 1fr !important;
   }
 }
@@ -4884,7 +4896,7 @@ path:focus {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border: 1px solid #e8edf5;
   min-height: 280px;
-  grid-column: span 2;
+  grid-column: span 1;
 }
 
 .weekly-fault-trends-panel h3 {

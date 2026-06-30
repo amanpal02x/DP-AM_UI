@@ -3685,7 +3685,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   });
 
                 return (
-                  <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                  <section className="dp-details-section" style={{ marginTop: "12px", paddingBottom: "16px" }}>
                     <h3>Submitted Form Fields</h3>
                     <div className="dp-details-grid">
                       {formFieldItems.map(item => (
@@ -3704,6 +3704,24 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </section>
                 );
               })()}
+
+              {/* Footer Metadata */}
+              <div style={{
+                borderTop: "1px solid #e2e8f0",
+                padding: "12px 24px",
+                margin: "12px -24px -24px -24px",
+                background: "#f8fafc",
+                display: "flex",
+                justifyContent: "flex-start",
+                fontSize: "11.5px",
+                color: "#64748b",
+                borderRadius: "0 0 12px 12px"
+              }}>
+                <span>
+                  Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
+                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")}</strong>
+                </span>
+              </div>
             </div>
           </div>
         );

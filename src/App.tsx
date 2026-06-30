@@ -2749,6 +2749,11 @@ function CategoryFaultsPageView({
       return isResolvedToday;
     }
 
+    // 5. Walkie-Talkie Records
+    if (lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie") {
+      return (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+    }
+
     return r.category?.toLowerCase() === categoryName?.toLowerCase();
   });
 
@@ -3263,7 +3268,7 @@ function DailyPositionTrendsPanel({
   };
 
   return (
-    <article className="panel weekly-fault-trends-panel" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", height: "100%" }}>
+    <article className="panel weekly-fault-trends-panel" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
           {range === "weekly" ? "Weekly Fault Trends" : "Daily Fault Trends"}
@@ -3344,6 +3349,179 @@ function DailyPositionTrendsPanel({
             />
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+    </article>
+  );
+}
+
+function WalkieTalkieDivisionPanel({
+  summary,
+  onCategoryClick
+}: {
+  summary?: any;
+  onCategoryClick?: (categoryName: string) => void;
+}) {
+  const { division: userDivision } = useAppStore();
+
+  const normalizeDiv = (divName?: string) => {
+    if (!divName) return "Others";
+    const l = divName.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
+  const allDivisions = summary?.divisions || [];
+  
+  const divisions = normalizedUserDiv && ["Raipur", "Bilaspur", "Nagpur"].includes(normalizedUserDiv)
+    ? allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv)
+    : allDivisions;
+
+  const totalDefective = divisions.reduce((sum: number, d: any) => sum + (d.repairing?.pending ?? 0), 0);
+
+  const divColors: Record<string, string> = {
+    Raipur: "#f97316",   // Orange
+    Bilaspur: "#3b82f6", // Blue
+    Nagpur: "#f5b51b"    // Yellow
+  };
+
+  if (divisions.length === 1) {
+    const div = divisions[0];
+    const tested = div.testing?.tested ?? 0;
+    const total = div.testing?.total ?? 0;
+    const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
+    const pendingRepair = div.repairing?.pending ?? 0;
+    const color = divColors[div.division] || "#94a3b8";
+
+    return (
+      <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
+          <button
+            onClick={() => onCategoryClick?.("Walkie-Talkie")}
+            style={{
+              background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+              color: totalDefective > 0 ? "#ef4444" : "#10b981",
+              border: "none",
+              borderRadius: 12,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "all 0.2s ease"
+            }}
+            className="wt-kpi-badge"
+          >
+            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalDefective > 0 ? "#ef4444" : "#10b981" }} />
+            Defective Sets: {totalDefective}
+          </button>
+        </div>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "10px 0" }}>
+          {/* Large Division Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
+            <strong style={{ fontSize: 15, color: "#1e293b", fontWeight: 800 }}>{div.division} Division</strong>
+          </div>
+
+          {/* Styled Stats Box */}
+          <div style={{ width: "100%", display: "flex", gap: 10 }}>
+            {/* Testing Stats Card */}
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Testing Progress</div>
+              <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{testPercent}%</strong>
+              <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>{tested} of {total} sets</div>
+              <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                <div style={{ width: `${testPercent}%`, height: "100%", background: color }} />
+              </div>
+            </div>
+
+            {/* Defective Sets Card */}
+            <div style={{ flex: 1, background: pendingRepair > 0 ? "#fff5f5" : "#f0fdf4", border: pendingRepair > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Repair Status</div>
+              <strong style={{ fontSize: 22, fontWeight: 800, color: pendingRepair > 0 ? "#b91c1c" : "#14532d" }}>{pendingRepair}</strong>
+              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Sets Pending Repair" : "All Sets Repaired"}</div>
+              <div style={{ height: 4, background: pendingRepair > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                <div style={{ width: pendingRepair > 0 ? "100%" : "0%", height: "100%", background: pendingRepair > 0 ? "#ef4444" : "#10b981" }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
+        
+        <button
+          onClick={() => onCategoryClick?.("Walkie-Talkie")}
+          style={{
+            background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+            color: totalDefective > 0 ? "#ef4444" : "#10b981",
+            border: "none",
+            borderRadius: 12,
+            padding: "4px 10px",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            transition: "all 0.2s ease"
+          }}
+          className="wt-kpi-badge"
+        >
+          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalDefective > 0 ? "#ef4444" : "#10b981" }} />
+          Defective Sets: {totalDefective}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "center" }}>
+        {divisions.map((div: any) => {
+          const tested = div.testing?.tested ?? 0;
+          const total = div.testing?.total ?? 0;
+          const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
+          const pendingRepair = div.repairing?.pending ?? 0;
+
+          return (
+            <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>
+                    Tested: {tested}/{total} ({testPercent}%)
+                  </span>
+                  {pendingRepair > 0 && (
+                    <span style={{
+                      background: "#fee2e2",
+                      color: "#b91c1c",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "2px 6px",
+                      borderRadius: 4
+                    }}>
+                      {pendingRepair} Defective
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 3 }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </article>
   );
@@ -3505,9 +3683,10 @@ function DailyPositionDashboardView({
         ))}
       </section>
 
-      {/* Row 2 (Middle Section): Division Active Faults & Weekly Trends */}
-      <section className="dashboard-grid" style={{ marginTop: 0 }}>
+      {/* Row 2 (Middle Section): Division Active Faults, Walkie-Talkie Status, & Weekly Trends */}
+      <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: 0 }}>
         <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+        <WalkieTalkieDivisionPanel summary={data.walkieTalkieSummary} onCategoryClick={onCategoryClick} />
         <DailyPositionTrendsPanel
           weeklyTrend={data.weeklyFaultsTrend || []}
           dailyTrend={data.dailyFaultsTrend || []}
@@ -3903,15 +4082,15 @@ function DailyPositionDetailsModal({
                     paddingTop: "10px",
                     marginTop: "12px",
                     display: "flex",
-                    flexWrap: "wrap",
-                    gap: "6px 12px",
+                    flexDirection: "column",
+                    gap: "6px",
                     fontSize: "11px",
                     color: "var(--muted)"
                   }}>
-                    <span>Submitted: {formatDateTime24(entry.createdAt)}</span>
-                    {isSuperAdmin && entry.createdByUsername && (
-                      <span>• User: {entry.createdByUsername}</span>
-                    )}
+                    <span>
+                      Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong> 
+                      {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
+                    </span>
                   </div>
                 </div>
                 {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (

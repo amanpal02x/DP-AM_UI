@@ -24,13 +24,15 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoStr = toDateValue(sevenDaysAgo);
 
-  // Fetch dashboard stats, active faults, today's records, resolved records, and weekly records in parallel
-  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes, weeklyRecordsRes] = await Promise.all([
+  // Fetch dashboard stats, active faults, today's records, resolved records, weekly records, and walkie-talkie logs in parallel
+  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes, weeklyRecordsRes, wtTestingRes, wtRepairingRes] = await Promise.all([
     api.reports.dashboard(division),
     api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 200 }).catch(() => ({ data: [] })),
     api.dailyPosition.list({ division: division || "", date: todayStr, limit: 200 }).catch(() => ({ data: [] })),
     api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 200 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] }))
+    api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", formType: "Walkie-Talkie Testing", limit: 100 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", formType: "Walkie-Talkie Repairing", limit: 100 }).catch(() => ({ data: [] }))
   ]);
 
   const stats = statsRes.data;
@@ -403,6 +405,51 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     role: "SSE"
   };
 
+  // Walkie-Talkie Records Aggregation (Overall latest records)
+  const wtTestingRecords = (wtTestingRes.data || [])
+    .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+
+  const wtRepairingRecords = (wtRepairingRes.data || [])
+    .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+
+  const normalizeDiv = (divName?: string) => {
+    if (!divName) return "Others";
+    const l = divName.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  const divisionsList = ["Raipur", "Bilaspur", "Nagpur"];
+  let totalDefective = 0;
+  const wtDivisions = divisionsList.map(div => {
+    const testRec = wtTestingRecords.find(r => normalizeDiv(r.division) === div);
+    const repairRec = wtRepairingRecords.find(r => normalizeDiv(r.division) === div);
+
+    const testFd = testRec?.formData || {};
+    const tested = testRec ? Number(testFd.testedCount ?? 0) : 0;
+    const total = testRec ? Number(testFd.toBeTestedCount ?? 0) : 0;
+    const balance = testRec ? Number(testFd.balanceWalkieTalkies ?? (total - tested)) : 0;
+
+    const repairFd = repairRec?.formData || {};
+    const pending = repairRec ? Number(repairFd.pendingRepair ?? repairFd.openingDefective ?? 0) : 0;
+    const opening = repairRec ? Number(repairFd.openingDefective ?? 0) : 0;
+
+    totalDefective += pending;
+
+    return {
+      division: div,
+      testing: testRec ? { tested, total, balance } : null,
+      repairing: repairRec ? { pending, opening } : null
+    };
+  });
+
+  const walkieTalkieSummary = {
+    totalDefective,
+    divisions: wtDivisions
+  };
+
   return {
     division: `${division || "All Divisions"}`,
     dateRange: `${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} - ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`,
@@ -429,6 +476,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     dailyPositionStatus: stats.dailyPositionStatus || [],
     weeklyFaultsTrend,
     dailyFaultsTrend,
-    activeFaultsByDivision
+    activeFaultsByDivision,
+    walkieTalkieSummary
   };
 }
