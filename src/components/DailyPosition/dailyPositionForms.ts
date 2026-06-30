@@ -433,7 +433,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "toBeTestedCount", label: "Total walkie-talkies to be tested", type: "number", required: true, placeholder: "Total count to be tested" },
       { name: "testedCount", label: "Total walkie-talkies tested", type: "number", required: true, placeholder: "Total count tested" },
       { name: "balanceWalkieTalkies", label: "Balance walkie-talkies to be tested (Calculated)", type: "number", readonly: true, placeholder: "Calculated balance walkie-talkies" },
-      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter any additional details, issues faced, or test observations" },
+      { name: "remarks", label: "Defect details", type: "textarea", fullWidth: true, placeholder: "Enter any additional details, issues faced, or test observations" },
     ],
   },
   {
@@ -458,7 +458,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
       { name: "repairStatus", label: "Repair Status", type: "select", required: true, options: ["Pending", "In Progress", "Completed"], placeholder: "Select Repair Status" },
       { name: "faultType", label: "Fault Type", type: "select", required: true, options: ["Speaker/Mic", "Battery", "Antenna", "Display", "Power/Tx/Rx", "Other"], placeholder: "Select Fault Type" },
       { name: "actionTaken", label: "Action Taken", type: "text", placeholder: "Describe action taken to repair defective sets" },
-      { name: "remarks", label: "Failures details", type: "textarea", fullWidth: true, placeholder: "Enter any additional observations or comments" },
+      { name: "remarks", label: "Defect details", type: "textarea", fullWidth: true, placeholder: "Enter any additional observations or comments" },
     ],
   },
   {
