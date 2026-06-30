@@ -119,4 +119,19 @@ export interface DashboardSummary {
   weeklyFaultsTrend?: Array<{ day: string; reported: number; resolved: number }>;
   dailyFaultsTrend?: Array<{ hour: string; reported: number; resolved: number }>;
   activeFaultsByDivision?: Array<{ division: string; count: number }>;
+  walkieTalkieSummary?: {
+    totalDefective: number;
+    divisions: Array<{
+      division: string;
+      testing: {
+        tested: number;
+        total: number;
+        balance: number;
+      } | null;
+      repairing: {
+        pending: number;
+        opening: number;
+      } | null;
+    }>;
+  };
 }
