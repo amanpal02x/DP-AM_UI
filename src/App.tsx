@@ -3131,8 +3131,8 @@ function DailyPositionCategoryPanel({
 
   return (
     <article className="panel distribution-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <h3 style={{ margin: "0 0 16px 0", fontSize: 17, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>Category-wise Fault</h3>
-      <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 14, paddingRight: 4 }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Category-wise Fault</h3>
+      <div style={{ flex: 1, overflowY: "auto", display: "grid", gap: 12, paddingRight: 4 }}>
         {displayData.map(stat => {
           const percent = total > 0 && stat.value > 0 ? Math.round((stat.value / total) * 100) : 0;
           return (
@@ -3397,8 +3397,8 @@ function WalkieTalkieDivisionPanel({
 
     return (
       <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
           <button
             onClick={() => onCategoryClick?.("Walkie-Talkie")}
             style={{
@@ -3458,8 +3458,8 @@ function WalkieTalkieDivisionPanel({
 
   return (
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
         
         <button
           onClick={() => onCategoryClick?.("Walkie-Talkie")}
@@ -3683,19 +3683,19 @@ function DailyPositionDashboardView({
         ))}
       </section>
 
-      {/* Row 2 (Middle Section): Division Active Faults, Walkie-Talkie Status, & Weekly Trends */}
+      {/* Row 2 (Middle Section): Division Active Faults, Category-wise Fault, & Weekly Trends */}
       <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: 0 }}>
         <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
-        <WalkieTalkieDivisionPanel summary={data.walkieTalkieSummary} onCategoryClick={onCategoryClick} />
+        <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionTrendsPanel
           weeklyTrend={data.weeklyFaultsTrend || []}
           dailyTrend={data.dailyFaultsTrend || []}
         />
       </section>
 
-      {/* Row 3 (Bottom Section): Category Breakdown & Priority Table */}
+      {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0, flex: 1, minHeight: 0 }}>
-        <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
+        <WalkieTalkieDivisionPanel summary={data.walkieTalkieSummary} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
