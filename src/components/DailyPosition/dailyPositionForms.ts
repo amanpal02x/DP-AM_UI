@@ -423,7 +423,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     statusMode: "maintenance",
     fields: [
       { name: "stationLobby", label: "Station / Lobby", type: "text", required: true, placeholder: "Enter Station or Lobby name (e.g. BSP Lobby)" },
-      { name: "makeModel", label: "Make / Model", type: "select", required: true, options: ["Motorola", "Kenwood", "Icom", "Hytera", "Vertex Standard", "Other"], placeholder: "Select Make / Model" },
+      { name: "makeModel", label: "Make / Model", type: "select", required: true, options: ["Motorola", "Kenwood", "Icom", "Hytera", "Vertex Standard","Convey W/T", "Other"], placeholder: "Select Make / Model" },
       { name: "serialNo", label: "Walkie Talkie Serial No.", type: "text", required: true, placeholder: "Enter Walkie Talkie serial number" },
       { name: "powerOutput", label: "Output TX Power", type: "text", required: true, placeholder: "Enter output power (e.g. 5W)" },
       { name: "batteryVoltage", label: "Battery Voltage", type: "text", required: true, placeholder: "Enter battery voltage (e.g. 7.4V)" },
