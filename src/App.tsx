@@ -2696,6 +2696,28 @@ function CategoryFaultsPageView({
     return `${mins} min${mins !== 1 ? "s" : ""}`;
   };
 
+  const getDurationText = (failureTime?: string, rectificationTime?: string) => {
+    if (!failureTime) return "-";
+    const start = new Date(failureTime);
+    if (Number.isNaN(start.getTime())) return "-";
+    const end = rectificationTime ? new Date(rectificationTime) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "0m";
+
+    const diffMins = Math.round(diffMs / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hrs / 24);
+
+    if (days > 0) {
+      return `${days}d ${hrs % 24}h ${mins}m`;
+    }
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
   const queryClient = useQueryClient();
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: any }) => api.dailyPosition.update(id, body),
@@ -2761,7 +2783,7 @@ function CategoryFaultsPageView({
     return [...records].sort((a: any, b: any) => {
       const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
       const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
-      return timeB - timeA;
+      return timeA - timeB;
     });
   }, [records]);
 
@@ -2863,7 +2885,7 @@ function CategoryFaultsPageView({
                   style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
                 >
                   <option value="">All Divisions</option>
-                  {uniqueDivisions.map(div => (
+                  {["Bilaspur", "Nagpur", "Raipur"].map(div => (
                     <option key={div} value={div}>{div}</option>
                   ))}
                 </ClearableSelect>
@@ -2930,6 +2952,7 @@ function CategoryFaultsPageView({
                       <th>Station</th>
                       <th>Failure Time</th>
                       <th>Rectification Time</th>
+                      <th>Duration</th>
                       <th>Remarks</th>
                     </tr>
                   </thead>
@@ -2968,6 +2991,9 @@ function CategoryFaultsPageView({
                               Active
                             </button>
                           )}
+                        </td>
+                        <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
+                          {getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
