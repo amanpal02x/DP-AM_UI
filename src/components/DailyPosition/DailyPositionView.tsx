@@ -2243,7 +2243,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     setDpHistoryFormTypeFilter: setHistoryFormType
   } = useAppStore();
 
-  const canFill = role === "TESTROOM" || (role === "STAFF" && selectedCategory === "Testing & Maintenance");
+  const canFill = role === "TESTROOM" || role === "STAFF";
 
   const [localViewMode, setLocalViewMode] = useState<"form" | "history" | null>(null);
   const viewMode = localViewMode || mode || (canFill ? "form" : "history");
@@ -3168,7 +3168,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         </div>
       </section>
 
-      {(canFill || role === "STAFF" || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
+      {(canFill || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
         <section className="dp-workspace" style={{ display: "block" }}>
           <main className="dp-form-shell secr-form-shell">
             <form onSubmit={handleSubmit}>
@@ -3719,7 +3719,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               }}>
                 <span>
                   Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")}</strong>
+                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")}</strong>
                 </span>
               </div>
             </div>

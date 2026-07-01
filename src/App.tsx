@@ -4089,7 +4089,7 @@ function DailyPositionDetailsModal({
                   }}>
                     <span>
                       Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong> 
-                      {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
+                      {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
                     </span>
                   </div>
                 </div>
