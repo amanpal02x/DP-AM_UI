@@ -29,6 +29,7 @@ import {
   Wrench,
   Wifi,
   X,
+  Trash2,
   LogOut,
   Layers,
   Building2,
@@ -556,18 +557,18 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM", "STAFF"] },
-    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "STAFF"] },
-    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
@@ -634,7 +635,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
         return "Excel: Station, Code, Division, State, Category, P.A. System, Analog Clock, GPSClock, Coach guidance display, Train indication board, High Speed Wi-Fi, CCTV, Digital Display (Heritage), At A Glance Board, PRS, UTS, ATVM, CCTV D&E  |  CSV: name, code, division, state, category";
       case "Assets": return "stationCode, telecomAsset, assetMode, equipmentName, rdsoSpec, make, model, dateOfInstallation, workName, connectedWith, forwardInspection, backwardInspection, displayBoard, maintenanceValidity, maintenanceFrom, maintenanceTo, installLocation, status";
       case "LC Gate": return "gateNumber, name, category, section, km, tvuAvailability, locationName, stationCode";
-      case "Users & Roles": return "username, password, name, role, designation, division";
+      case "Users & Roles": return "name, mobile number, designation, role, division";
       default: return "";
     }
   };
@@ -805,6 +806,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
 
         return;
       } else {
+        const importedMobiles = new Set<string>();
         for (let i = 0; i < total; i++) {
           const rawRow = fileData.rows[i];
           try {
@@ -868,15 +870,34 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
               });
               successCount++;
             } else if (page === "Users & Roles") {
-              const isSuper = rawRow.role === "SUPER_ADMIN";
-              const isDivAdmin = rawRow.role === "DIVISIONAL_ADMIN";
+              const nameVal = String(getCell(rawRow, "name", "full name", "fullname") || "").trim();
+              const mobileVal = String(getCell(rawRow, "mobile", "mobile number", "mobilenumber", "phone", "phone number") || "").trim();
+              const designationVal = String(getCell(rawRow, "designation") || "").trim();
+              const roleVal = String(getCell(rawRow, "role") || "").trim().toUpperCase();
+              const divisionVal = String(getCell(rawRow, "division") || "").trim();
+
+              if (!nameVal || !mobileVal || !roleVal) {
+                throw new Error("Missing required columns: name, mobile number, and role are required.");
+              }
+
+              // Skip duplicate in the current file
+              if (importedMobiles.has(mobileVal)) {
+                skipCount++;
+                continue;
+              }
+              importedMobiles.add(mobileVal);
+
+              const isSuper = roleVal === "SUPER_ADMIN" || roleVal === "ALL_DIVISION_VIEWER";
+              const isDivAdmin = roleVal === "DIVISIONAL_ADMIN";
+
               await api.auth.register({
-                username: rawRow.username,
-                password: rawRow.password,
-                name: rawRow.name,
-                role: rawRow.role,
-                designation: (isSuper || isDivAdmin) ? null : (rawRow.designation || null),
-                division: isSuper ? null : (rawRow.division || null)
+                username: mobileVal,
+                password: mobileVal, // Default password to mobile number
+                mobile: mobileVal,
+                name: nameVal,
+                role: roleVal,
+                designation: (isSuper || isDivAdmin) ? null : (designationVal || null),
+                division: isSuper ? null : (divisionVal || null)
               });
               successCount++;
             }
@@ -2696,6 +2717,28 @@ function CategoryFaultsPageView({
     return `${mins} min${mins !== 1 ? "s" : ""}`;
   };
 
+  const getDurationText = (failureTime?: string, rectificationTime?: string) => {
+    if (!failureTime) return "-";
+    const start = new Date(failureTime);
+    if (Number.isNaN(start.getTime())) return "-";
+    const end = rectificationTime ? new Date(rectificationTime) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "0m";
+
+    const diffMins = Math.round(diffMs / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hrs / 24);
+
+    if (days > 0) {
+      return `${days}d ${hrs % 24}h ${mins}m`;
+    }
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
   const queryClient = useQueryClient();
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: any }) => api.dailyPosition.update(id, body),
@@ -2761,7 +2804,7 @@ function CategoryFaultsPageView({
     return [...records].sort((a: any, b: any) => {
       const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
       const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
-      return timeB - timeA;
+      return timeA - timeB;
     });
   }, [records]);
 
@@ -2863,7 +2906,7 @@ function CategoryFaultsPageView({
                   style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
                 >
                   <option value="">All Divisions</option>
-                  {uniqueDivisions.map(div => (
+                  {["Bilaspur", "Nagpur", "Raipur"].map(div => (
                     <option key={div} value={div}>{div}</option>
                   ))}
                 </ClearableSelect>
@@ -2930,6 +2973,7 @@ function CategoryFaultsPageView({
                       <th>Station</th>
                       <th>Failure Time</th>
                       <th>Rectification Time</th>
+                      <th>Duration</th>
                       <th>Remarks</th>
                     </tr>
                   </thead>
@@ -2968,6 +3012,9 @@ function CategoryFaultsPageView({
                               Active
                             </button>
                           )}
+                        </td>
+                        <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
+                          {getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -6313,14 +6360,14 @@ function ModuleView({
     }
   });
 
-  const renderPagination = (totalItems: number) => {
-    const totalPages = Math.ceil(totalItems / 50);
+  const renderPagination = (totalItems: number, pageSize = 50) => {
+    const totalPages = Math.ceil(totalItems / pageSize);
     if (totalPages <= 1) return null;
 
     return (
       <div className="pagination-bar">
         <div className="pagination-info">
-          Showing {Math.min(totalItems, (currentPage - 1) * 50 + 1)}–{Math.min(totalItems, currentPage * 50)} of {totalItems} records
+          Showing {Math.min(totalItems, (currentPage - 1) * pageSize + 1)}–{Math.min(totalItems, currentPage * pageSize)} of {totalItems} records
         </div>
         <div className="pagination-controls">
           <button
@@ -6815,7 +6862,7 @@ function ModuleView({
             (u.division && u.division.toLowerCase().includes(searchTerm.toLowerCase())) ||
             normDiv.includes(searchTerm.toLowerCase());
         });
-        const paginatedList = list.slice((currentPage - 1) * 50, currentPage * 50);
+        const paginatedList = list.slice((currentPage - 1) * 10, currentPage * 10);
         return (
           <>
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
@@ -6838,7 +6885,7 @@ function ModuleView({
                       (useAppStore.getState().role === "DIVISIONAL_ADMIN" && normalizeDivision(u.division) === normalizeDivision(useAppStore.getState().user?.division));
                     return (
                       <tr key={u.id}>
-                        <td>{(currentPage - 1) * 50 + idx + 1}</td>
+                        <td>{(currentPage - 1) * 10 + idx + 1}</td>
                         <td>
                           <strong
                             onClick={() => openPanel("User Details", u.id)}
@@ -6866,7 +6913,7 @@ function ModuleView({
                 </tbody>
               </table>
             </div>
-            {renderPagination(list.length)}
+            {renderPagination(list.length, 10)}
           </>
         );
       }
@@ -6989,9 +7036,9 @@ function ModuleView({
     }
   };
 
-  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
 
   const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
     (activeNav === "Master List" && canEditStations) ||
@@ -7825,9 +7872,9 @@ function ActionPanel({
 }) {
   const queryClient = useQueryClient();
   const { role } = useAppStore();
-  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
   const stations = queries.stationsQuery?.data?.data || [];
   const uniqueDivisions = Array.from(new Set(stations.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
 
@@ -7895,6 +7942,16 @@ function ActionPanel({
       close();
     },
     onError: (err: any) => showToast(err.message || "Failed to update role.")
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => api.auth.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-list"] });
+      showToast("User deleted successfully.");
+      close();
+    },
+    onError: (err: any) => showToast(err.message || "Failed to delete user.")
   });
 
   const createUser = useMutation({
@@ -8047,7 +8104,7 @@ function ActionPanel({
 
 
   // Role edit states
-  const [newRole, setNewRole] = useState("SSE");
+  const [newRole, setNewRole] = useState("STAFF");
   const [newDesignation, setNewDesignation] = useState("");
   const [editName, setEditName] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -8058,11 +8115,12 @@ function ActionPanel({
   const [addUsername, setAddUsername] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [addName, setAddName] = useState("");
-  const [addRole, setAddRole] = useState<UserRole>("SSE");
+  const [addRole, setAddRole] = useState<UserRole>("STAFF");
   const [addDesignation, setAddDesignation] = useState("");
   const [addDivision, setAddDivision] = useState("Raipur");
   const [addAccessAssets, setAddAccessAssets] = useState(true);
   const [addAccessDailyPosition, setAddAccessDailyPosition] = useState(true);
+  const [isMobileRegister, setIsMobileRegister] = useState(true);
 
   // Station Details — selected capability key (for inline asset card or "not registered" notice)
   const [selectedCapKey, setSelectedCapKey] = useState<string | null>(null);
@@ -8081,11 +8139,12 @@ function ActionPanel({
       setAddUsername("");
       setAddPassword("");
       setAddName("");
-      setAddRole("SSE");
+      setAddRole("STAFF");
       setAddDesignation("");
       setAddDivision(useAppStore.getState().user?.division || "Raipur");
       setAddAccessAssets(true);
       setAddAccessDailyPosition(true);
+      setIsMobileRegister(true);
     }
 
     if (title === "Add Station" || title === "Create Station") {
@@ -8333,7 +8392,8 @@ function ActionPanel({
       const isSuperOrAllDiv = addRole === "SUPER_ADMIN" || addRole === "ALL_DIVISION_VIEWER";
       createUser.mutate({
         username: addUsername,
-        password: addPassword,
+        password: isMobileRegister ? addUsername : addPassword,
+        mobile: isMobileRegister ? addUsername : undefined,
         name: addName,
         role: addRole,
         designation: (addRole === "SUPER_ADMIN" || addRole === "DIVISIONAL_ADMIN" || addRole === "ALL_DIVISION_VIEWER") ? undefined : addDesignation,
@@ -8424,18 +8484,76 @@ function ActionPanel({
 
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
+          <div style={{ display: "flex", gap: 10, marginBottom: 15, background: "#f1f5f9", padding: 4, borderRadius: 8 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileRegister(true);
+                setAddUsername("");
+                setAddPassword("");
+              }}
+              style={{
+                flex: 1,
+                border: 0,
+                background: isMobileRegister ? "#fff" : "transparent",
+                color: isMobileRegister ? "var(--blue)" : "var(--muted)",
+                fontWeight: 700,
+                fontSize: 12.5,
+                padding: "8px",
+                borderRadius: 6,
+                cursor: "pointer",
+                boxShadow: isMobileRegister ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileRegister(false);
+                setAddUsername("");
+                setAddPassword("");
+              }}
+              style={{
+                flex: 1,
+                border: 0,
+                background: !isMobileRegister ? "#fff" : "transparent",
+                color: !isMobileRegister ? "var(--blue)" : "var(--muted)",
+                fontWeight: 700,
+                fontSize: 12.5,
+                padding: "8px",
+                borderRadius: 6,
+                cursor: "pointer",
+                boxShadow: !isMobileRegister ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              Username
+            </button>
+          </div>
           <label>
             Full Name
             <input required value={addName} onChange={e => setAddName(e.target.value)} placeholder="e.g. R. K. Sharma" />
           </label>
           <label>
-            Username
-            <input required value={addUsername} onChange={e => setAddUsername(e.target.value)} placeholder="e.g. rksharma" />
+            {isMobileRegister ? "Mobile Number" : "Username"}
+            <input
+              required
+              type={isMobileRegister ? "tel" : "text"}
+              pattern={isMobileRegister ? "[0-9]{10}" : undefined}
+              title={isMobileRegister ? "Please enter a valid 10-digit mobile number" : undefined}
+              value={addUsername}
+              onChange={e => setAddUsername(e.target.value)}
+              placeholder={isMobileRegister ? "e.g. 9876543210" : "e.g. rksharma"}
+            />
           </label>
-          <label>
-            Password
-            <input required type="password" value={addPassword} onChange={e => setAddPassword(e.target.value)} placeholder="••••••••" />
-          </label>
+          {!isMobileRegister && (
+            <label>
+              Password
+              <input required type="password" value={addPassword} onChange={e => setAddPassword(e.target.value)} placeholder="••••••••" />
+            </label>
+          )}
           <label>
             System Role
             <ClearableSelect
@@ -8457,7 +8575,6 @@ function ActionPanel({
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
@@ -8465,7 +8582,6 @@ function ActionPanel({
                 </>
               ) : (
                 <>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
@@ -9262,7 +9378,6 @@ function ActionPanel({
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
@@ -9270,7 +9385,6 @@ function ActionPanel({
                 </>
               ) : (
                 <>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
@@ -9306,7 +9420,33 @@ function ActionPanel({
               </label>
             </div>
           </div>
-          <button type="submit" className="export-button">Save Changes</button>
+          <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
+            <button type="submit" className="export-button" style={{ flex: 1, margin: 0 }}>Save Changes</button>
+            {itemId && itemId !== useAppStore.getState().user?.id && (
+              <button
+                type="button"
+                className="export-button"
+                style={{
+                  background: "var(--red)",
+                  width: "42px",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                  margin: 0
+                }}
+                title="Delete User Account"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to permanently delete this user account? This action cannot be undone.")) {
+                    deleteUser.mutate(itemId);
+                  }
+                }}
+              >
+                <Trash2 size={18} color="#fff" />
+              </button>
+            )}
+          </div>
         </form>
       );
     }

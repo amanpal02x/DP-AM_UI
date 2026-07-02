@@ -1,7 +1,6 @@
 export type UserRole =
   | "SUPER_ADMIN"
   | "DIVISIONAL_ADMIN"
-  | "SSE"
   | "STAFF"
   | "TESTROOM"
   | "VIEWER"
