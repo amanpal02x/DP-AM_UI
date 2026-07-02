@@ -119,6 +119,7 @@ export const api = {
       return request<ApiResponse<any[]>>("GET", `/api/auth${q ? `?${q}` : ""}`);
     },
     updateRole: (userId: string, body: any) => request<ApiResponse<any>>("PATCH", `/api/auth/${userId}/role`, body),
+    deleteUser: (userId: string) => request<ApiResponse<any>>("DELETE", `/api/auth/${userId}`),
     updateProfile: (body: any) => request<ApiResponse<any>>("PUT", "/api/auth/profile", body),
   },
   stations: {

@@ -29,6 +29,7 @@ import {
   Wrench,
   Wifi,
   X,
+  Trash2,
   LogOut,
   Layers,
   Building2,
@@ -556,18 +557,18 @@ const navItems: Array<{
   badge?: string;
   expandable?: boolean;
 }> = [
-    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM", "STAFF"] },
-    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "TESTROOM", "STAFF"] },
-    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
-    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE", "VIEWER", "TESTROOM"] },
+    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF"] },
+    { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
+    { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
+    { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
-    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"] },
+    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
@@ -7015,9 +7016,9 @@ function ModuleView({
     }
   };
 
-  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
 
   const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
     (activeNav === "Master List" && canEditStations) ||
@@ -7851,9 +7852,9 @@ function ActionPanel({
 }) {
   const queryClient = useQueryClient();
   const { role } = useAppStore();
-  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
-  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "SSE"].includes(role || "");
+  const canEditStations = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
+  const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
   const stations = queries.stationsQuery?.data?.data || [];
   const uniqueDivisions = Array.from(new Set(stations.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
 
@@ -7921,6 +7922,16 @@ function ActionPanel({
       close();
     },
     onError: (err: any) => showToast(err.message || "Failed to update role.")
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => api.auth.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-list"] });
+      showToast("User deleted successfully.");
+      close();
+    },
+    onError: (err: any) => showToast(err.message || "Failed to delete user.")
   });
 
   const createUser = useMutation({
@@ -8073,7 +8084,7 @@ function ActionPanel({
 
 
   // Role edit states
-  const [newRole, setNewRole] = useState("SSE");
+  const [newRole, setNewRole] = useState("STAFF");
   const [newDesignation, setNewDesignation] = useState("");
   const [editName, setEditName] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -8084,11 +8095,12 @@ function ActionPanel({
   const [addUsername, setAddUsername] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [addName, setAddName] = useState("");
-  const [addRole, setAddRole] = useState<UserRole>("SSE");
+  const [addRole, setAddRole] = useState<UserRole>("STAFF");
   const [addDesignation, setAddDesignation] = useState("");
   const [addDivision, setAddDivision] = useState("Raipur");
   const [addAccessAssets, setAddAccessAssets] = useState(true);
   const [addAccessDailyPosition, setAddAccessDailyPosition] = useState(true);
+  const [isMobileRegister, setIsMobileRegister] = useState(true);
 
   // Station Details — selected capability key (for inline asset card or "not registered" notice)
   const [selectedCapKey, setSelectedCapKey] = useState<string | null>(null);
@@ -8107,11 +8119,12 @@ function ActionPanel({
       setAddUsername("");
       setAddPassword("");
       setAddName("");
-      setAddRole("SSE");
+      setAddRole("STAFF");
       setAddDesignation("");
       setAddDivision(useAppStore.getState().user?.division || "Raipur");
       setAddAccessAssets(true);
       setAddAccessDailyPosition(true);
+      setIsMobileRegister(true);
     }
 
     if (title === "Add Station" || title === "Create Station") {
@@ -8359,7 +8372,8 @@ function ActionPanel({
       const isSuperOrAllDiv = addRole === "SUPER_ADMIN" || addRole === "ALL_DIVISION_VIEWER";
       createUser.mutate({
         username: addUsername,
-        password: addPassword,
+        password: isMobileRegister ? addUsername : addPassword,
+        mobile: isMobileRegister ? addUsername : undefined,
         name: addName,
         role: addRole,
         designation: (addRole === "SUPER_ADMIN" || addRole === "DIVISIONAL_ADMIN" || addRole === "ALL_DIVISION_VIEWER") ? undefined : addDesignation,
@@ -8450,18 +8464,76 @@ function ActionPanel({
 
       return (
         <form onSubmit={handleSubmit} className="form-drawer">
+          <div style={{ display: "flex", gap: 10, marginBottom: 15, background: "#f1f5f9", padding: 4, borderRadius: 8 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileRegister(true);
+                setAddUsername("");
+                setAddPassword("");
+              }}
+              style={{
+                flex: 1,
+                border: 0,
+                background: isMobileRegister ? "#fff" : "transparent",
+                color: isMobileRegister ? "var(--blue)" : "var(--muted)",
+                fontWeight: 700,
+                fontSize: 12.5,
+                padding: "8px",
+                borderRadius: 6,
+                cursor: "pointer",
+                boxShadow: isMobileRegister ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileRegister(false);
+                setAddUsername("");
+                setAddPassword("");
+              }}
+              style={{
+                flex: 1,
+                border: 0,
+                background: !isMobileRegister ? "#fff" : "transparent",
+                color: !isMobileRegister ? "var(--blue)" : "var(--muted)",
+                fontWeight: 700,
+                fontSize: 12.5,
+                padding: "8px",
+                borderRadius: 6,
+                cursor: "pointer",
+                boxShadow: !isMobileRegister ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              Username
+            </button>
+          </div>
           <label>
             Full Name
             <input required value={addName} onChange={e => setAddName(e.target.value)} placeholder="e.g. R. K. Sharma" />
           </label>
           <label>
-            Username
-            <input required value={addUsername} onChange={e => setAddUsername(e.target.value)} placeholder="e.g. rksharma" />
+            {isMobileRegister ? "Mobile Number" : "Username"}
+            <input
+              required
+              type={isMobileRegister ? "tel" : "text"}
+              pattern={isMobileRegister ? "[0-9]{10}" : undefined}
+              title={isMobileRegister ? "Please enter a valid 10-digit mobile number" : undefined}
+              value={addUsername}
+              onChange={e => setAddUsername(e.target.value)}
+              placeholder={isMobileRegister ? "e.g. 9876543210" : "e.g. rksharma"}
+            />
           </label>
-          <label>
-            Password
-            <input required type="password" value={addPassword} onChange={e => setAddPassword(e.target.value)} placeholder="••••••••" />
-          </label>
+          {!isMobileRegister && (
+            <label>
+              Password
+              <input required type="password" value={addPassword} onChange={e => setAddPassword(e.target.value)} placeholder="••••••••" />
+            </label>
+          )}
           <label>
             System Role
             <ClearableSelect
@@ -8483,7 +8555,6 @@ function ActionPanel({
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
@@ -8491,7 +8562,6 @@ function ActionPanel({
                 </>
               ) : (
                 <>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
@@ -9288,7 +9358,6 @@ function ActionPanel({
                 <>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="DIVISIONAL_ADMIN">DIVISIONAL_ADMIN</option>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                   <option value="DIVISIONAL_VIEWER">DIVISIONAL_VIEWER</option>
@@ -9296,7 +9365,6 @@ function ActionPanel({
                 </>
               ) : (
                 <>
-                  <option value="SSE">SSE</option>
                   <option value="STAFF">STAFF</option>
                   <option value="TESTROOM">TESTROOM</option>
                 </>
@@ -9332,7 +9400,33 @@ function ActionPanel({
               </label>
             </div>
           </div>
-          <button type="submit" className="export-button">Save Changes</button>
+          <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
+            <button type="submit" className="export-button" style={{ flex: 1, margin: 0 }}>Save Changes</button>
+            {itemId && itemId !== useAppStore.getState().user?.id && (
+              <button
+                type="button"
+                className="export-button"
+                style={{
+                  background: "var(--red)",
+                  width: "42px",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                  margin: 0
+                }}
+                title="Delete User Account"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to permanently delete this user account? This action cannot be undone.")) {
+                    deleteUser.mutate(itemId);
+                  }
+                }}
+              >
+                <Trash2 size={18} color="#fff" />
+              </button>
+            )}
+          </div>
         </form>
       );
     }
