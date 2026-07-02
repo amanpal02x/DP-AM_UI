@@ -635,7 +635,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
         return "Excel: Station, Code, Division, State, Category, P.A. System, Analog Clock, GPSClock, Coach guidance display, Train indication board, High Speed Wi-Fi, CCTV, Digital Display (Heritage), At A Glance Board, PRS, UTS, ATVM, CCTV D&E  |  CSV: name, code, division, state, category";
       case "Assets": return "stationCode, telecomAsset, assetMode, equipmentName, rdsoSpec, make, model, dateOfInstallation, workName, connectedWith, forwardInspection, backwardInspection, displayBoard, maintenanceValidity, maintenanceFrom, maintenanceTo, installLocation, status";
       case "LC Gate": return "gateNumber, name, category, section, km, tvuAvailability, locationName, stationCode";
-      case "Users & Roles": return "username, password, name, role, designation, division";
+      case "Users & Roles": return "name, mobile number, designation, role, division";
       default: return "";
     }
   };
@@ -806,6 +806,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
 
         return;
       } else {
+        const importedMobiles = new Set<string>();
         for (let i = 0; i < total; i++) {
           const rawRow = fileData.rows[i];
           try {
@@ -869,15 +870,34 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
               });
               successCount++;
             } else if (page === "Users & Roles") {
-              const isSuper = rawRow.role === "SUPER_ADMIN";
-              const isDivAdmin = rawRow.role === "DIVISIONAL_ADMIN";
+              const nameVal = String(getCell(rawRow, "name", "full name", "fullname") || "").trim();
+              const mobileVal = String(getCell(rawRow, "mobile", "mobile number", "mobilenumber", "phone", "phone number") || "").trim();
+              const designationVal = String(getCell(rawRow, "designation") || "").trim();
+              const roleVal = String(getCell(rawRow, "role") || "").trim().toUpperCase();
+              const divisionVal = String(getCell(rawRow, "division") || "").trim();
+
+              if (!nameVal || !mobileVal || !roleVal) {
+                throw new Error("Missing required columns: name, mobile number, and role are required.");
+              }
+
+              // Skip duplicate in the current file
+              if (importedMobiles.has(mobileVal)) {
+                skipCount++;
+                continue;
+              }
+              importedMobiles.add(mobileVal);
+
+              const isSuper = roleVal === "SUPER_ADMIN" || roleVal === "ALL_DIVISION_VIEWER";
+              const isDivAdmin = roleVal === "DIVISIONAL_ADMIN";
+
               await api.auth.register({
-                username: rawRow.username,
-                password: rawRow.password,
-                name: rawRow.name,
-                role: rawRow.role,
-                designation: (isSuper || isDivAdmin) ? null : (rawRow.designation || null),
-                division: isSuper ? null : (rawRow.division || null)
+                username: mobileVal,
+                password: mobileVal, // Default password to mobile number
+                mobile: mobileVal,
+                name: nameVal,
+                role: roleVal,
+                designation: (isSuper || isDivAdmin) ? null : (designationVal || null),
+                division: isSuper ? null : (divisionVal || null)
               });
               successCount++;
             }
@@ -6340,14 +6360,14 @@ function ModuleView({
     }
   });
 
-  const renderPagination = (totalItems: number) => {
-    const totalPages = Math.ceil(totalItems / 50);
+  const renderPagination = (totalItems: number, pageSize = 50) => {
+    const totalPages = Math.ceil(totalItems / pageSize);
     if (totalPages <= 1) return null;
 
     return (
       <div className="pagination-bar">
         <div className="pagination-info">
-          Showing {Math.min(totalItems, (currentPage - 1) * 50 + 1)}–{Math.min(totalItems, currentPage * 50)} of {totalItems} records
+          Showing {Math.min(totalItems, (currentPage - 1) * pageSize + 1)}–{Math.min(totalItems, currentPage * pageSize)} of {totalItems} records
         </div>
         <div className="pagination-controls">
           <button
@@ -6842,7 +6862,7 @@ function ModuleView({
             (u.division && u.division.toLowerCase().includes(searchTerm.toLowerCase())) ||
             normDiv.includes(searchTerm.toLowerCase());
         });
-        const paginatedList = list.slice((currentPage - 1) * 50, currentPage * 50);
+        const paginatedList = list.slice((currentPage - 1) * 10, currentPage * 10);
         return (
           <>
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
@@ -6865,7 +6885,7 @@ function ModuleView({
                       (useAppStore.getState().role === "DIVISIONAL_ADMIN" && normalizeDivision(u.division) === normalizeDivision(useAppStore.getState().user?.division));
                     return (
                       <tr key={u.id}>
-                        <td>{(currentPage - 1) * 50 + idx + 1}</td>
+                        <td>{(currentPage - 1) * 10 + idx + 1}</td>
                         <td>
                           <strong
                             onClick={() => openPanel("User Details", u.id)}
@@ -6893,7 +6913,7 @@ function ModuleView({
                 </tbody>
               </table>
             </div>
-            {renderPagination(list.length)}
+            {renderPagination(list.length, 10)}
           </>
         );
       }
