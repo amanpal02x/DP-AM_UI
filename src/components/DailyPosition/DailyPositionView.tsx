@@ -2254,6 +2254,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [selectedDivision, setSelectedDivision] = useState(division || "");
   const [selectedDate, setSelectedDate] = useState(toDateValue());
   const [values, setValues] = useState<Record<string, any>>({});
+  const [quadReadings, setQuadReadings] = useState<any[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
@@ -2688,6 +2689,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         ...values,
         actionType,
         checkedAt: new Date().toISOString(),
+        ...(selectedForm.name === "Low Insulation" ? { quadReadings } : {}),
       },
     };
   };
@@ -2904,6 +2906,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       reason: record.reason || record.formData?.reason || "",
       remarks: record.remarks || record.formData?.remarks || "",
     });
+    setQuadReadings(record.formData?.quadReadings || []);
     setEditingRecordId(record.id);
     if (mode === "history") {
       setLocalViewMode("form");
@@ -2927,6 +2930,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     } else {
       setValues({});
     }
+    setQuadReadings([]);
     setEditingRecordId(null);
   };
 
@@ -3254,6 +3258,141 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     />
                   ))}
                 </div>
+
+                {selectedForm?.name === "Low Insulation" && (
+                  <div style={{ marginTop: 24, padding: 16, border: "1px dashed var(--blue)", borderRadius: 8, background: "#f8fafc" }}>
+                    <h4 style={{ margin: "0 0 12px 0", color: "var(--blue)" }}>Megger Quad Readings (Signaling/Block)</h4>
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="data-table" style={{ width: "100%", marginBottom: 12 }}>
+                        <thead>
+                          <tr>
+                            <th>Quad No</th>
+                            <th>Loop Res.</th>
+                            <th>Ins. L1-E</th>
+                            <th>Ins. L2-E</th>
+                            <th>Ins. L1-L2</th>
+                            <th>DB Loss</th>
+                            {canFill && !(isCompletedToday && !editingRecordId) && <th>Action</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {quadReadings.map((q, idx) => (
+                            <tr key={idx}>
+                              <td>
+                                <input
+                                  required
+                                  placeholder="e.g. 1"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.quadNo || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].quadNo = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  placeholder="e.g. 50"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.loopResistance || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].loopResistance = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  placeholder="e.g. >100M"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.insulationL1E || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].insulationL1E = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  placeholder="e.g. >100M"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.insulationL2E || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].insulationL2E = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  placeholder="e.g. >100M"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.insulationL1L2 || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].insulationL1L2 = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  placeholder="e.g. 2.5dB"
+                                  disabled={!canFill || (isCompletedToday && !editingRecordId)}
+                                  value={q.dbLoss || ""}
+                                  onChange={e => {
+                                    const next = [...quadReadings];
+                                    next[idx].dbLoss = e.target.value;
+                                    setQuadReadings(next);
+                                  }}
+                                  style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--line)", borderRadius: 4 }}
+                                />
+                              </td>
+                              {canFill && !(isCompletedToday && !editingRecordId) && (
+                                <td>
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuadReadings(prev => prev.filter((_, i) => i !== idx))}
+                                    className="action-btn text-red"
+                                    style={{ padding: "4px" }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                          {quadReadings.length === 0 && (
+                            <tr>
+                              <td colSpan={canFill && !(isCompletedToday && !editingRecordId) ? 7 : 6} style={{ textAlign: "center", color: "#64748b", padding: 8 }}>
+                                No readings added yet. Click "Add Quad Reading" below.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {canFill && !(isCompletedToday && !editingRecordId) && (
+                      <button
+                        type="button"
+                        onClick={() => setQuadReadings(prev => [...prev, { quadNo: "", loopResistance: "", insulationL1E: "", insulationL2E: "", insulationL1L2: "", dbLoss: "" }])}
+                        className="export-button"
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", fontSize: 13 }}
+                      >
+                        <Plus size={14} /> Add Quad Reading
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {canFill && (
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", marginBottom: "16px" }}>
