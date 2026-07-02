@@ -175,6 +175,7 @@ export const api = {
     updateSection: (id: string, body: any) => request<ApiResponse<any>>("PATCH", `/api/daily-position/sections/${id}`, body),
     deleteSection: (id: string) => request<ApiResponse<any>>("DELETE", `/api/daily-position/sections/${id}`),
     importSections: (rows: any[]) => request<ApiResponse<any>>("POST", "/api/daily-position/sections/import", { rows }),
+    getMeggerLatest: (sectionName?: string) => request<ApiResponse<any>>("GET", `/api/daily-position/megger-latest${sectionName ? `?sectionName=${encodeURIComponent(sectionName)}` : ""}`),
   },
   gates: {
     list: () => request<ApiResponse<any[]>>("GET", "/api/gates"),

@@ -2357,6 +2357,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     resetForm();
   }, [selectedFormName]);
 
+  useEffect(() => {
+    if (selectedForm?.name === "Low Insulation" && values.section) {
+      api.dailyPosition.getMeggerLatest(values.section)
+        .then((res: any) => {
+          if (res.success && res.entry && res.entry.quadReadings) {
+            setQuadReadings(res.entry.quadReadings);
+            showToast("Fetched latest quad readings from Megger database.");
+          }
+        })
+        .catch((err: any) => {
+          console.warn("Failed to auto-fetch Megger readings:", err);
+        });
+    }
+  }, [selectedForm?.name, values.section]);
+
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
     queryFn: () => api.dailyPosition.metadata(selectedDivision ? { division: selectedDivision } : {}),
