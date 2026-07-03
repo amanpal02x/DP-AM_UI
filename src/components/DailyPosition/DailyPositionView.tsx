@@ -2267,6 +2267,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [isSavingAndNext, setIsSavingAndNext] = useState(false);
   const [isSubmittingAllOk, setIsSubmittingAllOk] = useState(false);
   const [isAddingRecord, setIsAddingRecord] = useState(false);
+  const [localDrafts, setLocalDrafts] = useState<any[]>([]);
 
   // Local completed forms state for today
   const todayStr = toDateValue();
@@ -2520,7 +2521,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const metadata = metadataQuery.data?.data;
   const records = useMemo(() => {
     const rawRecords = recordsQuery.data?.data || [];
-    return [...rawRecords].sort((a: any, b: any) => {
+    const matchingLocalDrafts = localDrafts.filter(
+      (d) => d.division === (selectedDivision || division || "") && d.date === selectedDate
+    );
+    const allRecords = [...rawRecords, ...matchingLocalDrafts];
+    return [...allRecords].sort((a: any, b: any) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : (a.failureTime ? new Date(a.failureTime).getTime() : 0);
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : (b.failureTime ? new Date(b.failureTime).getTime() : 0);
       if (aTime !== bTime) {
@@ -2528,7 +2533,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return String(a.id || "").localeCompare(String(b.id || ""));
     });
-  }, [recordsQuery.data?.data]);
+  }, [recordsQuery.data?.data, localDrafts, selectedDivision, division, selectedDate]);
 
   // Do not disable form once submitted, so the user can fill and submit it multiple times
   const isCompletedToday = false;
@@ -2739,12 +2744,42 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
     if (editingRecordId) {
       setIsSavingDraft(true);
-      const editingRecord = records.find((r: any) => r.id === editingRecordId);
-      const isEditingDraft = editingRecord && editingRecord.status === "DRAFT";
-      updateRecord.mutate({ 
-        id: editingRecordId, 
-        body: buildPayload(isEditingDraft ? "DRAFT" : "FAULT") 
-      });
+      if (String(editingRecordId).startsWith("local_")) {
+        setLocalDrafts(prev => prev.map(d => {
+          if (d.id === editingRecordId) {
+            return {
+              ...d,
+              majorSection: values.majorSection || null,
+              section: values.section || null,
+              stationCode: values.stationCode || null,
+              stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : (metadata?.stations?.find((item: any) => item.code === values.stationCode)?.name || values.stationCode || null),
+              assetId: values.assetId || null,
+              failureTime: values.failureTime || null,
+              rectificationTime: values.rectificationTime || null,
+              durationText: calcDurationText(values.failureTime, values.rectificationTime),
+              reason: values.reason || null,
+              remarks: values.remarks || null,
+              formData: {
+                ...values,
+                actionType: "FAULT",
+                checkedAt: new Date().toISOString(),
+                ...(selectedForm.name === "Low Insulation" ? { quadReadings } : {}),
+              }
+            };
+          }
+          return d;
+        }));
+        showToast("Draft record updated successfully.");
+        resetForm();
+        setIsSavingDraft(false);
+      } else {
+        const editingRecord = records.find((r: any) => r.id === editingRecordId);
+        const isEditingDraft = editingRecord && editingRecord.status === "DRAFT";
+        updateRecord.mutate({ 
+          id: editingRecordId, 
+          body: buildPayload(isEditingDraft ? "DRAFT" : "FAULT") 
+        });
+      }
       return;
     }
     handleSaveAndNext();
@@ -2759,6 +2794,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const handleDeleteDraft = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this draft?")) return;
+    if (String(id).startsWith("local_")) {
+      setLocalDrafts(prev => prev.filter(d => d.id !== id));
+      showToast("Draft deleted successfully.");
+      return;
+    }
     try {
       await api.dailyPosition.delete(id);
       showToast("Draft deleted successfully.");
@@ -2772,14 +2812,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     if (!canFill || !selectedForm) return;
 
     const drafts = records.filter(r => r.formType === selectedForm.name && r.status === "DRAFT");
-    if (drafts.length === 0) {
-      showToast("Please add at least one record before submitting.");
+    const isEmpty = isFormEmpty();
+    if (drafts.length === 0 && isEmpty) {
+      showToast("Please add at least one record or fill in the form before submitting.");
       return;
     }
 
     setIsSavingAndNext(true);
     try {
-      const isEmpty = isFormEmpty();
+      const allDraftsToSubmit = [...drafts];
 
       if (!isEmpty) {
         // Validate current form fields (visible fields only)
@@ -2817,20 +2858,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           }
         }
 
-        // Save current form values as draft first
-        try {
-          const payload = buildPayload("DRAFT");
-          const res = await api.dailyPosition.create(payload);
-          drafts.push(res.data);
-        } catch (err: any) {
-          showToast(err.message || "Failed to save draft.");
-          setIsSavingAndNext(false);
-          return;
-        }
+        // Save current form values as local draft payload
+        const payload = {
+          ...buildPayload("DRAFT"),
+          createdAt: new Date().toISOString()
+        };
+        allDraftsToSubmit.push(payload);
       }
 
-      if (drafts.length === 0) {
-        // No drafts & empty form -> Submit as All OK
+      if (allDraftsToSubmit.length === 0) {
         try {
           const payload = buildPayload("OK");
           await api.dailyPosition.create(payload);
@@ -2841,16 +2877,26 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           return;
         }
       } else {
-        // Submit all saved drafts by updating their status to final status
+        // Submit all drafts by creating them (if they don't have a real server ID) or updating them (if they do)
         try {
-          const promises = drafts.map((draft: any) => {
+          const promises = allDraftsToSubmit.map((draft: any) => {
             const finalStatus = statusFromForm(selectedForm, draft.formData || {});
-            return api.dailyPosition.update(draft.id, {
-              ...draft,
-              status: finalStatus
-            });
+            if (!draft.id || String(draft.id).startsWith("local_")) {
+              const createPayload = {
+                ...draft,
+                id: undefined, // Let server generate ID
+                status: finalStatus
+              };
+              return api.dailyPosition.create(createPayload);
+            } else {
+              return api.dailyPosition.update(draft.id, {
+                ...draft,
+                status: finalStatus
+              });
+            }
           });
           await Promise.all(promises);
+          setLocalDrafts(prev => prev.filter(d => d.formType !== selectedForm.name));
         } catch (err: any) {
           showToast(err.message || "Failed to submit drafts.");
           setIsSavingAndNext(false);
@@ -2992,12 +3038,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
     setIsAddingRecord(true);
     try {
-      const payload = buildPayload("DRAFT");
-      await api.dailyPosition.create(payload);
+      const payload = {
+        id: `local_${Date.now()}_${Math.random()}`,
+        ...buildPayload("DRAFT"),
+        createdAt: new Date().toISOString()
+      };
+      setLocalDrafts(prev => [...prev, payload]);
       showToast("Draft record added successfully.");
-      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       resetForm();
     } catch (err: any) {
       showToast(err.message || "Failed to add record.");
@@ -3668,14 +3715,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   {!editingRecordId && (() => {
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasNoDrafts = draftsCount === 0;
+                    const isCurrentFormEmpty = isFormEmpty();
                     const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId);
-                    const isSubmitDisabledStyle = isHtmlDisabled || hasNoDrafts;
+                    const isSubmitDisabledStyle = isHtmlDisabled || (hasNoDrafts && isCurrentFormEmpty);
                     return (
                       <button 
                         className="export-button" 
                         type="button" 
                         onClick={handleSaveAndNext} 
-                        disabled={isHtmlDisabled}
+                        disabled={isSubmitDisabledStyle}
                         style={{
                           opacity: isSubmitDisabledStyle ? 0.6 : 1,
                           cursor: isSubmitDisabledStyle ? "not-allowed" : "pointer",
