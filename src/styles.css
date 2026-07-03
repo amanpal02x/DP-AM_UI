@@ -4925,3 +4925,15 @@ path:focus {
     font-size: 16px !important;
   }
 }
+
+/* Make DP Logs table flush with card boundaries */
+.dp-history-panel .table-scroll-container {
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  margin-bottom: -16px !important;
+  width: calc(100% + 32px) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+}

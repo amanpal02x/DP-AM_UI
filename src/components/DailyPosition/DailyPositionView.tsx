@@ -3113,15 +3113,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       </div>
 
       {showFiltersPanel && (
-        <div className="dp-history-filters-collapsible" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "14px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #cbd5e1", alignItems: "flex-end" }}>
+        <div 
+          className="dp-history-filters-collapsible" 
+          style={{ 
+            display: "flex", 
+            gap: "16px", 
+            flexWrap: "wrap",
+            padding: "20px", 
+            background: "#ffffff", 
+            borderRadius: "12px", 
+            marginBottom: "20px", 
+            border: "1px solid #e2e8f0", 
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+            alignItems: "end"
+          }}
+        >
           {/* Division filter */}
-          <div style={{ flex: "1 1 150px" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "200px" }}>
+            <label style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Division</label>
             <ClearableSelect
               value={historyDivision}
               onChange={setHistoryDivision}
               disabled={role === "STAFF"}
-              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: role === "STAFF" ? "#f1f5f9" : "#fff", cursor: role === "STAFF" ? "not-allowed" : "default" }}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", color: "#1e293b", background: role === "STAFF" ? "#f1f5f9" : "#fff", cursor: role === "STAFF" ? "not-allowed" : "default", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", outline: "none" }}
             >
               {role !== "STAFF" && <option value="">All Divisions</option>}
               <option value="Bilaspur">Bilaspur</option>
@@ -3130,12 +3144,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </ClearableSelect>
           </div>
           {/* Status-wise filter */}
-          <div style={{ flex: "1 1 160px" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "180px" }}>
+            <label style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Status</label>
             <ClearableSelect
               value={historyStatus}
               onChange={setHistoryStatus}
-              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", color: "#1e293b", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", outline: "none" }}
             >
               <option value="">All</option>
               <option value="active">Active</option>
@@ -3144,10 +3158,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </ClearableSelect>
           </div>
           {/* Position Date filter */}
-          <div style={{ flex: "1 1 180px" }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Position Date</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "180px" }}>
+            <label style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Position Date</label>
             <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+              <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#64748b", pointerEvents: "none", display: "flex", alignItems: "center" }}>
                 <Calendar size={14} />
               </span>
               <input
@@ -3155,27 +3169,87 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 value={historyDate}
                 onChange={e => setHistoryDate(e.target.value)}
                 onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "8px 12px 8px 32px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", color: "#1e293b", background: "#fff", boxSizing: "border-box", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", outline: "none" }}
               />
             </div>
           </div>
-          {(historySearch || historyDivision || historyStatus || historyCategory || historyFormType || historyDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setHistorySearch("");
-                setHistoryDivision(role === "STAFF" ? (division || "") : "");
-                setHistoryStatus("");
-                setHistoryCategory("");
-                setHistoryFormType("");
-                setHistoryDate("");
-              }}
-              className="action-btn text-red"
-              style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
-            >
-              Clear Filters
-            </button>
-          )}
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            {(historySearch || historyDivision || historyStatus || historyCategory || historyFormType || historyDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHistorySearch("");
+                  setHistoryDivision(role === "STAFF" ? (division || "") : "");
+                  setHistoryStatus("");
+                  setHistoryCategory("");
+                  setHistoryFormType("");
+                  setHistoryDate("");
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "38px",
+                  padding: "0 16px",
+                  border: "1px solid #fca5a5",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  color: "#dc2626",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#fee2e2";
+                  e.currentTarget.style.borderColor = "#fca5a5";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#fef2f2";
+                  e.currentTarget.style.borderColor = "#fca5a5";
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+          {/* Live Stats summary widget on the right side */}
+          <div 
+            className="filter-live-stats" 
+            style={{ 
+              marginLeft: "auto", 
+              display: "flex", 
+              gap: "12px", 
+              alignItems: "center", 
+              padding: "8px 16px", 
+              background: "#f8fafc", 
+              borderRadius: "8px", 
+              border: "1px dashed #cbd5e1", 
+              height: "38px" 
+            }}
+          >
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
+              <strong style={{ color: "#0f172a" }}>{filteredHistoryRecords.length}</strong> Total
+            </div>
+            <div style={{ width: "1px", height: "14px", background: "#cbd5e1" }} />
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
+              <strong style={{ color: "#ef4444" }}>
+                {filteredHistoryRecords.filter((r: any) => {
+                  const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+                  return !isAllOk && (r.status === "ACTIVE" || r.status === "PENDING" || !r.rectificationTime);
+                }).length}
+              </strong> Active
+            </div>
+            <div style={{ width: "1px", height: "14px", background: "#cbd5e1" }} />
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
+              <strong style={{ color: "#10b981" }}>
+                {filteredHistoryRecords.filter((r: any) => {
+                  const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+                  return r.status === "RECTIFIED" || r.status === "All Ok" || isAllOk;
+                }).length}
+              </strong> Resolved
+            </div>
+          </div>
         </div>
       )}
       <div className="table-scroll-container">
@@ -3194,50 +3268,140 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             </tr>
           </thead>
           <tbody>
-            {filteredHistoryRecords.map((record: any) => {
-              const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
-              const isClosed = record.status === "RECTIFIED" || record.status === "All Ok" || isAllOk;
-              const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
-              return (
-                <tr key={record.id}>
-                  <td>{record.division}</td>
-                  <td>{record.category}</td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                      <strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong>
-                      {!isTodayRecord(record) && (
-                        <span className="pill" style={{ fontSize: "10px", padding: "1px 5px", background: "#f8fafc", color: "#64748b", border: "1px solid #cbd5e1", textTransform: "none", fontWeight: 500, borderRadius: "4px", display: "inline-flex", alignItems: "center" }}>
-                          Historical ({record.date ? new Date(record.date).toLocaleDateString([], { month: "short", day: "numeric" }) : "-"})
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
-                  <td><span className={`pill status-${isAllOk ? "All Ok" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "All Ok" : record.status}</span></td>
-                  <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
-                  <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
-                  <td>{record.remarks || record.reason || (isAllOk ? "" : "-")}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                    <button type="button" className="action-btn text-blue" onClick={() => setDetailsRecord(record)}>
-                      <Eye size={14} /> View Details
-                    </button>
-                    {canEdit && (
-                      <button type="button" className="action-btn text-blue" onClick={() => startEdit(record)}>
-                        <Edit size={14} /> Edit
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredHistoryRecords.length === 0 && (
+            {recordsQuery.isLoading || recordsQuery.isFetching ? (
               <tr>
-                <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
-                  {historySearch || historyDivision || historyStatus
-                    ? "No Daily Position records found matching current criteria."
-                    : "No Daily Position records for this date."}
+                <td colSpan={9} style={{ textAlign: "center", padding: "40px", color: "var(--navy)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", justifyContent: "center" }}>
+                    <div className="dp-btn-loader" style={{ width: "30px", height: "30px", border: "3px solid #cbd5e1", borderTopColor: "#3b82f6", display: "inline-block" }}></div>
+                    <span style={{ fontSize: "14px", fontWeight: "600", color: "#475569" }}>Loading Daily Position records...</span>
+                  </div>
                 </td>
               </tr>
+            ) : (
+              <>
+                {filteredHistoryRecords.map((record: any) => {
+                  const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                  const isClosed = record.status === "RECTIFIED" || record.status === "All Ok" || isAllOk;
+                  const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
+                  return (
+                    <tr key={record.id}>
+                      <td>{record.division}</td>
+                      <td>{record.category}</td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <strong>{record.formType === "Exchange" && record.formData?.exchangeName ? record.formData.exchangeName : record.formType}</strong>
+                        </div>
+                      </td>
+                      <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
+                      <td><span className={`pill status-${isAllOk ? "All Ok" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "All Ok" : record.status}</span></td>
+                      <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
+                      <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
+                      <td>
+                        {(() => {
+                          const text = record.remarks || record.reason || (isAllOk ? "" : "-");
+                          const isLong = text.length > 80;
+                          return (
+                            <span>
+                              {isLong ? `${text.slice(0, 80)}...` : text}
+                              {isLong && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailsRecord(record)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#2563eb",
+                                    padding: 0,
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    textDecoration: "underline",
+                                    cursor: "pointer",
+                                    marginLeft: "6px",
+                                    display: "inline"
+                                  }}
+                                >
+                                  View Full
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "inline-flex", gap: "8px", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => setDetailsRecord(record)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              padding: "6px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #bfdbfe",
+                              background: "#eff6ff",
+                              color: "#1d4ed8",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#dbeafe";
+                              e.currentTarget.style.borderColor = "#93c5fd";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#eff6ff";
+                              e.currentTarget.style.borderColor = "#bfdbfe";
+                            }}
+                          >
+                            <Eye size={13} /> View Details
+                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => startEdit(record)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #ddd6fe",
+                                background: "#f5f3ff",
+                                color: "#6d28d9",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#ede9fe";
+                                e.currentTarget.style.borderColor = "#c7d2fe";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "#f5f3ff";
+                                e.currentTarget.style.borderColor = "#ddd6fe";
+                              }}
+                            >
+                              <Edit size={13} /> Edit
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredHistoryRecords.length === 0 && (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
+                      {historySearch || historyDivision || historyStatus
+                        ? "No Daily Position records found matching current criteria."
+                        : "No Daily Position records for this date."}
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>
