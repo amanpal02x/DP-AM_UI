@@ -261,13 +261,13 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   const assetsByStatusMap = stats.assetsByStatus.reduce((acc: any, curr: any) => {
     acc[curr.status.toUpperCase()] = curr.count;
     return acc;
-  }, { OPERATIONAL: 0, FAULTY: 0, UNDER_MAINTENANCE: 0 });
+  }, { OPERATIONAL: 0, ALL_OK: 0, FAULTY: 0, UNDER_MAINTENANCE: 0 });
 
-  const operationalCount = assetsByStatusMap.OPERATIONAL;
+  const allOkCount = assetsByStatusMap.OPERATIONAL || assetsByStatusMap.ALL_OK || 0;
   const maintenanceCount = assetsByStatusMap.UNDER_MAINTENANCE;
   const faultyCount = assetsByStatusMap.FAULTY;
   
-  const healthPercent = totalAssets > 0 ? ((operationalCount / totalAssets) * 100).toFixed(1) : "100";
+  const healthPercent = totalAssets > 0 ? ((allOkCount / totalAssets) * 100).toFixed(1) : "100";
 
   const kpis: KpiMetric[] = [
     {
@@ -279,12 +279,12 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
       series: [41, 39, 42, 45, 44, 47, 46, 49, 51, 48, 53, totalAssets]
     },
     {
-      id: "operational",
-      label: "Operational Assets",
-      value: operationalCount.toString(),
-      detail: `${totalAssets > 0 ? ((operationalCount / totalAssets) * 100).toFixed(1) : 0}% of total assets`,
+      id: "All Ok",
+      label: "All Ok Assets",
+      value: allOkCount.toString(),
+      detail: `${totalAssets > 0 ? ((allOkCount / totalAssets) * 100).toFixed(1) : 0}% of total assets`,
       tone: "green",
-      series: [69, 70, 68, 73, 72, 75, 71, 74, 70, 72, 71, operationalCount]
+      series: [69, 70, 68, 73, 72, 75, 71, 74, 70, 72, 71, allOkCount]
     },
     {
       id: "maintenance",
@@ -353,7 +353,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
 
   // Map Statuses
   const statuses: StatusMetric[] = [
-    { status: "Operational", count: operationalCount, percent: totalAssets > 0 ? `${((operationalCount / totalAssets) * 100).toFixed(1)}%` : "0%", color: "#20a91f" },
+    { status: "All Ok", count: allOkCount, percent: totalAssets > 0 ? `${((allOkCount / totalAssets) * 100).toFixed(1)}%` : "0%", color: "#20a91f" },
     { status: "Under Maintenance", count: maintenanceCount, percent: totalAssets > 0 ? `${((maintenanceCount / totalAssets) * 100).toFixed(1)}%` : "0%", color: "#ffb51b" },
     { status: "Faulty", count: faultyCount, percent: totalAssets > 0 ? `${((faultyCount / totalAssets) * 100).toFixed(1)}%` : "0%", color: "#ff3328" },
     { status: "Offline", count: 0, percent: "0%", color: "#c9ced8" }
@@ -407,7 +407,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     {
       id: "alert-all-clear",
       tone: "blue",
-      title: "All links functioning operational",
+      title: "All links functioning All Ok",
       detail: "No active critical faults recorded."
     }
   ];

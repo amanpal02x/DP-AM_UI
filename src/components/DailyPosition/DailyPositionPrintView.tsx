@@ -557,14 +557,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                   const faultEntries = activeEntries.filter((e: any) => {
                     const s = (e.status || "").toUpperCase();
                     const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                    return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+                    return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
                   });
 
                   let entries: any[] = [];
                   if (faultEntries.length > 0) {
                     entries = faultEntries;
                   } else if (activeEntries.length > 0) {
-                    // Show the latest entry (typically an OK/Operational/Rectified state)
+                    // Show the latest entry (typically an OK/All Ok/Rectified state)
                     entries = [activeEntries[0]];
                   } else {
                     // Show a placeholder empty row
@@ -601,7 +601,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
                         const hasFault = !entry.isPlaceholder && 
                                          !entry.rectificationTime && 
-                                         entry.status !== "OPERATIONAL" && 
+                                         entry.status !== "All Ok" && 
                                          entry.status !== "RECTIFIED" && 
                                          entry.reason !== "All OK" &&
                                          !(entry.formData && entry.formData.actionType === "OK");

@@ -7,7 +7,7 @@ export type UserRole =
   | "DIVISIONAL_VIEWER"
   | "ALL_DIVISION_VIEWER";
 
-export type AssetStatus = "Operational" | "Under Maintenance" | "Faulty" | "Offline";
+export type AssetStatus = "All Ok" | "Under Maintenance" | "Faulty" | "Offline";
 
 export interface KpiMetric {
   id: string;

@@ -3048,7 +3048,7 @@ textarea {
 }
 
 .dp-history-card em.rectified,
-.dp-history-card em.operational {
+.dp-history-card em.All Ok {
   background: #dcfce7;
   color: #166534;
 }
@@ -3371,7 +3371,7 @@ textarea {
   text-transform: uppercase;
 }
 
-.status-chip.status-operational,
+.status-chip.status-All Ok,
 .status-chip.status-rectified {
   background: #dcfce7;
   color: #166534;

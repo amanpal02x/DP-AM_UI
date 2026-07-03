@@ -831,7 +831,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
                 : importedMaintenanceValidity;
               const displayBoardValue = valueOrNull(getCell(rawRow, "displayBoard", "Display Board", "dbCount", "No. of DB", "No of DB"));
               const importedStationCode = resolveStationCode(valueOrNull(getCell(rawRow, "stationCode", "Station Code", "station", "Station", "code", "Code")));
-              const importedStatus = String(valueOrNull(getCell(rawRow, "status", "Status")) || "OPERATIONAL").trim().toUpperCase().replace(/\s+/g, "_");
+              const importedStatus = String(valueOrNull(getCell(rawRow, "status", "Status")) || "All Ok").trim().toUpperCase().replace(/\s+/g, "_");
 
               await api.assets.create({
                 telecomAsset: importedTelecomAsset,
@@ -1933,7 +1933,7 @@ function AssetDashboardView({
     }
   };
 
-  const assetKpis = data.kpis.filter(kpi => ["assets", "operational", "maintenance"].includes(kpi.id));
+  const assetKpis = data.kpis.filter(kpi => ["assets", "All Ok", "maintenance"].includes(kpi.id));
 
   const commissioningMetrics = useMemo(() => {
     const summary = data.commissioningSummary || { abssOnly: 0, divisionalOnly: 0, bothSchemes: 0, unspecified: 0 };
@@ -2971,6 +2971,7 @@ function CategoryFaultsPageView({
                     <tr>
                       <th>Division</th>
                       <th>Station</th>
+                      <th>Circuit Name</th>
                       <th>Failure Time</th>
                       <th>Rectification Time</th>
                       <th>Duration</th>
@@ -2982,6 +2983,12 @@ function CategoryFaultsPageView({
                       <tr key={record.id}>
                         <td>{record.division}</td>
                         <td>{record.stationCode || record.stationName || record.section || "-"}</td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <strong style={{ color: "var(--navy)" }}>{record.formType || record.name}</strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{record.category}</span>
+                          </div>
+                        </td>
                         <td>{formatDateTime(record.failureTime)}</td>
                         <td>
                           {record.rectificationTime ? (
@@ -3229,7 +3236,7 @@ function ActiveFaultsDivisionPanel({
     color: divColors[item.division] || divColors.Others
   }));
 
-  // If there are zero active faults, add a dummy operational state or keep empty
+  // If there are zero active faults, add a dummy All Ok state or keep empty
   const hasData = totalActive > 0;
   const pieData = hasData ? chartData : [{ name: "No Active Faults", value: 1, color: "#e2e8f0" }];
 
@@ -3689,7 +3696,8 @@ function DailyPositionDashboardView({
       FAULTY: "#ef4444", // Red
       RECTIFIED: "#10b981", // Green
       UNDER_MAINTENANCE: "#f59e0b", // Amber
-      OPERATIONAL: "#3b82f6", // Blue
+      "All Ok": "#3b82f6", // Blue
+      "ALL_OK": "#3b82f6", // Blue
     };
     const records = data.dailyPositionStatus || [];
     const total = records.reduce((acc: number, curr: any) => acc + curr.count, 0) || 1;
@@ -3776,8 +3784,8 @@ function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: numbe
   const handleClick = () => {
     if (kpi.label === "Total Assets") {
       useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "" });
-    } else if (kpi.label === "Operational Assets") {
-      useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "OPERATIONAL" });
+    } else if (kpi.label === "All Ok Assets") {
+      useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "All Ok" });
     } else if (kpi.label === "Under Maintenance") {
       useAppStore.setState({ activeNav: "Assets", assetStatusFilter: "UNDER_MAINTENANCE" });
     } else if (kpi.id === "activeFaults" || kpi.label === "Active Faults") {
@@ -3979,72 +3987,98 @@ function DailyPositionDetailsModal({
 
         {/* Content list */}
         <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#fff" }}>
-          {detailsRecord.filter((e: any) => e.status !== "DRAFT").map((entry: any, index: number) => {
-            const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
-            const effectiveStatus = entry.positionStatus || entry.status;
-            const isFault = effectiveStatus !== "OPERATIONAL" && effectiveStatus !== "RECTIFIED" && !isAllOk;
-            const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
-            const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
-            const locationItems = Object.entries(entry.formData || {})
-              .filter(([key]) => locationKeys.includes(key))
-              .map(([key, value]) => {
-                let displayVal = value;
-                if (value === "Other" || value === "Others") {
-                  displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
-                }
-                return {
-                  key,
-                  label: summaryHumanizeFieldName(key),
-                  value: summaryDisplayValue(displayVal, isAllOk)
-                };
-              });
+          {(() => {
+            const activeEntries = detailsRecord.filter((e: any) => e.status !== "DRAFT");
+            const faultyEntries = activeEntries.filter((e: any) => {
+              const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+              const effStatus = e.positionStatus || e.status;
+              return effStatus !== "All Ok" && effStatus !== "RECTIFIED" && !isAllOk;
+            });
+            const displayEntries = faultyEntries.length > 0 ? faultyEntries : activeEntries;
 
-            const howKeys = ["natureOfFault", "nameOfFault", "videoClarity", "audioClarity", "cableCutByWhom", "cableType", "systemType"];
-            const howItems = Object.entries(entry.formData || {})
-              .filter(([key]) => howKeys.includes(key))
-              .map(([key, value]) => {
-                let displayVal = value;
-                if (value === "Other" || value === "Others") {
-                  displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
-                }
-                return {
-                  key,
-                  label: summaryHumanizeFieldName(key),
-                  value: summaryDisplayValue(displayVal, isAllOk)
-                };
-              });
+            return displayEntries.map((entry: any, index: number) => {
+              const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
+              const effectiveStatus = entry.positionStatus || entry.status;
+              const isFault = effectiveStatus !== "All Ok" && effectiveStatus !== "RECTIFIED" && !isAllOk;
+              const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
+              const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
+              const locationItems = Object.entries(entry.formData || {})
+                .filter(([key]) => locationKeys.includes(key))
+                .map(([key, value]) => {
+                  let displayVal = value;
+                  if (value === "Other" || value === "Others") {
+                    displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
+                  }
+                  return {
+                    key,
+                    label: summaryHumanizeFieldName(key),
+                    value: summaryDisplayValue(displayVal, isAllOk)
+                  };
+                });
 
-            return (
-              <Fragment key={entry.id}>
-                <div style={{
-                  background: "#fff",
-                  position: "relative",
-                  padding: "12px 0",
-                }}>
-                  {/* Subtitle / Header inside card */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
-                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
-                      {isSuperAdmin
-                        ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
-                        : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
-                      }
-                    </h4>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                      {detailsRecord.length > 1 && (
-                        <span style={{
-                          fontSize: "10px", fontWeight: 700, color: "var(--blue)",
-                          background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
-                        }}>
-                          Entry #{index + 1}
-                        </span>
-                      )}
+              const howKeys = [
+                "natureOfFault",
+                "nameOfFault",
+                "videoClarity",
+                "audioClarity",
+                "cableCutByWhom",
+                "cableType",
+                "systemType",
+                "balanceTemporaryJoints",
+                "temporaryJointsCount",
+                "balanceInsulationFaults",
+                "totalInsulationFaults",
+                "faultyGuidanceBoards",
+                "faultyBoards",
+                "pendingRepair",
+                "openingDefective",
+                "totalNotWorkingCctvLoc"
+              ];
+              const howItems = Object.entries(entry.formData || {})
+                .filter(([key]) => howKeys.includes(key))
+                .map(([key, value]) => {
+                  let displayVal = value;
+                  if (value === "Other" || value === "Others") {
+                    displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
+                  }
+                  return {
+                    key,
+                    label: summaryHumanizeFieldName(key),
+                    value: summaryDisplayValue(displayVal, isAllOk)
+                  };
+                });
+
+              return (
+                <Fragment key={entry.id}>
+                  <div style={{
+                    background: "#fff",
+                    position: "relative",
+                    padding: "12px 0",
+                  }}>
+                    {/* Subtitle / Header inside card */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
+                      <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
+                        {isSuperAdmin
+                          ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
+                          : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
+                        }
+                      </h4>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        {displayEntries.length > 1 && (
+                          <span style={{
+                            fontSize: "10px", fontWeight: 700, color: "var(--blue)",
+                            background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                          }}>
+                            Entry #{index + 1}
+                          </span>
+                        )}
                       <span style={{
                         display: "inline-flex", alignItems: "center",
                         padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
                         color: "#fff",
                         background: isFault ? "var(--red)" : "var(--green)"
                       }}>
-                        {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "OPERATIONAL")}
+                        {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "All Ok")}
                       </span>
                     </div>
                   </div>
@@ -4154,7 +4188,7 @@ function DailyPositionDetailsModal({
                     </span>
                   </div>
                 </div>
-                {index < detailsRecord.filter((e: any) => e.status !== "DRAFT").length - 1 && (
+                {index < displayEntries.length - 1 && (
                   <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
                     <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
                       <defs>
@@ -4172,7 +4206,7 @@ function DailyPositionDetailsModal({
                 )}
               </Fragment>
             );
-          })}
+          })})()}
         </div>
       </div>
     </div>
@@ -4323,7 +4357,7 @@ function DailyPositionSummaryTable({
     const hasFault = activeEntries.some((e: any) => {
       const s = (e.positionStatus || e.status || "").toUpperCase();
       const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-      return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+      return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
     });
     if (hasFault) return "FAULT";
     const hasRectified = activeEntries.some((e: any) => {
@@ -4391,45 +4425,9 @@ function DailyPositionSummaryTable({
     for (const entry of activeEntries) {
       const status = (entry.positionStatus || entry.status || "").toUpperCase();
       const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
-      if (status !== "OPERATIONAL" && status !== "RECTIFIED" && !isAllOk) {
+      if (status !== "All Ok" && status !== "RECTIFIED" && !isAllOk) {
         hasFaultyState = true;
-        const fd = entry.formData || {};
-        switch (form.name) {
-          case "Temporary Joints":
-            totalFaults += Number(fd.balanceTemporaryJoints ?? fd.temporaryJointsCount ?? 1);
-            break;
-          case "Low Insulation":
-            totalFaults += Number(fd.balanceInsulationFaults ?? fd.totalInsulationFaults ?? 1);
-            break;
-          case "CGDB":
-            totalFaults += Number(fd.faultyGuidanceBoards ?? 1);
-            break;
-          case "TIB":
-            totalFaults += Number(fd.faultyBoards ?? 1);
-            break;
-          case "Walkie-Talkie Repairing":
-            totalFaults += Number(fd.pendingRepair ?? fd.openingDefective ?? 1);
-            break;
-          case "CCTV Monitoring":
-            const cctvVal = fd.totalNotWorkingCctvLoc;
-            if (typeof cctvVal === "number") {
-              totalFaults += cctvVal;
-            } else if (typeof cctvVal === "string") {
-              const match = cctvVal.match(/(?:not\s+working|failed|defective|faulty)?\s*:?\s*(\d+)\s*(?:\(|$)/i);
-              if (match) {
-                totalFaults += Number(match[1]);
-              } else {
-                const anyNum = cctvVal.match(/\d+/);
-                totalFaults += anyNum ? Number(anyNum[0]) : 1;
-              }
-            } else {
-              totalFaults += 1;
-            }
-            break;
-          default:
-            totalFaults += 1;
-            break;
-        }
+        totalFaults += 1;
       }
     }
 
@@ -4448,7 +4446,7 @@ function DailyPositionSummaryTable({
         .filter((e: any) => {
           const s = (e.positionStatus || e.status || "").toUpperCase();
           const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-          return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+          return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
         })
         .map((entry: any) => {
           const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
@@ -4959,7 +4957,7 @@ function DailyPositionSummaryTableSuperAdmin({
                           .filter((e: any) => {
                             const s = (e.positionStatus || e.status || "").toUpperCase();
                             const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                            return s !== "OPERATIONAL" && s !== "RECTIFIED" && !isAllOk;
+                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
                           })
                           .map((entry: any) => {
                             const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
@@ -5214,9 +5212,9 @@ function DivisionDistributionPanel({ queries }: { queries: any }) {
     const divAssets = assets.filter((a: any) => a.stationCode && stationCodes.has(a.stationCode.toUpperCase()));
 
     const total = divAssets.length;
-    const operational = divAssets.filter((a: any) => a.status === "OPERATIONAL").length;
-    const percent = total > 0 ? Math.round((operational / total) * 100) : 0;
-    return { name: div, total, operational, percent };
+    const allOk = divAssets.filter((a: any) => a.status === "All Ok").length;
+    const percent = total > 0 ? Math.round((allOk / total) * 100) : 0;
+    return { name: div, total, allOk, percent };
   });
 
   return (
@@ -5231,7 +5229,7 @@ function DivisionDistributionPanel({ queries }: { queries: any }) {
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>Total Assets: {stat.total}</span>
               </div>
               <div style={{ textAlign: "right" }}>
-                <span style={{ display: "block", fontSize: 13, fontWeight: 800, color: "var(--green)" }}>{stat.operational} Operational</span>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 800, color: "var(--green)" }}>{stat.allOk} All Ok</span>
                 <span style={{ fontSize: 11, color: "var(--muted)" }}>Health Score: {stat.percent}%</span>
               </div>
             </div>
@@ -7164,7 +7162,7 @@ function ModuleView({
                       onChange={setAssetStatusFilter}
                     >
                       <option value="">All Statuses</option>
-                      <option value="OPERATIONAL">Operational</option>
+                      <option value="All Ok">All Ok</option>
                       <option value="UNDER_MAINTENANCE">Under Maintenance</option>
                       <option value="FAULTY">Faulty</option>
                       <option value="OBSOLETE">Obsolete</option>
@@ -7218,7 +7216,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
-      case "OPERATIONAL": return "var(--green)";
+      case "All Ok": return "var(--green)";
       case "UNDER_MAINTENANCE": return "var(--amber)";
       case "FAULTY": return "var(--red)";
       default: return "var(--muted)";
@@ -7349,7 +7347,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Operational Status</small>
+                <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>All Ok Status</small>
                 <span className={`pill ${asset.status.toLowerCase()}`} style={{ display: "inline-block", marginTop: 2, fontSize: 11.5 }}>{asset.status}</span>
               </div>
             </div>
@@ -7387,7 +7385,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
 
           {/* Remarks Section */}
           <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 16 }}>
-            <small style={{ display: "block", fontSize: 11, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Operational Remarks / Notes</small>
+            <small style={{ display: "block", fontSize: 11, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>All Ok Remarks / Notes</small>
             <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--navy)", lineHeight: 1.5 }}>
               {asset.remarks || "No active warning notes or service remarks logged for this telecom hardware inventory."}
             </p>
@@ -8032,7 +8030,7 @@ function ActionPanel({
   const [assetLocation, setAssetLocation] = useState("");
   const [assetRemarks, setAssetRemarks] = useState("");
   const [assetSpecs, setAssetSpecs] = useState('{"controllerIp": "10.120.45.15"}');
-  const [assetStatus, setAssetStatus] = useState("OPERATIONAL");
+  const [assetStatus, setAssetStatus] = useState("All Ok");
   const [assetSpecFields, setAssetSpecFields] = useState<{ key: string; val: string }[]>([]);
 
   const handleCategoryChange = (cat: string) => {
@@ -8200,7 +8198,7 @@ function ActionPanel({
       setAssetLocation("");
       setAssetRemarks("");
       setAssetSpecs('{"controllerIp": "10.120.45.15"}');
-      setAssetStatus("OPERATIONAL");
+      setAssetStatus("All Ok");
       setAssetSpecFields([
         { key: "controllerIp", val: "" },
         { key: "numberOfCgds", val: "" },
@@ -8278,7 +8276,7 @@ function ActionPanel({
           setAssetLocation(a.installLocation || "");
           setAssetRemarks(a.remarks || "");
           setAssetSpecs(a.specifications ? (typeof a.specifications === "string" ? a.specifications : JSON.stringify(a.specifications, null, 2)) : "{}");
-          setAssetStatus(a.status || "OPERATIONAL");
+          setAssetStatus(a.status || "All Ok");
 
           let parsedFields: { key: string; val: string }[] = [];
           if (a.specifications) {
@@ -8759,7 +8757,7 @@ function ActionPanel({
             {requiredLabel("Status")}
             <ClearableSelect required value={assetStatus} onChange={setAssetStatus}>
               <option value="">Select Status</option>
-              <option value="OPERATIONAL">OPERATIONAL</option>
+              <option value="All Ok">All Ok</option>
               <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
               <option value="FAULTY">FAULTY</option>
               <option value="OBSOLETE">OBSOLETE</option>
@@ -8767,7 +8765,7 @@ function ActionPanel({
           </label>
           <label>
             Remarks
-            <textarea placeholder="Operational notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
+            <textarea placeholder="All Ok notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
           </label>
 
           <div style={{ margin: "15px 0 10px 0" }}>
@@ -9170,7 +9168,7 @@ function ActionPanel({
               {requiredLabel("Status")}
               <ClearableSelect required value={assetStatus} onChange={setAssetStatus}>
                 <option value="">Select Status</option>
-                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="All Ok">All Ok</option>
                 <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE</option>
                 <option value="FAULTY">FAULTY</option>
                 <option value="OBSOLETE">OBSOLETE</option>
@@ -9178,7 +9176,7 @@ function ActionPanel({
             </label>
             <label>
               Remarks
-              <textarea placeholder="Operational notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
+              <textarea placeholder="All Ok notes..." value={assetRemarks} onChange={e => setAssetRemarks(e.target.value)} />
             </label>
 
             <div style={{ margin: "15px 0 10px 0" }}>
@@ -9474,7 +9472,8 @@ function ActionPanel({
         : (asset.specifications || {});
 
       const statusColor: Record<string, string> = {
-        operational: "var(--green)",
+        "all ok": "var(--green)",
+        "all_ok": "var(--green)",
         faulty: "#ef4444",
         maintenance: "#f59e0b",
         decommissioned: "#94a3b8"
@@ -9702,7 +9701,7 @@ function ActionPanel({
 
                   if (asset) {
                     const statusStr = (asset.status || "").toLowerCase();
-                    if (statusStr === "operational") {
+                    if (statusStr === "All Ok") {
                       solidBg = "var(--green)";
                       softBg = "var(--green-soft)";
                       borderCol = "rgba(13, 183, 107, 0.25)";
@@ -9829,7 +9828,7 @@ function ActionPanel({
                 cardBg = "#fff7ed";
                 cardBorder = "rgba(249,115,22,0.35)";
                 innerBg = "rgba(249,115,22,0.1)";
-              } else if (statusStr !== "operational") {
+              } else if (statusStr !== "All Ok") {
                 headerBg = "#64748b";
                 cardBg = "#f8fafc";
                 cardBorder = "rgba(100,116,139,0.35)";
@@ -9899,7 +9898,7 @@ function ActionPanel({
         </label>
         <label>
           Notes
-          <textarea placeholder="Add operational notes..." />
+          <textarea placeholder="Add All Ok notes..." />
         </label>
         <button className="export-button" onClick={close} type="button">Save</button>
       </div>

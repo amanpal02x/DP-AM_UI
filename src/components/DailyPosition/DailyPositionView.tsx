@@ -53,29 +53,29 @@ const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
 const statusFromForm = (form: DailyPositionFormDefinition, values: Record<string, any>) => {
   if (form.statusMode === "log") {
     if (!values.rectificationTime) return "FAULTY";
-    return "OPERATIONAL";
+    return "All Ok";
   }
   if (form.statusMode === "maintenance") {
     if (values.balanceTemporaryJoints !== undefined) {
-      return Number(values.balanceTemporaryJoints) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+      return Number(values.balanceTemporaryJoints) > 0 ? "UNDER_MAINTENANCE" : "All Ok";
     }
     if (values.balanceInsulationFaults !== undefined) {
-      return Number(values.balanceInsulationFaults) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+      return Number(values.balanceInsulationFaults) > 0 ? "UNDER_MAINTENANCE" : "All Ok";
     }
     if (values.balanceWalkieTalkies !== undefined) {
-      return Number(values.balanceWalkieTalkies) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+      return Number(values.balanceWalkieTalkies) > 0 ? "UNDER_MAINTENANCE" : "All Ok";
     }
     if (values.pendingRepair !== undefined) {
-      return Number(values.pendingRepair) > 0 ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+      return Number(values.pendingRepair) > 0 ? "UNDER_MAINTENANCE" : "All Ok";
     }
     const pending = Number(values.temporaryJointsCount || values.totalInsulationFaults || values.defectiveSets || 0);
     const done = Number(values.rectifiedJoints || values.rectifiedFaults || values.repairedSets || 0);
-    return pending > done ? "UNDER_MAINTENANCE" : "OPERATIONAL";
+    return pending > done ? "UNDER_MAINTENANCE" : "All Ok";
   }
   if (values.failureTime && !values.rectificationTime) return "FAULTY";
   if (values.failureTime && values.rectificationTime) return "RECTIFIED";
   if (!values.rectificationTime) return "FAULTY";
-  return "OPERATIONAL";
+  return "All Ok";
 };
 
 const isTodayRecord = (record: any) => {
@@ -2562,7 +2562,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
       const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isActive = !isAllOk && (r.status === "ACTIVE" || r.status === "PENDING" || (!r.rectificationTime && !isAllOk));
-      const isFault = !isAllOk && !!r.failureTime && (r.status === "FAULT" || r.status === "ACTIVE" || r.status === "PENDING" || r.status === "RECTIFIED" || r.status === "OPERATIONAL");
+      const isFault = !isAllOk && !!r.failureTime && (r.status === "FAULT" || r.status === "ACTIVE" || r.status === "PENDING" || r.status === "RECTIFIED" || r.status === "All Ok");
 
       // Tab filter
       if (dpHistoryFilter === "active-faults" && !isActive) return false;
@@ -2693,7 +2693,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline") ? (values.stationCode || null) : (station?.name || null)),
       assetId: values.assetId || null,
       telecomAsset: selectedForm.name,
-      status: isDraft ? "DRAFT" : (isOk ? "OPERATIONAL" : statusFromForm(selectedForm, values)),
+      status: isDraft ? "DRAFT" : (isOk ? "All Ok" : statusFromForm(selectedForm, values)),
       failureTime: isOk ? null : (values.failureTime || null),
       rectificationTime: isOk ? null : (values.rectificationTime || null),
       durationText: isOk ? null : calcDurationText(values.failureTime, values.rectificationTime),
@@ -3094,7 +3094,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <tbody>
             {filteredHistoryRecords.map((record: any) => {
               const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
-              const isClosed = record.status === "RECTIFIED" || record.status === "OPERATIONAL" || isAllOk;
+              const isClosed = record.status === "RECTIFIED" || record.status === "All Ok" || isAllOk;
               const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
               return (
                 <tr key={record.id}>
@@ -3111,7 +3111,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </div>
                   </td>
                   <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
-                  <td><span className={`pill status-${isAllOk ? "operational" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "OPERATIONAL" : record.status}</span></td>
+                  <td><span className={`pill status-${isAllOk ? "All Ok" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "All Ok" : record.status}</span></td>
                   <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
                   <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
                   <td>{record.remarks || record.reason || (isAllOk ? "" : "-")}</td>
@@ -3538,7 +3538,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                   textTransform: "uppercase"
                                 }}>Draft</span>
                               ) : (() => {
-                                const isOk = record.status === "OPERATIONAL" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                const isOk = record.status === "All Ok" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
                                 return (
                                   <span style={{
                                     background: isOk ? "#ecfdf5" : "#fef2f2",
@@ -3723,15 +3723,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <h2>{detailsRecord.formType}</h2>
                   <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || (isAllOk ? "" : "-")}</p>
                 </div>
-                <em className={`status-chip status-${isAllOk ? "operational" : String(detailsRecord.status || "").toLowerCase()}`}>
-                  {isAllOk ? "OPERATIONAL" : detailsRecord.status}
+                <em className={`status-chip status-${isAllOk ? "All Ok" : String(detailsRecord.status || "").toLowerCase()}`}>
+                  {isAllOk ? "All Ok" : detailsRecord.status}
                 </em>
               </div>
 
               <div className="dp-details-summary">
                 {[
                   ["Category", detailsRecord.category],
-                  ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "OPERATIONAL" ? "OK" : "FAULT")],
+                  ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "All Ok" ? "OK" : "FAULT")],
                   ["Submitted", detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")],
                 ].map(([label, value]) => (
                   <div key={label}>
@@ -3779,7 +3779,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Failures details</h3>
                 <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
                   <strong style={{ fontWeight: 500 }}>
-                    {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System Operational") : (
+                    {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System All Ok") : (
                       <>
                         {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
                         {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && ` · ${detailsRecord.remarks}`}
