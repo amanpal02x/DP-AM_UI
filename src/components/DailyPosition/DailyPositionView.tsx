@@ -3612,8 +3612,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasDrafts = draftsCount > 0;
                     const isCurrentFormEmpty = isFormEmpty();
-                    const showWarning = !isCurrentFormEmpty;
-                    const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts;
+                    const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts || !isCurrentFormEmpty;
                     
                     return (
                       <button 
@@ -3624,15 +3623,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         onMouseEnter={() => setIsOkHovered(true)}
                         onMouseLeave={() => setIsOkHovered(false)}
                         style={{
-                          opacity: (showWarning || hasDrafts) ? 0.6 : 1,
+                          opacity: isOkButtonDisabled ? 0.6 : 1,
                           cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
                           transition: "all 0.2s ease-in-out",
-                          ...(showWarning && isOkHovered && !hasDrafts ? {
-                            background: "#ef4444",
-                            borderColor: "#ef4444",
-                            color: "#fff",
-                            opacity: 1
-                          } : {})
                         }}
                       >
                         {isSubmittingAllOk ? (
@@ -3642,13 +3635,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           </>
                         ) : (
                           <>
-                            {hasDrafts ? (
-                              <Ban size={16} />
-                            ) : (showWarning && isOkHovered ? (
+                            {isOkButtonDisabled ? (
                               <Ban size={16} />
                             ) : (
                               <CheckCircle2 size={16} />
-                            ))}
+                            )}
                             ALL OK
                           </>
                         )}
