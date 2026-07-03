@@ -37,12 +37,27 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
 
   const stats = statsRes.data;
 
+  const normalizeDivName = (div?: string) => {
+    if (!div) return "Others";
+    const l = div.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  const targetDiv = division ? normalizeDivName(division) : "";
+
   // 1. Calculate Active Faults Count
   // Exclude "All OK" daily position submissions (reason: "All OK" or actionType: "OK")
   const activeFaultsList = (activeFaultsRes.data || []).filter((r: any) => {
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    return !isAllOk;
+    if (isAllOk) return false;
+    if (targetDiv) {
+      return normalizeDivName(r.division) === targetDiv;
+    }
+    return true;
   });
   // Exclude wifi faults from the active faults count because they are shown separately
   const activeFaultsCount = activeFaultsList.filter((r: any) => {
@@ -54,6 +69,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   const uniqueRecordsMap = new Map<string, any>();
   for (const r of [...activeFaultsList, ...(resolvedRecordsRes.data || []), ...(todayRecordsRes.data || [])]) {
     if (r.id) {
+      if (targetDiv && normalizeDivName(r.division) !== targetDiv) continue;
       uniqueRecordsMap.set(r.id, r);
     }
   }
@@ -78,6 +94,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     if (r.status === "DRAFT") return false;
     const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
     if (isAllOk) return false;
+    if (targetDiv && normalizeDivName(r.division) !== targetDiv) return false;
     if (!r.rectificationTime) return false;
     try {
       const rectDate = new Date(r.rectificationTime);
@@ -102,11 +119,14 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   }));
 
   // Group today's records by division for Division-wise Report Submission (daily basis)
-  const divisionCounts: Record<string, number> = {};
+  const divisionCounts: Record<string, number> = targetDiv
+    ? { [targetDiv]: 0 }
+    : { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
   for (const r of todayRecordsRes.data || []) {
     if (r.status === "DRAFT") continue;
-    const div = r.division || "Others";
-    divisionCounts[div] = (divisionCounts[div] || 0) + 1;
+    const normalized = normalizeDivName(r.division);
+    if (targetDiv && normalized !== targetDiv) continue;
+    divisionCounts[normalized] = (divisionCounts[normalized] || 0) + 1;
   }
   const dailyPositionByDivision = Object.entries(divisionCounts).map(([division, count]) => ({
     division,
@@ -115,16 +135,15 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
 
   // Group active faults by division for activeFaultsByDivision (Raipur, Bilaspur, Nagpur)
   // Exclude Wi-Fi faults — they are tracked separately via the Wi-Fi Faults counter
-  const activeDivCounts: Record<string, number> = { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
+  const activeDivCounts: Record<string, number> = targetDiv
+    ? { [targetDiv]: 0 }
+    : { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
   for (const r of activeFaultsList) {
     const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
     if (isWifi) continue; // skip Wi-Fi faults
-    const div = r.division;
-    if (!div) continue;
-    const lower = div.toLowerCase();
-    if (lower.includes("raipur")) activeDivCounts.Raipur++;
-    else if (lower.includes("bilaspur")) activeDivCounts.Bilaspur++;
-    else if (lower.includes("nagpur")) activeDivCounts.Nagpur++;
+    const normalized = normalizeDivName(r.division);
+    if (targetDiv && normalized !== targetDiv) continue;
+    activeDivCounts[normalized] = (activeDivCounts[normalized] || 0) + 1;
   }
   const activeFaultsByDivision = Object.entries(activeDivCounts).map(([division, count]) => ({
     division,
@@ -140,6 +159,8 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     ...(weeklyRecordsRes.data || [])
   ]) {
     if (r.id && r.status !== "DRAFT") {
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      if (!matchesDiv) continue;
       const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       if (!isAllOk) {
         uniqueWeeklyMap.set(r.id, r);
@@ -421,7 +442,9 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     return "Others";
   };
 
-  const divisionsList = ["Raipur", "Bilaspur", "Nagpur"];
+  const divisionsList = targetDiv && targetDiv !== "Others"
+    ? [targetDiv]
+    : ["Raipur", "Bilaspur", "Nagpur"];
   let totalDefective = 0;
   const wtDivisions = divisionsList.map(div => {
     const testRec = wtTestingRecords.find(r => normalizeDiv(r.division) === div);

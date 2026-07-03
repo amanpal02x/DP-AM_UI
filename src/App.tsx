@@ -3595,31 +3595,45 @@ function DailyPositionDashboardView({
     staleTime: 30 * 1000,
   });
 
+  const normalizeDivName = (div?: string) => {
+    if (!div) return "Others";
+    const l = div.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
   const wifiFaultsCount = useMemo(() => {
     const rawRecords = activeFaultsQuery.data?.data || [];
+    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
       const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return isWifi && !isAllOk;
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      return isWifi && !isAllOk && matchesDiv;
     });
     return filtered.length;
-  }, [activeFaultsQuery.data]);
+  }, [activeFaultsQuery.data, userDivision]);
 
   const activeFaultsCountClient = useMemo(() => {
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      return !isWifi && !isAllOk && matchesDiv;
+    });
+
     if (!activeFaultsQuery.data) {
       const faultsKpi = data.kpis.find(k => k.id === "activeFaults");
       return faultsKpi ? faultsKpi.value : "0";
     }
-    const rawRecords = activeFaultsQuery.data?.data || [];
-    const filtered = rawRecords.filter((r: any) => {
-      if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return !isWifi && !isAllOk;
-    });
     return String(filtered.length);
-  }, [activeFaultsQuery.data, data.kpis]);
+  }, [activeFaultsQuery.data, data.kpis, userDivision]);
 
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
