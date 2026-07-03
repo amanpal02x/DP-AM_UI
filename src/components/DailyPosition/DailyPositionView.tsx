@@ -2540,7 +2540,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const isFormEmpty = () => {
     return !visibleActiveFields.some(field => {
-      if (field.name === "maintenanceType") return false;
+      if (
+        field.name === "maintenanceType" ||
+        field.name === "majorSection" ||
+        field.name === "section" ||
+        field.name === "stationCode"
+      ) {
+        return false;
+      }
       return !!values[field.name];
     });
   };
