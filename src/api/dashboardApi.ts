@@ -24,16 +24,31 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoStr = toDateValue(sevenDaysAgo);
 
-  // Fetch dashboard stats, active faults, today's records, resolved records, weekly records, and walkie-talkie logs in parallel
-  const [statsRes, activeFaultsRes, todayRecordsRes, resolvedRecordsRes, weeklyRecordsRes, wtTestingRes, wtRepairingRes] = await Promise.all([
+  // Fetch dashboard stats, active faults, and weekly records in parallel
+  const [statsRes, activeFaultsRes, weeklyRecordsRes] = await Promise.all([
     api.reports.dashboard(division),
     api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 200 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", date: todayStr, limit: 200 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", isResolved: "true", limit: 200 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", formType: "Walkie-Talkie Testing", limit: 100 }).catch(() => ({ data: [] })),
-    api.dailyPosition.list({ division: division || "", formType: "Walkie-Talkie Repairing", limit: 100 }).catch(() => ({ data: [] }))
+    api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] }))
   ]);
+
+  const weeklyData = weeklyRecordsRes.data || [];
+
+  // Filter in-memory to get today's, resolved, and walkie-talkie records
+  const todayRecordsRes = {
+    data: weeklyData.filter((r: any) => r.date && r.date.slice(0, 10) === todayStr)
+  };
+
+  const resolvedRecordsRes = {
+    data: weeklyData.filter((r: any) => r.status === "RECTIFIED" || r.status === "OPERATIONAL" || r.rectificationTime)
+  };
+
+  const wtTestingRes = {
+    data: weeklyData.filter((r: any) => (r.formType || r.name) === "Walkie-Talkie Testing")
+  };
+
+  const wtRepairingRes = {
+    data: weeklyData.filter((r: any) => (r.formType || r.name) === "Walkie-Talkie Repairing")
+  };
 
   const stats = statsRes.data;
 

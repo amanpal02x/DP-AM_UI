@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip } from "lucide-react";
+import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDate24, formatDateTime24, formatTime24 } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
@@ -2253,6 +2253,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const [selectedDivision, setSelectedDivision] = useState(division || "");
   const [selectedDate, setSelectedDate] = useState(toDateValue());
+  const [historyDate, setHistoryDate] = useState("");
+  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [values, setValues] = useState<Record<string, any>>({});
   const [quadReadings, setQuadReadings] = useState<any[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -2381,7 +2383,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   });
 
   const recordsQuery = useQuery({
-    queryKey: ["daily-position-records", selectedDivision, selectedDate, dpHistoryFilter],
+    queryKey: ["daily-position-records", selectedDivision, selectedDate, historyDate, dpHistoryFilter, viewMode],
     queryFn: () => {
       const params: any = {
         division: selectedDivision || "",
@@ -2392,7 +2394,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       } else if (dpHistoryFilter === "resolved-faults") {
         params.isResolved = "true";
       } else {
-        params.date = selectedDate;
+        if (viewMode === "history") {
+          if (historyDate) {
+            params.date = historyDate;
+          }
+        } else {
+          params.date = selectedDate;
+        }
       }
       return api.dailyPosition.list(params);
     },
@@ -2621,7 +2629,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
       return true;
     });
-  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, selectedDate, dpHistoryFilter]);
+  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, historyDate, dpHistoryFilter]);
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -3065,71 +3073,111 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const renderHistory = () => (
     <section className="dp-history-panel">
-      <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
-        {/* Division filter */}
-        <div style={{ flex: "1 1 150px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-          <ClearableSelect
-            value={historyDivision}
-            onChange={setHistoryDivision}
-            disabled={role === "STAFF"}
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: role === "STAFF" ? "#f1f5f9" : "#fff", cursor: role === "STAFF" ? "not-allowed" : "default" }}
-          >
-            {role !== "STAFF" && <option value="">All Divisions</option>}
-            <option value="Bilaspur">Bilaspur</option>
-            <option value="Raipur">Raipur</option>
-            <option value="Nagpur">Nagpur</option>
-          </ClearableSelect>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px", width: "100%" }}>
+        {/* Search bar */}
+        <div style={{ flex: 1, position: "relative" }}>
+          <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={historySearch}
+            onChange={e => setHistorySearch(e.target.value)}
+            style={{ width: "100%", padding: "8px 12px 8px 32px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+          />
         </div>
-        {/* Status-wise filter */}
-        <div style={{ flex: "1 1 160px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
-          <ClearableSelect
-            value={historyStatus}
-            onChange={setHistoryStatus}
-            style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-          >
-            <option value="">All</option>
-            <option value="active">Active</option>
-            <option value="allok">ALL OK</option>
-            <option value="fault">Fault</option>
-          </ClearableSelect>
-        </div>
-        {/* Spacer pushes search to right */}
-        <div style={{ flex: "1 1 0" }} />
-        {/* Search bar on right */}
-        <div style={{ flex: "0 1 260px" }}>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search Station, Failures details, Section...</label>
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </span>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={historySearch}
-              onChange={e => setHistorySearch(e.target.value)}
-              style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
-            />
-          </div>
-        </div>
-        {(historySearch || historyDivision || historyStatus || historyCategory || historyFormType) && (
-          <button
-            type="button"
-            onClick={() => {
-              setHistorySearch("");
-              setHistoryDivision(role === "STAFF" ? (division || "") : "");
-              setHistoryStatus("");
-              setHistoryCategory("");
-              setHistoryFormType("");
-            }}
-            className="action-btn text-red"
-            style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
-          >
-            Clear Filters
-          </button>
-        )}
+        {/* Filter Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setShowFiltersPanel(!showFiltersPanel)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: "1px solid #3b82f6",
+            background: showFiltersPanel ? "#eff6ff" : "#fff",
+            color: "#3b82f6",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            outline: "none",
+            height: "37px"
+          }}
+        >
+          <Filter size={15} />
+          Filter
+        </button>
       </div>
+
+      {showFiltersPanel && (
+        <div className="dp-history-filters-collapsible" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "14px 16px", background: "#f8fafc", borderRadius: "8px", marginBottom: "16px", border: "1px solid #cbd5e1", alignItems: "flex-end" }}>
+          {/* Division filter */}
+          <div style={{ flex: "1 1 150px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+            <ClearableSelect
+              value={historyDivision}
+              onChange={setHistoryDivision}
+              disabled={role === "STAFF"}
+              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: role === "STAFF" ? "#f1f5f9" : "#fff", cursor: role === "STAFF" ? "not-allowed" : "default" }}
+            >
+              {role !== "STAFF" && <option value="">All Divisions</option>}
+              <option value="Bilaspur">Bilaspur</option>
+              <option value="Raipur">Raipur</option>
+              <option value="Nagpur">Nagpur</option>
+            </ClearableSelect>
+          </div>
+          {/* Status-wise filter */}
+          <div style={{ flex: "1 1 160px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Status</label>
+            <ClearableSelect
+              value={historyStatus}
+              onChange={setHistoryStatus}
+              style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+            >
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="allok">ALL OK</option>
+              <option value="fault">Fault</option>
+            </ClearableSelect>
+          </div>
+          {/* Position Date filter */}
+          <div style={{ flex: "1 1 180px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Position Date</label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                <Calendar size={14} />
+              </span>
+              <input
+                type="date"
+                value={historyDate}
+                onChange={e => setHistoryDate(e.target.value)}
+                onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+          {(historySearch || historyDivision || historyStatus || historyCategory || historyFormType || historyDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setHistorySearch("");
+                setHistoryDivision(role === "STAFF" ? (division || "") : "");
+                setHistoryStatus("");
+                setHistoryCategory("");
+                setHistoryFormType("");
+                setHistoryDate("");
+              }}
+              className="action-btn text-red"
+              style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      )}
       <div className="table-scroll-container">
         <table className="data-table dp-history-table">
           <thead>
@@ -3220,24 +3268,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
-          {viewMode === "history" && (
-            <label className="division-select">
-              <span>Position Date</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={event => setSelectedDate(event.target.value)}
-                onClick={e => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "6px",
-                  border: "1px solid #cbd5e1",
-                  fontSize: "14px",
-                  background: "#fff"
-                }}
-              />
-            </label>
-          )}
         </div>
       </section>
 
