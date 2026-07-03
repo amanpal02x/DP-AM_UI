@@ -396,6 +396,7 @@ import { formatDate24, formatDateTime24, formatTime24, shiftDateText } from "./u
 import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./components/DailyPosition/dailyPositionForms";
 const DailyPositionView = lazy(() => import("./components/DailyPosition/DailyPositionView"));
 const DailyPositionPrintView = lazy(() => import("./components/DailyPosition/DailyPositionPrintView"));
+const MISReportView = lazy(() => import("./components/DailyPosition/MISReportView"));
 import type {
   ActivityItem,
   AlertItem,
@@ -421,9 +422,10 @@ type NavKey =
   | "DP Form"
   | "DP Logs"
   | "Sections"
-  | "Reports & Analytics"
+  | "Analytics"
   | "Users & Roles"
-  | "Audit Logs";
+  | "Audit Logs"
+  | "MIS";
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
@@ -437,9 +439,10 @@ const navToHash: Record<NavKey, string> = {
   "DP Form": "#/daily-position",
   "DP Logs": "#/daily-position-history",
   "Sections": "#/sections",
-  "Reports & Analytics": "#/reports",
+  "Analytics": "#/reports",
   "Users & Roles": "#/users",
-  "Audit Logs": "#/audit-logs"
+  "Audit Logs": "#/audit-logs",
+  "MIS": "#/mis"
 };
 
 const hashToNav: Record<string, NavKey> = {
@@ -454,9 +457,10 @@ const hashToNav: Record<string, NavKey> = {
   "#/daily-position": "DP Form",
   "#/daily-position-history": "DP Logs",
   "#/sections": "Sections",
-  "#/reports": "Reports & Analytics",
+  "#/reports": "Analytics",
   "#/users": "Users & Roles",
-  "#/audit-logs": "Audit Logs"
+  "#/audit-logs": "Audit Logs",
+  "#/mis": "MIS"
 };
 
 type AppState = {
@@ -566,9 +570,10 @@ const navItems: Array<{
     { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
-    { label: "Reports & Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "MIS", icon: Printer, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
   ];
 
@@ -1309,7 +1314,7 @@ function App() {
           ) : activeNav === "Sections" ? (
             <SectionsManagementView showToast={showToast} />
           ) : (
-            <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} />
+            <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} showToast={showToast} />
           )}
         </Suspense>
       </main>
@@ -3428,7 +3433,7 @@ function WalkieTalkieDivisionPanel({
 
   const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
   const allDivisions = summary?.divisions || [];
-  
+
   const divisions = normalizedUserDiv && ["Raipur", "Bilaspur", "Nagpur"].includes(normalizedUserDiv)
     ? allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv)
     : allDivisions;
@@ -3514,7 +3519,7 @@ function WalkieTalkieDivisionPanel({
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
-        
+
         <button
           onClick={() => onCategoryClick?.("Walkie-Talkie")}
           style={{
@@ -4072,141 +4077,142 @@ function DailyPositionDetailsModal({
                             Entry #{index + 1}
                           </span>
                         )}
-                      <span style={{
-                        display: "inline-flex", alignItems: "center",
-                        padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
-                        color: "#fff",
-                        background: isFault ? "var(--red)" : "var(--green)"
+                        <span style={{
+                          display: "inline-flex", alignItems: "center",
+                          padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                          color: "#fff",
+                          background: isFault ? "var(--red)" : "var(--green)"
+                        }}>
+                          {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "All Ok")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Location Details (Priority 1) */}
+                    {locationItems.length > 0 && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
                       }}>
-                        {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "All Ok")}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Location Details (Priority 1) */}
-                  {locationItems.length > 0 && (
-                    <div style={{
-                      marginBottom: "14px",
-                      borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                      paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
-                    }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                        {locationItems.map(item => (
-                          <div key={item.key}>
-                            <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
-                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
-                          </div>
-                        ))}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          {locationItems.map(item => (
+                            <div key={item.key}>
+                              <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Main Information: Fault Timing (Priority 2) */}
-                  {entry.failureTime && (
-                    <div style={{
-                      marginBottom: "14px",
-                      borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                      paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
-                    }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                        <div>
-                          <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
-                        </div>
-                        <div>
-                          <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
-                          <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
-                        </div>
-                        {entry.durationText && (
+                    {/* Main Information: Fault Timing (Priority 2) */}
+                    {entry.failureTime && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
                           <div>
-                            <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
-                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                            <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Nature of Fault (Priority 3) */}
-                  {howItems.length > 0 && (
-                    <div style={{
-                      marginBottom: "14px",
-                      borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                      paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
-                    }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                        {howItems.map(item => (
-                          <div key={item.key}>
-                            <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
-                            <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
                           </div>
-                        ))}
+                          {entry.durationText && (
+                            <div>
+                              <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
+                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
-                  {isFault ? (
-                    <div style={{ marginBottom: "14px" }}>
-                      <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
-                        Reason / Remarks
-                      </span>
-                      <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
-                        <strong style={{ fontWeight: 700 }}>
-                          {entry.reason || entry.remarks || "No reason specified"}
-                          {showRemarks && ` · ${entry.remarks}`}
-                        </strong>
+                    {/* Nature of Fault (Priority 3) */}
+                    {howItems.length > 0 && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          {howItems.map(item => (
+                            <div key={item.key}>
+                              <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                              <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    (entry.remarks || entry.reason) && (
+                    )}
+
+                    {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
+                    {isFault ? (
                       <div style={{ marginBottom: "14px" }}>
                         <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
-                          Remarks
+                          Reason / Remarks
                         </span>
                         <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
-                          <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
+                          <strong style={{ fontWeight: 700 }}>
+                            {entry.reason || entry.remarks || "No reason specified"}
+                            {showRemarks && ` · ${entry.remarks}`}
+                          </strong>
                         </div>
                       </div>
-                    )
-                  )}
+                    ) : (
+                      (entry.remarks || entry.reason) && (
+                        <div style={{ marginBottom: "14px" }}>
+                          <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                            Remarks
+                          </span>
+                          <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                            <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
+                          </div>
+                        </div>
+                      )
+                    )}
 
-                  {/* Footer Metadata */}
-                  <div style={{
-                    borderTop: "1px solid #f1f5f9",
-                    paddingTop: "10px",
-                    marginTop: "12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "6px",
-                    fontSize: "11px",
-                    color: "var(--muted)"
-                  }}>
-                    <span>
-                      Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong> 
-                      {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
-                    </span>
+                    {/* Footer Metadata */}
+                    <div style={{
+                      borderTop: "1px solid #f1f5f9",
+                      paddingTop: "10px",
+                      marginTop: "12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                      fontSize: "11px",
+                      color: "var(--muted)"
+                    }}>
+                      <span>
+                        Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong>
+                        {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
+                      </span>
+                    </div>
                   </div>
-                </div>
-                {index < displayEntries.length - 1 && (
-                  <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
-                    <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
-                      <defs>
-                        <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#334155" stopOpacity={0} />
-                          <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
-                          <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
-                          <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="#334155" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
-                    </svg>
-                  </div>
-                )}
-              </Fragment>
-            );
-          })})()}
+                  {index < displayEntries.length - 1 && (
+                    <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
+                      <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
+                        <defs>
+                          <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#334155" stopOpacity={0} />
+                            <stop offset="15%" stopColor="#1e293b" stopOpacity={0.35} />
+                            <stop offset="50%" stopColor="#0f172a" stopOpacity={0.85} />
+                            <stop offset="85%" stopColor="#1e293b" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <path d="M 0 4 Q 500 0 1000 4 Q 500 8 0 4 Z" fill={`url(#taperedGrad-${entry.id || index})`} />
+                      </svg>
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })
+          })()}
         </div>
       </div>
     </div>
@@ -6283,14 +6289,16 @@ function FeedbackAdminView({ showToast }: { showToast: (message: string) => void
 function ModuleView({
   activeNav,
   openPanel,
-  queries
+  queries,
+  showToast
 }: {
   activeNav: NavKey;
   openPanel: (title: string, itemId?: string | null) => void;
   queries: any;
+  showToast: (msg: string) => void;
 }) {
   const queryClient = useQueryClient();
-  const { assetStatusFilter, setAssetStatusFilter, role } = useAppStore();
+  const { assetStatusFilter, setAssetStatusFilter, role, division } = useAppStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterState, setFilterState] = useState("");
@@ -6968,7 +6976,17 @@ function ModuleView({
         );
       }
 
-      case "Reports & Analytics": {
+      case "MIS": {
+        return (
+          <MISReportView
+            role={role}
+            userDivision={division}
+            showToast={showToast}
+          />
+        );
+      }
+
+      case "Analytics": {
         const rawList = queries.stationsQuery.data?.data || [];
         const stats = rawList.filter((s: any) =>
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -7071,40 +7089,41 @@ function ModuleView({
 
   return (
     <article className="wide-list-container">
-      <div className="tabular-header">
-        <div className="header-title-section">
-          <h2>{activeNav}</h2>
-          <p>{["Asset Dashboard", "Daily Position"].includes(activeNav) ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
-        </div>
-        <div className="header-controls-section">
-          <div className="action-buttons-group">
-            {shouldShowActionButtons && (
-              <>
-                <button
-                  className="export-button"
-                  style={{ background: "#f1f5f9", color: "#334155", borderColor: "#cbd5e1", margin: 0 }}
-                  onClick={() => openPanel(`Import ${activeNav}`)}
-                  type="button"
-                >
-                  Import Data
-                </button>
-                <button
-                  className="export-button"
-                  style={{ margin: 0 }}
-                  onClick={handleCreateNew}
-                  type="button"
-                >
-                  {getCreateLabel(activeNav)}
-                </button>
-              </>
-            )}
+      {activeNav !== "MIS" && (
+        <div className="tabular-header">
+          <div className="header-title-section">
+            <h2>{activeNav}</h2>
+            <p>{["Asset Dashboard", "Daily Position"].includes(activeNav) ? "Overview of Telecom Assets and Operations" : `${activeNav} operations workspace`}</p>
           </div>
-          <div className="search-filter-row">
-            <input
-              placeholder="Filter records..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="header-controls-section">
+            <div className="action-buttons-group">
+              {shouldShowActionButtons && (
+                <>
+                  <button
+                    className="export-button"
+                    style={{ background: "#f1f5f9", color: "#334155", borderColor: "#cbd5e1", margin: 0 }}
+                    onClick={() => openPanel(`Import ${activeNav}`)}
+                    type="button"
+                  >
+                    Import Data
+                  </button>
+                  <button
+                    className="export-button"
+                    style={{ margin: 0 }}
+                    onClick={handleCreateNew}
+                    type="button"
+                  >
+                    {getCreateLabel(activeNav)}
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="search-filter-row">
+              <input
+                placeholder="Filter records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
 
             <button
               type="button"
@@ -7197,6 +7216,7 @@ function ModuleView({
           </div>
         </div>
       </div>
+    )}
       {renderContent()}
     </article>
   );
@@ -10692,7 +10712,7 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
                       <input type="checkbox" className="auth-custom-checkbox" />
                       <span>Remember me</span>
                     </label>
-                    
+
                   </div>
 
                   <button type="submit" className="auth-submit-btn" disabled={loading}>
