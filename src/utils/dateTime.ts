@@ -1,9 +1,55 @@
 export const APP_TIME_ZONE = "Asia/Kolkata";
 
+export const toUTCFromISTString = (value: string | null | undefined) => {
+  if (!value) return null;
+  if (value.includes("Z") || /\+\d{2}:?\d{2}$/.test(value) || /-\d{2}:?\d{2}$/.test(value)) {
+    return new Date(value).toISOString();
+  }
+  return new Date(`${value}+05:30`).toISOString();
+};
+
 const validDate = (value: string | Date | null | undefined) => {
   if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
+  if (value instanceof Date) return value;
+  let parsedValue = value;
+  if (typeof value === "string" && value.includes("T") && !value.includes("Z") && !/\+\d{2}:?\d{2}$/.test(value) && !/-\d{2}:?\d{2}$/.test(value)) {
+    parsedValue = `${value}+05:30`;
+  }
+  const date = new Date(parsedValue);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+export const toDateValue = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+};
+
+export const toLocalDateTimeValue = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  const hour = parts.find((p) => p.type === "hour")?.value;
+  const minute = parts.find((p) => p.type === "minute")?.value;
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
 export const formatDate24 = (value: string | Date | null | undefined) => {

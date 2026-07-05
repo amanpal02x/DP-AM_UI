@@ -1,4 +1,4 @@
-export type DailyPositionFieldType = "text" | "number" | "select" | "datetime-local" | "date" | "textarea";
+export type DailyPositionFieldType = "text" | "number" | "select" | "datetime-local" | "date" | "textarea" | "walkieTalkieLobbySelect" | "walkieTalkieSerialSelect";
 
 export type DailyPositionField = {
   name: string;
@@ -422,7 +422,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "VHF hand-held transceiver frequency and power test logs.",
     statusMode: "maintenance",
     fields: [
-      { name: "stationLobby", label: "Station / Lobby", type: "text", required: true, placeholder: "Enter Station or Lobby name (e.g. BSP Lobby)" },
+      { name: "stationLobby", label: "Station / Lobby", type: "walkieTalkieLobbySelect", required: true, placeholder: "Select Station or Lobby" },
       { name: "makeModel", label: "Make / Model", type: "select", required: true, options: ["Motorola", "Kenwood", "Icom", "Hytera", "Vertex Standard","Convey W/T", "Other"], placeholder: "Select Make / Model" },
       { name: "serialNo", label: "Walkie Talkie Serial No.", type: "text", required: true, placeholder: "Enter Walkie Talkie serial number" },
       { name: "powerOutput", label: "Output TX Power", type: "text", placeholder: "Enter output power (e.g. 5W)" },
@@ -444,7 +444,8 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     description: "Workshop maintenance records and battery cell replacements.",
     statusMode: "maintenance",
     fields: [
-      { name: "stationCode", label: "Station/Lobby", type: "select", placeholder: "Select Station/Lobby" },
+      { name: "stationCode", label: "Station/Lobby", type: "walkieTalkieLobbySelect", placeholder: "Select Station/Lobby" },
+      { name: "serialNo", label: "Walkie Talkie Serial No.", type: "walkieTalkieSerialSelect", required: true, placeholder: "Select faulty serial number" },
       { name: "testDate", label: "Date", type: "date", required: true, placeholder: "Select Date" },
       { name: "openingDefective", label: "Opening Balance of Defective Sets", type: "number", required: true, placeholder: "Enter opening balance" },
       { name: "receivedFromUser", label: "Defective Sets Received from User Dept", type: "number", required: true, placeholder: "Received from user department" },

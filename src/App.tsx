@@ -392,9 +392,10 @@ const normalizeDivision = (div: any): string => {
 
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
-import { formatDate24, formatDateTime24, formatTime24, shiftDateText } from "./utils/dateTime";
+import { formatDate24, formatDateTime24, formatTime24, shiftDateText, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "./utils/dateTime";
 import { DAILY_POSITION_CATEGORIES, DAILY_POSITION_FORMS } from "./components/DailyPosition/dailyPositionForms";
 const DailyPositionView = lazy(() => import("./components/DailyPosition/DailyPositionView"));
+const AnnouncementsManager = lazy(() => import("./components/Announcements/AnnouncementsManager"));
 const DailyPositionPrintView = lazy(() => import("./components/DailyPosition/DailyPositionPrintView"));
 const MISReportView = lazy(() => import("./components/DailyPosition/MISReportView"));
 import type {
@@ -425,7 +426,9 @@ type NavKey =
   | "Analytics"
   | "Users & Roles"
   | "Audit Logs"
-  | "MIS";
+  | "MIS"
+  | "Latest Updates"
+  | "Walkie Talkie Inventory";
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
@@ -442,8 +445,12 @@ const navToHash: Record<NavKey, string> = {
   "Analytics": "#/reports",
   "Users & Roles": "#/users",
   "Audit Logs": "#/audit-logs",
-  "MIS": "#/mis"
+  "MIS": "#/mis",
+  "Latest Updates": "#/latest-updates",
+  "Walkie Talkie Inventory": "#/walkie-talkie-inventory"
 };
+
+const IndianStates = []; // placeholder, not needed
 
 const hashToNav: Record<string, NavKey> = {
   "#/dashboard/asset-management": "Asset Dashboard",
@@ -460,7 +467,9 @@ const hashToNav: Record<string, NavKey> = {
   "#/reports": "Analytics",
   "#/users": "Users & Roles",
   "#/audit-logs": "Audit Logs",
-  "#/mis": "MIS"
+  "#/mis": "MIS",
+  "#/latest-updates": "Latest Updates",
+  "#/walkie-talkie-inventory": "Walkie Talkie Inventory"
 };
 
 type AppState = {
@@ -574,7 +583,9 @@ const navItems: Array<{
     { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "MIS", icon: Printer, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] }
+    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
+    { label: "Latest Updates", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
+    { label: "Walkie Talkie Inventory", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] }
   ];
 
 // Fallback points for Leaflet map if DB is empty
@@ -1313,6 +1324,10 @@ function App() {
             )
           ) : activeNav === "Sections" ? (
             <SectionsManagementView showToast={showToast} />
+          ) : activeNav === "Walkie Talkie Inventory" ? (
+            <WalkieTalkieInventoryView showToast={showToast} />
+          ) : activeNav === "Latest Updates" ? (
+            <AnnouncementsManager showToast={showToast} />
           ) : (
             <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} showToast={showToast} />
           )}
@@ -1491,10 +1506,6 @@ function EditProfileModal({
   );
 }
 
-const toDateValue = (date = new Date()) => {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
-};
 
 function SidebarDailyPositionAccordion() {
   const {
@@ -2354,22 +2365,21 @@ function DailyPositionHighPriorityFaultsPanel({
     return formatDate24(dateStr);
   };
 
-  const toLocalDateTimeValue = (date: Date) => {
-    const tzoffset = date.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, -1);
-    return localISOTime.substring(0, 16);
-  };
-
   const formatDateTimeInput = (dateStr?: string) => {
     if (!dateStr) return "";
-    const d = new Date(dateStr);
+    const hasOffset = dateStr.includes("Z") || /\+\d{2}:?\d{2}$/.test(dateStr) || /-\d{2}:?\d{2}$/.test(dateStr);
+    const resolvedStr = hasOffset ? dateStr : `${dateStr}+05:30`;
+    const d = new Date(resolvedStr);
     return Number.isNaN(d.getTime()) ? "" : toLocalDateTimeValue(d);
   };
 
   const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
     if (!failureTime || !rectificationTime) return "";
-    const start = new Date(failureTime);
-    const end = new Date(rectificationTime);
+    const startStr = toUTCFromISTString(failureTime);
+    const endStr = toUTCFromISTString(rectificationTime);
+    const start = startStr ? new Date(startStr) : null;
+    const end = endStr ? new Date(endStr) : null;
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
     const diffMs = end.getTime() - start.getTime();
     if (diffMs <= 0) return "0 mins";
     const diffMins = Math.round(diffMs / 60000);
@@ -2590,16 +2600,17 @@ function DailyPositionHighPriorityFaultsPanel({
                 return;
               }
 
+              const utcRectTime = toUTCFromISTString(rectificationTimeInput);
               const updatedFormData = {
                 ...(rectifyingRecord.formData || {}),
-                rectificationTime: rectificationTimeInput,
+                rectificationTime: utcRectTime,
               };
 
               updateMutation.mutate({
                 id: rectifyingRecord.id,
                 body: {
                   ...rectifyingRecord,
-                  rectificationTime: rectificationTimeInput,
+                  rectificationTime: utcRectTime,
                   durationText: calcDurationText(rectifyingRecord.failureTime, rectificationTimeInput),
                   status: "RECTIFIED",
                   formData: updatedFormData,
@@ -2695,22 +2706,21 @@ function CategoryFaultsPageView({
     return formatDate24(dateStr);
   };
 
-  const toLocalDateTimeValue = (date: Date) => {
-    const tzoffset = date.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, -1);
-    return localISOTime.substring(0, 16);
-  };
-
   const formatDateTimeInput = (dateStr?: string) => {
     if (!dateStr) return "";
-    const d = new Date(dateStr);
+    const hasOffset = dateStr.includes("Z") || /\+\d{2}:?\d{2}$/.test(dateStr) || /-\d{2}:?\d{2}$/.test(dateStr);
+    const resolvedStr = hasOffset ? dateStr : `${dateStr}+05:30`;
+    const d = new Date(resolvedStr);
     return Number.isNaN(d.getTime()) ? "" : toLocalDateTimeValue(d);
   };
 
   const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
     if (!failureTime || !rectificationTime) return "";
-    const start = new Date(failureTime);
-    const end = new Date(rectificationTime);
+    const startStr = toUTCFromISTString(failureTime);
+    const endStr = toUTCFromISTString(rectificationTime);
+    const start = startStr ? new Date(startStr) : null;
+    const end = endStr ? new Date(endStr) : null;
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
     const diffMs = end.getTime() - start.getTime();
     if (diffMs <= 0) return "0 mins";
     const diffMins = Math.round(diffMs / 60000);
@@ -2724,9 +2734,11 @@ function CategoryFaultsPageView({
 
   const getDurationText = (failureTime?: string, rectificationTime?: string) => {
     if (!failureTime) return "-";
-    const start = new Date(failureTime);
-    if (Number.isNaN(start.getTime())) return "-";
-    const end = rectificationTime ? new Date(rectificationTime) : new Date();
+    const startStr = toUTCFromISTString(failureTime);
+    const endStr = rectificationTime ? toUTCFromISTString(rectificationTime) : new Date().toISOString();
+    const start = startStr ? new Date(startStr) : null;
+    const end = endStr ? new Date(endStr) : null;
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
     const diffMs = end.getTime() - start.getTime();
     if (diffMs <= 0) return "0m";
 
@@ -2760,10 +2772,6 @@ function CategoryFaultsPageView({
     }
   });
 
-  const toDateValue = (date = new Date()) => {
-    const offset = date.getTimezoneOffset();
-    return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
-  };
   const todayStr = toDateValue(new Date());
 
   const records = (faultsQuery.data?.data || []).filter((r: any) => {
@@ -3103,16 +3111,17 @@ function CategoryFaultsPageView({
                 return;
               }
 
+              const utcRectTime = toUTCFromISTString(rectificationTimeInput);
               const updatedFormData = {
                 ...(rectifyingRecord.formData || {}),
-                rectificationTime: rectificationTimeInput,
+                rectificationTime: utcRectTime,
               };
 
               updateMutation.mutate({
                 id: rectifyingRecord.id,
                 body: {
                   ...rectifyingRecord,
-                  rectificationTime: rectificationTimeInput,
+                  rectificationTime: utcRectTime,
                   durationText: calcDurationText(rectifyingRecord.failureTime, rectificationTimeInput),
                   status: "RECTIFIED",
                   formData: updatedFormData,
@@ -3215,6 +3224,135 @@ function DailyPositionCategoryPanel({
             </div>
           );
         })}
+      </div>
+    </article>
+  );
+}
+
+function LatestUpdatesWidget({ showToast }: { showToast: (msg: string) => void }) {
+  const announcementsQuery = useQuery({
+    queryKey: ["latest-announcements-list"],
+    queryFn: () => api.announcements.list().then((res: any) => res.data || []),
+    staleTime: 60 * 1000,
+  });
+
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+
+  const announcements = announcementsQuery.data || [];
+  const isLoading = announcementsQuery.isLoading;
+
+  const getCategoryBadgeColor = (cat: string) => {
+    switch (cat) {
+      case "Alert":
+        return { bg: "#fee2e2", text: "#b91c1c", border: "#fecaca" };
+      case "Maintenance":
+        return { bg: "#fef3c7", text: "#d97706", border: "#fde68a" };
+      case "System Update":
+        return { bg: "#dbeafe", text: "#1d4ed8", border: "#bfdbfe" };
+      default:
+        return { bg: "#f1f5f9", text: "#475569", border: "#e2e8f0" };
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <article className="panel latest-updates-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Latest Updates</h3>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingRight: 4 }}>
+        {isLoading && announcements.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: "13px" }}>Loading updates...</div>
+        ) : announcements.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: "13px" }}>No recent updates from administration.</div>
+        ) : (
+          announcements.map((a: any) => {
+            const colors = getCategoryBadgeColor(a.category);
+            const isExpanded = !!expandedIds[a.id];
+            const isLongText = a.content.length > 60;
+
+            return (
+              <div 
+                key={a.id} 
+                style={{ 
+                  display: "flex", 
+                  gap: "12px", 
+                  padding: "12px", 
+                  borderRadius: "8px", 
+                  border: "1px solid #f1f5f9", 
+                  background: "#fafafa" 
+                }}
+              >
+                {a.imageUrl && (
+                  <div style={{ width: "64px", height: "52px", borderRadius: "6px", overflow: "hidden", flexShrink: 0 }}>
+                    <img src={a.imageUrl} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                )}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <span 
+                      style={{ 
+                        fontSize: "9.5px", 
+                        fontWeight: 700, 
+                        padding: "1px 6px", 
+                        borderRadius: "10px", 
+                        background: colors.bg, 
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`
+                      }}
+                    >
+                      {a.category}
+                    </span>
+                    <span style={{ fontSize: "10.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "2px" }}>
+                      <Calendar size={10} /> {formatDateTime24(a.createdAt)}
+                    </span>
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 700, color: "#0f172a", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                    {a.title}
+                  </h4>
+                  <p style={isExpanded ? {
+                    margin: 0,
+                    fontSize: "12px",
+                    color: "#475569",
+                    lineHeight: 1.4,
+                    whiteSpace: "pre-wrap"
+                  } : {
+                    margin: 0,
+                    fontSize: "12px",
+                    color: "#475569",
+                    lineHeight: 1.4,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden"
+                  }}>
+                    {a.content}
+                  </p>
+                  {isLongText && (
+                    <button
+                      onClick={() => toggleExpand(a.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#2563eb",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        padding: 0,
+                        cursor: "pointer",
+                        alignSelf: "flex-start",
+                        marginTop: "2px",
+                        textDecoration: "underline"
+                      }}
+                    >
+                      {isExpanded ? "View Less" : "View Full"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </article>
   );
@@ -3420,7 +3558,7 @@ function WalkieTalkieDivisionPanel({
   summary?: any;
   onCategoryClick?: (categoryName: string) => void;
 }) {
-  const { division: userDivision } = useAppStore();
+  const { division: userDivision, role } = useAppStore();
 
   const normalizeDiv = (divName?: string) => {
     if (!divName) return "Others";
@@ -3431,12 +3569,13 @@ function WalkieTalkieDivisionPanel({
     return "Others";
   };
 
+  const isMultiDivViewer = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
   const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
-  const allDivisions = summary?.divisions || [];
+  const allDivisions = summary?.walkieTalkieDivisions || [];
 
-  const divisions = normalizedUserDiv && ["Raipur", "Bilaspur", "Nagpur"].includes(normalizedUserDiv)
-    ? allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv)
-    : allDivisions;
+  const divisions = isMultiDivViewer || !normalizedUserDiv
+    ? allDivisions
+    : allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv);
 
   const totalDefective = divisions.reduce((sum: number, d: any) => sum + (d.repairing?.pending ?? 0), 0);
 
@@ -3759,7 +3898,11 @@ function DailyPositionDashboardView({
 
       {/* Row 2 (Middle Section): Division Active Faults, Category-wise Fault, & Weekly Trends */}
       <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: 0 }}>
-        <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+        {userDivision ? (
+          <LatestUpdatesWidget showToast={showToast} />
+        ) : (
+          <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+        )}
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionTrendsPanel
           weeklyTrend={data.weeklyFaultsTrend || []}
@@ -3769,7 +3912,7 @@ function DailyPositionDashboardView({
 
       {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0, flex: 1, minHeight: 0 }}>
-        <WalkieTalkieDivisionPanel summary={data.walkieTalkieSummary} onCategoryClick={onCategoryClick} />
+        <WalkieTalkieDivisionPanel summary={data} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
@@ -5613,6 +5756,258 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
         </div>
       )}
     </article>
+  );
+}
+
+
+function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string) => void }) {
+  const [lobbies, setLobbies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { role } = useAppStore();
+  const isNonDivisional = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
+
+  // Form states
+  const [isLobbyModalOpen, setIsLobbyModalOpen] = useState(false);
+  const [lobbyName, setLobbyName] = useState("");
+  const [totalWalkieTalkies, setTotalWalkieTalkies] = useState<number | "">("");
+  const [lobbyDivision, setLobbyDivision] = useState("Raipur");
+  const [editingLobbyId, setEditingLobbyId] = useState<string | null>(null);
+
+  const [faultCounts, setFaultCounts] = useState<Record<string, number>>({});
+
+  const fetchLobbies = async () => {
+    try {
+      setIsLoading(true);
+      const [lobbiesRes, faultsRes] = await Promise.all([
+        api.walkieTalkie.listLobbies(),
+        api.dailyPosition.list({ limit: 500, isFaulty: "true" }).catch(() => ({ data: [] }))
+      ]);
+      if (lobbiesRes.success) setLobbies(lobbiesRes.data);
+      // Count active (non-rectified) faults per lobby
+      const counts: Record<string, number> = {};
+      const faults = (faultsRes as any).data || [];
+      for (const r of faults) {
+        if (r.formType !== "Walkie-Talkie Testing") continue;
+        const lobbyKey = (r.stationCode || r.formData?.stationLobby || "").toLowerCase().trim();
+        if (!lobbyKey) continue;
+        counts[lobbyKey] = (counts[lobbyKey] || 0) + 1;
+      }
+      setFaultCounts(counts);
+    } catch (err: any) {
+      showToast(err.message || "Failed to fetch lobbies");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLobbies(); }, []);
+
+  const handleOpenAddModal = () => {
+    setLobbyName("");
+    setTotalWalkieTalkies("");
+    setLobbyDivision("Raipur");
+    setEditingLobbyId(null);
+    setIsLobbyModalOpen(true);
+  };
+
+  const handleOpenEditModal = (lobby: any) => {
+    setLobbyName(lobby.lobbyName);
+    setTotalWalkieTalkies(lobby.totalWalkieTalkies);
+    setLobbyDivision(lobby.division || "Raipur");
+    setEditingLobbyId(lobby.id);
+    setIsLobbyModalOpen(true);
+  };
+
+  const handleSaveLobby = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lobbyName.trim() || totalWalkieTalkies === "") {
+      showToast("Lobby name and total count are required");
+      return;
+    }
+    try {
+      const res = await api.walkieTalkie.upsertLobby({
+        lobbyName: lobbyName.trim(),
+        totalWalkieTalkies: Number(totalWalkieTalkies),
+        division: lobbyDivision,
+      });
+      if (res.success) {
+        showToast(editingLobbyId ? "Lobby updated successfully" : "Lobby created successfully");
+        setIsLobbyModalOpen(false);
+        fetchLobbies();
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to save lobby");
+    }
+  };
+
+  const handleDeleteLobby = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this lobby?")) return;
+    try {
+      const res = await api.walkieTalkie.deleteLobby(id);
+      if (res.success) {
+        showToast("Lobby deleted successfully");
+        fetchLobbies();
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete lobby");
+    }
+  };
+
+  return (
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Page Header */}
+      <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
+          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: "14px" }}>Manage walkie-talkie inventory counts per lobby. Lobby names appear as a dropdown in the Walkie-Talkie Testing form.</p>
+        </div>
+        <button className="export-button" onClick={handleOpenAddModal} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Plus size={16} /> Add New Lobby
+        </button>
+      </div>
+
+      {/* Inventory Table */}
+      <div className="panel" style={{ padding: "20px" }}>
+        <h3 style={{ margin: "0 0 15px", fontSize: "16px", color: "var(--navy)", fontWeight: 600 }}>Lobby Inventory Status</h3>
+        {isLoading && lobbies.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>Loading lobbies data...</div>
+        ) : lobbies.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>
+            No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
+          </div>
+        ) : (
+          <div className="table-scroll-container" style={{ overflow: "auto" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "60px" }}>#</th>
+                  <th>Lobby Name</th>
+                  {isNonDivisional && <th>Division</th>}
+                  <th style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
+                  <th style={{ textAlign: "center" }}>Tested Count</th>
+                  <th style={{ textAlign: "center" }}>To Be Tested</th>
+                  <th style={{ textAlign: "center" }}>Active Faults</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lobbies.map((l, idx) => {
+                  const toBeTested = l.totalWalkieTalkies - l.testedCount;
+                  return (
+                    <tr key={l.id}>
+                      <td>{idx + 1}</td>
+                      <td><strong>{l.lobbyName}</strong></td>
+                      {isNonDivisional && (
+                        <td>
+                          <span className="pill info" style={{ fontWeight: 600, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
+                            {l.division}
+                          </span>
+                        </td>
+                      )}
+                      <td style={{ textAlign: "center" }}>
+                        <span className="pill info" style={{ fontWeight: 600 }}>{l.totalWalkieTalkies}</span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className="pill success" style={{ fontWeight: 600 }}>{l.testedCount}</span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600 }}>
+                          {toBeTested}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {(() => {
+                          const faultKey = l.lobbyName.toLowerCase().trim();
+                          const faultNum = faultCounts[faultKey] || 0;
+                          return faultNum > 0 ? (
+                            <span className="pill danger" style={{ fontWeight: 700, background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }}>
+                              {faultNum} Fault{faultNum > 1 ? "s" : ""}
+                            </span>
+                          ) : (
+                            <span className="pill success" style={{ fontWeight: 600 }}>None</span>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button className="action-btn text-blue" onClick={() => handleOpenEditModal(l)} style={{ marginRight: 8 }}>Edit</button>
+                        <button className="action-btn text-red" onClick={() => handleDeleteLobby(l.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Add / Edit Lobby Modal */}
+      {isLobbyModalOpen && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+          <div className="modal-card" style={{ width: "450px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
+                {editingLobbyId ? "Edit Lobby" : "Add Walkie-Talkie Lobby"}
+              </h3>
+              <button onClick={() => setIsLobbyModalOpen(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveLobby} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
+                  Lobby / Station Name <span style={{ color: "var(--red)" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={lobbyName}
+                  onChange={(e) => setLobbyName(e.target.value)}
+                  placeholder="e.g. Bilaspur Crew Lobby"
+                  required
+                  disabled={!!editingLobbyId}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: editingLobbyId ? "#f8fafc" : "#fff" }}
+                />
+                {editingLobbyId && (
+                  <small style={{ color: "var(--muted)" }}>Lobby name cannot be changed after creation.</small>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
+                  Total Walkie-Talkies <span style={{ color: "var(--red)" }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  value={totalWalkieTalkies}
+                  onChange={(e) => setTotalWalkieTalkies(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="e.g. 100"
+                  required
+                  min="0"
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
+                  Division <span style={{ color: "var(--red)" }}>*</span>
+                </label>
+                <select
+                  value={lobbyDivision}
+                  onChange={(e) => setLobbyDivision(e.target.value)}
+                  required
+                  disabled={!isNonDivisional}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: !isNonDivisional ? "#f8fafc" : "#fff", cursor: !isNonDivisional ? "not-allowed" : "pointer" }}
+                >
+                  <option value="Raipur">Raipur</option>
+                  <option value="Bilaspur">Bilaspur</option>
+                  <option value="Nagpur">Nagpur</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "5px" }}>
+                <button type="button" className="export-button" onClick={() => setIsLobbyModalOpen(false)} style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)" }}>Cancel</button>
+                <button type="submit" className="export-button" style={{ background: "var(--blue)", color: "#fff", borderColor: "var(--blue)" }}>Save Lobby</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

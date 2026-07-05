@@ -27,7 +27,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   // Fetch dashboard stats, active faults, and weekly records in parallel
   const [statsRes, activeFaultsRes, weeklyRecordsRes] = await Promise.all([
     api.reports.dashboard(division),
-    api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 200 }).catch(() => ({ data: [] })),
+    api.dailyPosition.list({ division: division || "", isFaulty: "true", limit: 500 }).catch(() => ({ data: [] })),
     api.dailyPosition.list({ division: division || "", dateFrom: sevenDaysAgoStr, limit: 1000 }).catch(() => ({ data: [] }))
   ]);
 
@@ -515,6 +515,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     weeklyFaultsTrend,
     dailyFaultsTrend,
     activeFaultsByDivision,
-    walkieTalkieSummary
+    walkieTalkieSummary,
+    walkieTalkieDivisions: stats.walkieTalkieDivisions || []
   };
 }

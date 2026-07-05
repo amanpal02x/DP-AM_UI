@@ -133,4 +133,5 @@ export interface DashboardSummary {
       } | null;
     }>;
   };
+  walkieTalkieDivisions?: any[];
 }

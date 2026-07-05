@@ -196,7 +196,21 @@ export const api = {
     create: (body: any) => request<ApiResponse<any>>("POST", "/api/feedback", body),
     list: () => request<ApiResponse<any[]>>("GET", "/api/feedback"),
   },
+  walkieTalkie: {
+    listLobbies: () => request<ApiResponse<any[]>>("GET", "/api/walkie-talkie"),
+    upsertLobby: (body: { lobbyName: string; totalWalkieTalkies: number; division?: string }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie", body),
+    recordTest: (body: { lobbyId: string; count?: number }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/test", body),
+    resetTesting: (lobbyId: string) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/reset", { lobbyId }),
+    deleteLobby: (id: string) => request<ApiResponse<any>>("DELETE", `/api/walkie-talkie/${id}`),
+  },
+  announcements: {
+    list: () => request<ApiResponse<any[]>>("GET", "/api/announcements"),
+    create: (body: any) => request<ApiResponse<any>>("POST", "/api/announcements", body),
+    update: (id: string, body: any) => request<ApiResponse<any>>("PUT", `/api/announcements/${id}`, body),
+    delete: (id: string) => request<ApiResponse<any>>("DELETE", `/api/announcements/${id}`),
+  },
   settings: {
     auditLogs: () => request<ApiResponse<any[]>>("GET", "/api/reports/audit-logs"),
   },
 };
+

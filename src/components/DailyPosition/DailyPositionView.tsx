@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar } from "lucide-react";
 import { api } from "../../api/apiClient";
-import { formatDate24, formatDateTime24, formatTime24 } from "../../utils/dateTime";
+import { formatDate24, formatDateTime24, formatTime24, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
 import {
   DAILY_POSITION_CATEGORIES,
@@ -23,27 +23,22 @@ type DailyPositionViewProps = {
   showToast: (message: string) => void;
 };
 
-const toDateValue = (date = new Date()) => {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
-};
-
-const toLocalDateTimeValue = (date = new Date()) => {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
-};
-
 const formatDateTimeInput = (value?: string | null) => {
   if (!value) return "";
-  const date = new Date(value);
+  // Check if value already has timezone/offset info, if not assume IST
+  const hasOffset = value.includes("Z") || /\+\d{2}:?\d{2}$/.test(value) || /-\d{2}:?\d{2}$/.test(value);
+  const dateStr = hasOffset ? value : `${value}+05:30`;
+  const date = new Date(dateStr);
   return Number.isNaN(date.getTime()) ? "" : toLocalDateTimeValue(date);
 };
 
-const calcDurationText = (failureTime?: string, rectificationTime?: string) => {
+const calcDurationText = (failureTime?: string | null, rectificationTime?: string | null) => {
   if (!failureTime || !rectificationTime) return "";
-  const start = new Date(failureTime);
-  const end = new Date(rectificationTime);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  const startStr = toUTCFromISTString(failureTime);
+  const endStr = toUTCFromISTString(rectificationTime);
+  const start = startStr ? new Date(startStr) : null;
+  const end = endStr ? new Date(endStr) : null;
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
   const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -717,7 +712,185 @@ function SearchableDropdown({
   );
 }
 
+function WalkieTalkieSerialSelect({
+  field,
+  value,
+  setValue,
+  values,
+  readOnly,
+}: {
+  field: DailyPositionField;
+  value: any;
+  setValue: (name: string, val: any) => void;
+  values: Record<string, any>;
+  readOnly: boolean;
+}) {
+  const faultsQuery = useQuery({
+    queryKey: ["daily-position-active-faults"],
+    queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }).then((res: any) => res.data || []),
+    staleTime: 5000,
+  });
+
+  const activeFaults = faultsQuery.data || [];
+  const selectedLobby = values.stationCode || "";
+
+  // Get active faulty serial numbers for the selected lobby/stationCode
+  const serials = activeFaults
+    .filter((r: any) => 
+      r.formType === "Walkie-Talkie Testing" && 
+      (r.stationCode || "").toLowerCase().trim() === selectedLobby.toLowerCase().trim() &&
+      r.formData?.serialNo
+    )
+    .map((r: any) => r.formData.serialNo);
+
+  // De-duplicate serial numbers
+  const uniqueSerials = Array.from(new Set(serials));
+
+  const isLoading = faultsQuery.isLoading;
+
+  return (
+    <div className="dp-field">
+      <label>
+        {field.label}
+        {field.required && <span>*</span>}
+      </label>
+      <select
+        value={value || ""}
+        onChange={e => setValue(field.name, e.target.value)}
+        disabled={readOnly || isLoading || !selectedLobby}
+        required={field.required}
+        style={{
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "1px solid #cbd5e1",
+          fontSize: "14px",
+          background: readOnly || !selectedLobby ? "#f8fafc" : "#fff",
+          color: value ? "#1e293b" : "#94a3b8",
+          cursor: readOnly || !selectedLobby ? "not-allowed" : "pointer",
+        }}
+      >
+        <option value="" disabled>
+          {!selectedLobby 
+            ? "Please select Station / Lobby first" 
+            : isLoading 
+              ? "Loading serial numbers..." 
+              : uniqueSerials.length === 0 
+                ? "No faulty serial numbers found" 
+                : (field.placeholder || "Select Serial Number")}
+        </option>
+        {uniqueSerials.map((s: any) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function WalkieTalkieLobbySelect({
+  field,
+  value,
+  setValue,
+  readOnly,
+}: {
+  field: DailyPositionField;
+  value: any;
+  setValue: (name: string, val: any) => void;
+  readOnly: boolean;
+}) {
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-select"],
+    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
+    staleTime: 5000,
+  });
+
+  const faultsQuery = useQuery({
+    queryKey: ["daily-position-active-faults"],
+    queryFn: () => api.dailyPosition.list({ limit: 500, isFaulty: "true" }).then((res: any) => res.data || []),
+    staleTime: 5000,
+  });
+
+  const lobbies = lobbiesQuery.data || [];
+  const activeFaults = faultsQuery.data || [];
+  const isLoadingLobbies = lobbiesQuery.isLoading || faultsQuery.isLoading;
+
+  const getFaultCount = (lobbyName: string) => {
+    return activeFaults.filter((r: any) => 
+      r.formType === "Walkie-Talkie Testing" && 
+      (r.stationCode || "").toLowerCase().trim() === lobbyName.toLowerCase().trim()
+    ).length;
+  };
+
+  const handleChange = (lobbyName: string) => {
+    setValue(field.name, lobbyName);
+    const lobby = lobbies.find((l: any) => l.lobbyName === lobbyName);
+    if (lobby) {
+      if (field.name === "stationLobby") {
+        setValue("toBeTestedCount", lobby.totalWalkieTalkies);
+        setValue("testedCount", lobby.testedCount);
+      } else if (field.name === "stationCode") {
+        setValue("openingDefective", getFaultCount(lobbyName));
+      }
+    }
+  };
+
+  // Sync effect when lobbies or faults data changes
+  useEffect(() => {
+    if (value && lobbies.length > 0) {
+      const lobby = lobbies.find((l: any) => l.lobbyName === value);
+      if (lobby) {
+        if (field.name === "stationLobby") {
+          setValue("toBeTestedCount", lobby.totalWalkieTalkies);
+          setValue("testedCount", lobby.testedCount);
+        } else if (field.name === "stationCode") {
+          setValue("openingDefective", getFaultCount(value));
+        }
+      }
+    }
+  }, [lobbies, activeFaults, value, field.name, setValue]);
+
+  return (
+    <div className="dp-field">
+      <label>
+        {field.label}
+        {field.required && <span>*</span>}
+      </label>
+      <select
+        value={value || ""}
+        onChange={e => handleChange(e.target.value)}
+        disabled={readOnly || isLoadingLobbies}
+        required={field.required}
+        style={{
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "1px solid #cbd5e1",
+          fontSize: "14px",
+          background: readOnly ? "#f8fafc" : "#fff",
+          color: value ? "#1e293b" : "#94a3b8",
+          cursor: readOnly ? "not-allowed" : "pointer",
+        }}
+      >
+        <option value="" disabled>
+          {isLoadingLobbies ? "Loading lobbies..." : (field.placeholder || "Select Station / Lobby")}
+        </option>
+        {lobbies.map((l: any) => {
+          const faultCount = getFaultCount(l.lobbyName);
+          const displayText = field.name === "stationCode"
+            ? `${l.lobbyName} (${faultCount} fault${faultCount !== 1 ? "s" : ""})`
+            : `${l.lobbyName} (${l.totalWalkieTalkies} sets)`;
+          return (
+            <option key={l.id} value={l.lobbyName}>
+              {displayText}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+}
 function DailyPositionFieldInput({
+
   field,
   value,
   values,
@@ -1388,6 +1561,17 @@ function DailyPositionFieldInput({
   }
 
   if (field.name === "stationCode") {
+    if (formName === "Walkie-Talkie Repairing") {
+      return (
+        <WalkieTalkieLobbySelect
+          field={field}
+          value={value}
+          setValue={setValue}
+          readOnly={readOnly}
+        />
+      );
+    }
+
     if (formName === "CFTM Conference") {
       let customOptions: string[] = [];
       if (selectedDivision === "Bilaspur") {
@@ -2097,7 +2281,8 @@ function DailyPositionFieldInput({
   if (field.name === "balanceWalkieTalkies") {
     const total = Number(values.toBeTestedCount || 0);
     const tested = Number(values.testedCount || 0);
-    const balance = Math.max(0, total - tested);
+    const newlyTested = Number(values.newTestedCount || 0);
+    const balance = Math.max(0, total - (tested + newlyTested));
     return (
       <div className="dp-field">
         <label>{field.label}</label>
@@ -2143,6 +2328,31 @@ function DailyPositionFieldInput({
     );
   }
 
+
+  // Walkie-Talkie lobby dropdown - fetches from API
+  if (field.name === "stationLobby" || (formName === "Walkie-Talkie Repairing" && field.name === "stationCode")) {
+    return (
+      <WalkieTalkieLobbySelect
+        field={field}
+        value={value}
+        setValue={setValue}
+        readOnly={readOnly}
+      />
+    );
+  }
+
+  if (field.type === "walkieTalkieSerialSelect") {
+    return (
+      <WalkieTalkieSerialSelect
+        field={field}
+        value={value}
+        setValue={setValue}
+        values={values}
+        readOnly={readOnly}
+      />
+    );
+  }
+
   const commonProps = {
     disabled: readOnly || field.readonly,
     required: field.required,
@@ -2158,8 +2368,10 @@ function DailyPositionFieldInput({
     maxProps.max = toLocalDateTimeValue(new Date());
   }
 
+
   return (
     <div className={`dp-field ${field.fullWidth ? "full" : ""}`}>
+
       <label>
         {field.label}
         {field.type === "datetime-local" && field.name !== "lastTestingTime" && !/date|time/i.test(field.label) && (
@@ -2261,6 +2473,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [isOkHovered, setIsOkHovered] = useState(false);
+  const [walkieTalkieMode, setWalkieTalkieMode] = useState<"testing" | "fault">("testing");
 
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
@@ -2328,6 +2541,59 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         }
         continue;
       }
+      // Exclude stationLobby (Testing) or stationCode (Repairing) as they are rendered separately in the top-bar header layout
+      if (selectedForm?.name === "Walkie-Talkie Testing" && field.name === "stationLobby") {
+        continue;
+      }
+      if (selectedForm?.name === "Walkie-Talkie Repairing" && field.name === "stationCode") {
+        continue;
+      }
+
+      // Exclude read-only/pre-filled fields already present in the stats cards above (Total & Balance)
+      if (selectedForm?.name === "Walkie-Talkie Testing" && (field.name === "toBeTestedCount" || field.name === "balanceWalkieTalkies")) {
+        continue;
+      }
+      if (selectedForm?.name === "Walkie-Talkie Repairing" && (field.name === "openingDefective" || field.name === "pendingRepair" || field.name === "receivedFromUser")) {
+        continue;
+      }
+
+      // Handle Walkie-Talkie Testing mode dynamic fields filtering
+      if (selectedForm?.name === "Walkie-Talkie Testing") {
+        if (walkieTalkieMode === "testing") {
+          // Show only newTestedCount and testDate in testing mode
+          if (field.name !== "newTestedCount" && field.name !== "testDate") {
+            // Dynamically inject newTestedCount field definition so it doesn't conflict with testedCount database status
+            if (field.name === "testedCount") {
+              list.push({
+                name: "newTestedCount",
+                label: "Total walkie-talkies tested",
+                type: "number",
+                required: true,
+                placeholder: "Total count tested"
+              });
+            }
+            continue;
+          }
+        } else if (walkieTalkieMode === "fault") {
+          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount.
+          if (field.name === "testedCount") {
+            continue;
+          }
+          // Inject a Date & Time of Fault field right after testDate
+          if (field.name === "testDate") {
+            list.push(field); // push testDate first
+            list.push({
+              name: "failureTime",
+              label: "Date & Time of Fault",
+              type: "datetime-local",
+              required: true,
+              placeholder: "Select date and time when fault occurred"
+            });
+            continue; // skip default push below, already pushed
+          }
+        }
+      }
+
       list.push(field);
       if (field.name !== "reason" && field.type === "select" && (values[field.name] === "Other" || values[field.name] === "Others")) {
         const otherFieldName = `${field.name}Other`;
@@ -2344,7 +2610,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     }
     return list;
-  }, [activeFields, values]);
+  }, [activeFields, values, selectedForm, walkieTalkieMode]);
 
   useEffect(() => {
     if (selectedForm?.name === "Railnet / Internet") {
@@ -2457,6 +2723,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       queryClient.invalidateQueries({ queryKey: ["daily-position-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
       
       const isAllOk = variables?.formData?.actionType === "OK";
       
@@ -2503,6 +2770,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
       queryClient.invalidateQueries({ queryKey: ["daily-position-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
       
       setSuccessModal({
         message: <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>,
@@ -2668,10 +2936,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         next.balanceTemporaryJoints = Math.max(0, total - rectified);
       }
 
-      if (name === "toBeTestedCount" || name === "testedCount") {
+      if (name === "toBeTestedCount" || name === "testedCount" || name === "newTestedCount") {
         const total = Number(next.toBeTestedCount || 0);
         const tested = Number(next.testedCount || 0);
-        next.balanceWalkieTalkies = Math.max(0, total - tested);
+        const newlyTested = Number(next.newTestedCount || 0);
+        next.balanceWalkieTalkies = Math.max(0, total - (tested + newlyTested));
       }
 
       if (name === "openingDefective" || name === "receivedFromUser" || name === "returnedToUser" || name === "setsCondemned") {
@@ -2702,6 +2971,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     const isOk = actionType === "OK";
     const isDraft = actionType === "DRAFT";
     const editingRecord = editingRecordId ? records.find((r: any) => r.id === editingRecordId) : null;
+
+    // Convert datetime-local fields to UTC ISO
+    const processedValues = { ...values };
+    activeFields.forEach((field) => {
+      if (field.type === "datetime-local" && processedValues[field.name]) {
+        processedValues[field.name] = toUTCFromISTString(processedValues[field.name]);
+      }
+    });
+
+    if (selectedForm.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") {
+      // Map the input count to testedCount before sending to the backend controller
+      processedValues.testedCount = Number(processedValues.newTestedCount || 0);
+    }
+
     return {
       division: selectedDivision,
       category: selectedForm.category,
@@ -2709,19 +2992,19 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       systemCode: selectedForm.systemCode,
       majorSection: values.majorSection || null,
       section: values.section || null,
-      stationCode: values.stationCode || null,
-      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline") ? (values.stationCode || null) : (station?.name || null)),
+      stationCode: selectedForm.name === "Walkie-Talkie Testing" ? (values.stationLobby || null) : (values.stationCode || null),
+      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline" || selectedForm.name === "Walkie-Talkie Testing") ? (values.stationCode || values.stationLobby || null) : (station?.name || null)),
       assetId: values.assetId || null,
       telecomAsset: selectedForm.name,
-      status: isDraft ? "DRAFT" : (isOk ? "All Ok" : statusFromForm(selectedForm, values)),
-      failureTime: isOk ? null : (values.failureTime || null),
-      rectificationTime: isOk ? null : (values.rectificationTime || null),
-      durationText: isOk ? null : calcDurationText(values.failureTime, values.rectificationTime),
+      status: isDraft ? "DRAFT" : (isOk ? "All Ok" : statusFromForm(selectedForm, processedValues)),
+      failureTime: isOk ? null : (processedValues.failureTime || null),
+      rectificationTime: isOk ? null : (processedValues.rectificationTime || null),
+      durationText: isOk ? null : calcDurationText(processedValues.failureTime, processedValues.rectificationTime),
       reason: isOk ? "All OK" : (values.reason || null),
       remarks: values.remarks || null,
       date: editingRecord ? (editingRecord.date || selectedDate) : selectedDate,
       formData: {
-        ...values,
+        ...processedValues,
         actionType,
         checkedAt: new Date().toISOString(),
         ...(selectedForm.name === "Low Insulation" ? { quadReadings } : {}),
@@ -2826,8 +3109,63 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const handleSaveAndNext = async () => {
     if (!canFill || !selectedForm) return;
 
+    // Special submit logic for Walkie-Talkie Testing in Testing Report mode:
+    // It is a direct submission, not standard draft record compilation
+    if (selectedForm.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") {
+      setIsSavingAndNext(true);
+      try {
+        // stationLobby is rendered separately (not in visibleActiveFields), validate explicitly
+        if (!values.stationLobby) {
+          showToast("Please select a Station / Lobby before submitting.");
+          setIsSavingAndNext(false);
+          return;
+        }
+        // Validate remaining required fields
+        for (const field of visibleActiveFields) {
+          if (field.required && !values[field.name]) {
+            showToast(`Please fill in all required fields.`);
+            setIsSavingAndNext(false);
+            return;
+          }
+        }
+        const payload = buildPayload("OK"); // Saved as OPERATIONAL by backend controller logic mapping
+        await api.dailyPosition.create(payload);
+        showToast("Testing report submitted successfully.");
+        // Refresh lobby stats bar so Tested Sets & Balance update immediately
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
+        
+        // Show success modal
+        setSuccessModal({
+          message: (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
+              <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+            </div>
+          ),
+          onOk: () => {
+            setSuccessModal(null);
+            resetForm();
+            setEditingRecordId(null);
+            moveToNextForm();
+          }
+        });
+      } catch (err: any) {
+        showToast(err.message || "Failed to submit testing report.");
+      } finally {
+        setIsSavingAndNext(false);
+      }
+      return;
+    }
+
     const drafts = records.filter(r => r.formType === selectedForm.name && r.status === "DRAFT");
     const isEmpty = isFormEmpty();
+
+    // For Walkie-Talkie Testing, lobby must be selected before any submission (testing or fault mode)
+    if (selectedForm.name === "Walkie-Talkie Testing" && !values.stationLobby) {
+      showToast("Please select a Station / Lobby before submitting.");
+      return;
+    }
+
     if (drafts.length === 0 && isEmpty) {
       showToast("Please add at least one record or fill in the form before submitting.");
       return;
@@ -2838,6 +3176,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       const allDraftsToSubmit = [...drafts];
 
       if (!isEmpty) {
+        // stationLobby is rendered separately (not in visibleActiveFields), validate explicitly for all WT modes
+        if (selectedForm.name === "Walkie-Talkie Testing" && !values.stationLobby) {
+          showToast("Please select a Station / Lobby before submitting.");
+          setIsSavingAndNext(false);
+          return;
+        }
         // Validate current form fields (visible fields only)
         for (const field of visibleActiveFields) {
           if (field.required && !values[field.name]) {
@@ -2925,6 +3269,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      // Refresh lobby stats bar so Tested Sets & Balance reflect the submitted fault
+      queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
 
       // Show success modal
       setSuccessModal({
@@ -3003,6 +3349,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     if (selectedForm?.name === "Railnet / Internet") {
       setValues({ maintenanceType: "Divisional Maintenance" });
       setMaintenanceType("Divisional");
+    } else if (selectedForm?.name === "Walkie-Talkie Testing") {
+      // Preserve the selected stationLobby so the user can see updated values
+      const currentLobby = values.stationLobby;
+      const currentTotal = values.toBeTestedCount;
+      setValues({
+        stationLobby: currentLobby,
+        toBeTestedCount: currentTotal
+      });
     } else {
       setValues({});
     }
@@ -3294,8 +3648,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       </td>
                       <td>{record.stationCode || record.stationName || record.section || (isAllOk ? "" : "-")}</td>
                       <td><span className={`pill status-${isAllOk ? "All Ok" : String(record.status || "").toLowerCase()}`}>{isAllOk ? "All Ok" : record.status}</span></td>
-                      <td>{record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : (isAllOk ? "" : "-")}</td>
-                      <td>{record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : (isAllOk ? "" : "-")}</td>
+                      <td>{isAllOk ? "" : (record.failureTime ? (isTodayRecord(record) ? formatTime24(record.failureTime) : `${formatDate24(record.failureTime)} ${formatTime24(record.failureTime)}`) : "-")}</td>
+                      <td>{isAllOk ? "" : (record.rectificationTime ? (isTodayRecord(record) ? formatTime24(record.rectificationTime) : `${formatDate24(record.rectificationTime)} ${formatTime24(record.rectificationTime)}`) : "-")}</td>
                       <td>
                         {(() => {
                           const text = record.remarks || record.reason || (isAllOk ? "" : "-");
@@ -3506,6 +3860,135 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
 
 
+                {(selectedForm?.name === "Walkie-Talkie Testing" || selectedForm?.name === "Walkie-Talkie Repairing") && (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 0.90fr 0.90fr 0.90fr",
+                    gap: "12px",
+                    marginBottom: "20px",
+                    background: "var(--light)",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border)",
+                    alignItems: "center"
+                  }}>
+                    {/* Lobby Select Column */}
+                    <div>
+                      {selectedForm.name === "Walkie-Talkie Testing" ? (
+                        <DailyPositionFieldInput
+                          field={activeFields.find(f => f.name === "stationLobby")!}
+                          value={values.stationLobby}
+                          values={values}
+                          setValue={setValue}
+                          metadata={metadata}
+                          selectedDivision={selectedDivision}
+                          readOnly={!canFill || (isCompletedToday && !editingRecordId)}
+                          formName={selectedForm.name}
+                        />
+                      ) : (
+                        <DailyPositionFieldInput
+                          field={activeFields.find(f => f.name === "stationCode")!}
+                          value={values.stationCode}
+                          values={values}
+                          setValue={setValue}
+                          metadata={metadata}
+                          selectedDivision={selectedDivision}
+                          readOnly={!canFill || (isCompletedToday && !editingRecordId)}
+                          formName={selectedForm.name}
+                        />
+                      )}
+                    </div>
+
+                    {/* Stats Card 1 */}
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Total sets</div>
+                      <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", marginTop: "2px" }}>
+                        {selectedForm.name === "Walkie-Talkie Testing" ? (values.toBeTestedCount || 0) : (Number(values.openingDefective || 0) + Number(values.receivedFromUser || 0))}
+                      </div>
+                    </div>
+
+                    {/* Stats Card 2 */}
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        {selectedForm.name === "Walkie-Talkie Testing" ? "Tested sets" : "Repaired sets"}
+                      </div>
+                      <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--green)", marginTop: "2px" }}>
+                        {selectedForm.name === "Walkie-Talkie Testing" ? (values.testedCount || 0) : (values.repairedFromFirm || 0)}
+                      </div>
+                    </div>
+
+                    {/* Stats Card 3 */}
+                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        {selectedForm.name === "Walkie-Talkie Testing" ? "Balance for Testing" : "Pending Repair"}
+                      </div>
+                      <div style={{
+                        fontSize: "18px",
+                        fontWeight: 800,
+                        color: (selectedForm.name === "Walkie-Talkie Testing"
+                          ? Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))
+                          : Number(values.pendingRepair || 0)) > 0 ? "var(--amber)" : "var(--green)",
+                        marginTop: "2px"
+                      }}>
+                        {selectedForm.name === "Walkie-Talkie Testing"
+                          ? Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))
+                          : (values.pendingRepair || 0)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedForm?.name === "Walkie-Talkie Testing" && (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "20px",
+                    background: "#f1f5f9",
+                    padding: "4px",
+                    borderRadius: "8px",
+                    width: "fit-content",
+                    border: "1px solid #e2e8f0"
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setWalkieTalkieMode("testing")}
+                      style={{
+                        padding: "6px 16px",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: walkieTalkieMode === "testing" ? "#ffffff" : "transparent",
+                        color: walkieTalkieMode === "testing" ? "var(--blue)" : "#64748b",
+                        boxShadow: walkieTalkieMode === "testing" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      Testing Report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWalkieTalkieMode("fault")}
+                      style={{
+                        padding: "6px 16px",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: walkieTalkieMode === "fault" ? "#ffffff" : "transparent",
+                        color: walkieTalkieMode === "fault" ? "var(--blue)" : "#64748b",
+                        boxShadow: walkieTalkieMode === "fault" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      Fault Report
+                    </button>
+                  </div>
+                )}
+
                 <div className="dp-form-grid">
                   {visibleActiveFields.map(field => (
                     <DailyPositionFieldInput
@@ -3657,7 +4140,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
                 )}
 
-                {canFill && (
+                {canFill && !(selectedForm?.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") && (
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", marginBottom: "16px" }}>
                     <button
                       type="button"
@@ -3683,165 +4166,194 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
                 )}
 
-                <section className="dp-recent-form-records">
-                  <div className="dp-recent-header">
-                    <h3>Recent Submitted Records</h3>
-                    <span>{selectedForm.name}</span>
-                  </div>
-                  <div className="table-scroll-container">
-                    <table className="data-table dp-recent-table">
-                      <thead>
-                        <tr>
-                           {activeFields.filter(f => f.name !== "cableCutByWhomOther").map(field => (
-                            <th key={field.name}>{field.label}</th>
-                          ))}
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {currentFormRecords.map((record: any) => (
-                          <tr
-                            key={record.id}
-                            onClick={() => {
-                              const isDraft = record.status === "DRAFT";
-                              if (isDraft || role === "SUPER_ADMIN") {
-                                startEdit(record);
-                              }
-                            }}
-                            style={{ 
-                              cursor: (record.status === "DRAFT" || role === "SUPER_ADMIN") ? "pointer" : "default" 
-                            }}
-                            title={
-                              record.status === "DRAFT" 
-                                ? "Click to edit draft" 
-                                : (role === "SUPER_ADMIN" ? "Click to edit record" : "")
-                            }
-                            className="dp-recent-row"
-                          >
-                            {activeFields.filter(f => f.name !== "cableCutByWhomOther").map(field => {
-                              let val = record.formData?.[field.name];
-                              if (val === "Other" || val === "Others") {
-                                val = record.formData?.[`${field.name}Other`] || record.formData?.[`${field.name}Others`] || val;
-                              }
-                              if (val === undefined) {
-                                if (field.name === "majorSection") val = record.majorSection;
-                                else if (field.name === "section") val = record.section;
-                                else if (field.name === "stationCode") val = record.stationCode || record.stationName;
-                                else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
-                                else if (field.name === "failureTime") val = record.failureTime ? formatDateTime24(record.failureTime) : "";
-                                else if (field.name === "rectificationTime") val = record.rectificationTime ? formatDateTime24(record.rectificationTime) : "";
-                                else if (field.name === "durationText") val = record.durationText;
-                                else if (field.name === "reason") val = record.reason;
-                                else if (field.name === "remarks") val = record.remarks;
-                              }
-                              if (field.type === "datetime-local" && val) {
-                                try {
-                                  val = formatDateTime24(val);
-                                } catch (e) {}
-                              }
-                              const isRectificationCell = field.name === "rectificationTime";
-                              const isSubmitted = record.status !== "DRAFT";
-                              const isStandardUser = role !== "SUPER_ADMIN";
-                              const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
-                              const isAlreadyRectified = !!record.rectificationTime;
+                {!(selectedForm?.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") && (
+                  <section className="dp-recent-form-records">
+                    <div className="dp-recent-header">
+                      <h3>Recent Submitted Records</h3>
+                      <span>{selectedForm.name}</span>
+                    </div>
+                    <div className="table-scroll-container">
+                      <table className="data-table dp-recent-table">
+                        <thead>
+                          <tr>
+                            {activeFields.filter(f => {
+                              if (f.name === "cableCutByWhomOther") return false;
                               
-                              const handleCellClick = (e: React.MouseEvent) => {
-                                if (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) {
-                                  e.stopPropagation();
-                                  setRectifyingRecord(record);
-                                  setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
-                                }
-                              };
-
-                              return (
-                                <td 
-                                  key={field.name}
-                                  onClick={handleCellClick}
-                                  style={{
-                                    cursor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "pointer" : "inherit",
-                                    backgroundColor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "rgba(16, 185, 129, 0.05)" : "transparent"
-                                  }}
-                                  title={
-                                    (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified)
-                                      ? "Click to rectify fault"
-                                      : undefined
-                                  }
-                                >
-                                  {val !== undefined && val !== null && val !== "" ? String(val) : (isAllOk ? "" : "-")}
-                                </td>
+                              // If the current record set has no technical fields filled, we can dynamically simplify columns
+                              const hasAnyTechnicalFilled = currentFormRecords.some((r: any) => 
+                                r.formData?.makeModel || r.formData?.serialNo || r.formData?.powerOutput || r.formData?.batteryVoltage
                               );
-                            })}
-                            <td>
-                              {record.status === "DRAFT" ? (
-                                <span style={{
-                                  background: "#fffbeb",
-                                  color: "#d97706",
-                                  border: "1px solid #fde68a",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  fontSize: "11px",
-                                  fontWeight: 700,
-                                  display: "inline-block",
-                                  textTransform: "uppercase"
-                                }}>Draft</span>
-                              ) : (() => {
-                                const isOk = record.status === "All Ok" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                              
+                              if (selectedForm.name === "Walkie-Talkie Testing" && !hasAnyTechnicalFilled) {
+                                const techFields = ["makeModel", "serialNo", "powerOutput", "batteryVoltage", "batteryCurrent", "antennaStatus", "toBeTestedCount", "balanceWalkieTalkies"];
+                                return !techFields.includes(f.name);
+                              }
+                              
+                              return true;
+                            }).map(field => (
+                              <th key={field.name}>{field.label}</th>
+                            ))}
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentFormRecords.map((record: any) => (
+                            <tr
+                              key={record.id}
+                              onClick={() => {
+                                const isDraft = record.status === "DRAFT";
+                                if (isDraft || role === "SUPER_ADMIN") {
+                                  startEdit(record);
+                                }
+                              }}
+                              style={{ 
+                                cursor: (record.status === "DRAFT" || role === "SUPER_ADMIN") ? "pointer" : "default" 
+                              }}
+                              title={
+                                record.status === "DRAFT" 
+                                  ? "Click to edit draft" 
+                                  : (role === "SUPER_ADMIN" ? "Click to edit record" : "")
+                              }
+                              className="dp-recent-row"
+                            >
+                              {activeFields.filter(f => {
+                                if (f.name === "cableCutByWhomOther") return false;
+                                
+                                const hasAnyTechnicalFilled = currentFormRecords.some((r: any) => 
+                                  r.formData?.makeModel || r.formData?.serialNo || r.formData?.powerOutput || r.formData?.batteryVoltage
+                                );
+                                
+                                if (selectedForm.name === "Walkie-Talkie Testing" && !hasAnyTechnicalFilled) {
+                                  const techFields = ["makeModel", "serialNo", "powerOutput", "batteryVoltage", "batteryCurrent", "antennaStatus", "toBeTestedCount", "balanceWalkieTalkies"];
+                                  return !techFields.includes(f.name);
+                                }
+                                
+                                return true;
+                              }).map(field => {
+                                let val = record.formData?.[field.name];
+                                if (val === "Other" || val === "Others") {
+                                  val = record.formData?.[`${field.name}Other`] || record.formData?.[`${field.name}Others`] || val;
+                                }
+                                if (val === undefined) {
+                                  if (field.name === "majorSection") val = record.majorSection;
+                                  else if (field.name === "section") val = record.section;
+                                  else if (field.name === "stationCode") val = record.stationCode || record.stationName;
+                                  else if (field.name === "assetId") val = recordAssetLabel(record, metadata);
+                                  else if (field.name === "failureTime") val = record.failureTime ? formatDateTime24(record.failureTime) : "";
+                                  else if (field.name === "rectificationTime") val = record.rectificationTime ? formatDateTime24(record.rectificationTime) : "";
+                                  else if (field.name === "durationText") val = record.durationText;
+                                  else if (field.name === "reason") val = record.reason;
+                                  else if (field.name === "remarks") val = record.remarks;
+                                }
+                                if (field.type === "datetime-local" && val) {
+                                  try {
+                                    val = formatDateTime24(val);
+                                  } catch (e) {}
+                                }
+                                const isRectificationCell = field.name === "rectificationTime";
+                                const isSubmitted = record.status !== "DRAFT";
+                                const isStandardUser = role !== "SUPER_ADMIN";
+                                const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                const isAlreadyRectified = !!record.rectificationTime;
+                                
+                                const handleCellClick = (e: React.MouseEvent) => {
+                                  if (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) {
+                                    e.stopPropagation();
+                                    setRectifyingRecord(record);
+                                    setRectificationTimeInput(formatDateTimeInput(record.rectificationTime) || "");
+                                  }
+                                };
+
                                 return (
+                                  <td 
+                                    key={field.name}
+                                    onClick={handleCellClick}
+                                    style={{
+                                      cursor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "pointer" : "inherit",
+                                      backgroundColor: (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified) ? "rgba(16, 185, 129, 0.05)" : "transparent"
+                                    }}
+                                    title={
+                                      (isRectificationCell && isSubmitted && isStandardUser && !isAllOk && !isAlreadyRectified)
+                                        ? "Click to rectify fault"
+                                        : undefined
+                                    }
+                                  >
+                                    {val !== undefined && val !== null && val !== "" ? String(val) : (isAllOk ? "" : "-")}
+                                  </td>
+                                );
+                              })}
+                              <td>
+                                {record.status === "DRAFT" ? (
                                   <span style={{
-                                    background: isOk ? "#ecfdf5" : "#fef2f2",
-                                    color: isOk ? "#059669" : "#dc2626",
-                                    border: `1px solid ${isOk ? "#a7f3d0" : "#fecaca"}`,
+                                    background: "#fffbeb",
+                                    color: "#d97706",
+                                    border: "1px solid #fde68a",
                                     padding: "2px 6px",
                                     borderRadius: "4px",
                                     fontSize: "11px",
                                     fontWeight: 700,
                                     display: "inline-block",
                                     textTransform: "uppercase"
-                                  }}>
-                                    Submitted
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                            <td onClick={e => e.stopPropagation()}>
-                              {record.status === "DRAFT" ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteDraft(record.id);
-                                  }}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    color: "#ef4444",
-                                    cursor: "pointer",
-                                    padding: "4px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    borderRadius: "4px"
-                                  }}
-                                  title="Delete Draft"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              ) : (
-                                "-"
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {currentFormRecords.length === 0 && (
-                          <tr>
-                            <td colSpan={activeFields.length + 2} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+                                  }}>Draft</span>
+                                ) : (() => {
+                                  const isOk = record.status === "All Ok" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                  return (
+                                    <span style={{
+                                      background: isOk ? "#ecfdf5" : "#fef2f2",
+                                      color: isOk ? "#059669" : "#dc2626",
+                                      border: `1px solid ${isOk ? "#a7f3d0" : "#fecaca"}`,
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                      fontSize: "11px",
+                                      fontWeight: 700,
+                                      display: "inline-block",
+                                      textTransform: "uppercase"
+                                    }}>
+                                      Submitted
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                              <td onClick={e => e.stopPropagation()}>
+                                {record.status === "DRAFT" ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteDraft(record.id);
+                                    }}
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      color: "#ef4444",
+                                      cursor: "pointer",
+                                      padding: "4px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      borderRadius: "4px"
+                                    }}
+                                    title="Delete Draft"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                          {currentFormRecords.length === 0 && (
+                            <tr>
+                              <td colSpan={activeFields.length + 2} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>No records submitted for this form today.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
               </div>
 
               {canFill && (
@@ -3856,7 +4368,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       Cancel
                     </button>
                   )}
-                  {!editingRecordId && (() => {
+                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") && (() => {
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasDrafts = draftsCount > 0;
                     const isCurrentFormEmpty = isFormEmpty();
@@ -3981,7 +4493,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {[
                   ["Category", detailsRecord.category],
                   ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "All Ok" ? "OK" : "FAULT")],
-                  ["Submitted", detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")],
+                  ["Submitted", detailsRecord.date ? formatDate24(detailsRecord.date) : (isAllOk ? "" : "-")],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
@@ -4039,21 +4551,23 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               </section>
 
               {/* Fault Timing (Priority 3) */}
-              <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                <h3>Fault Timing</h3>
-                <div className="dp-details-grid">
-                  {[
-                    ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : (isAllOk ? "" : "-")],
-                    ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : (isAllOk ? "" : "-")],
-                    ["Duration of Failure", detailsRecord.durationText || (isAllOk ? "" : "-")],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              {!isAllOk && (detailsRecord.failureTime || detailsRecord.rectificationTime) && (
+                <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                  <h3>Fault Timing</h3>
+                  <div className="dp-details-grid">
+                    {[
+                      ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : "-"],
+                      ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : "-"],
+                      ["Duration of Failure", detailsRecord.durationText || "-"],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
               {(() => {
@@ -4113,7 +4627,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               }}>
                 <span>
                   Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.date ? formatDateTime24(detailsRecord.date) : (isAllOk ? "" : "-")}</strong>
+                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
                 </span>
               </div>
             </div>
