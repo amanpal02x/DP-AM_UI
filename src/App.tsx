@@ -5772,27 +5772,20 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
   const [totalWalkieTalkies, setTotalWalkieTalkies] = useState<number | "">("");
   const [lobbyDivision, setLobbyDivision] = useState("Raipur");
   const [editingLobbyId, setEditingLobbyId] = useState<string | null>(null);
+  const [walkieTalkies, setWalkieTalkies] = useState<{ serialNumber: string; makeModel: string }[]>([]);
+  const [hasJustImported, setHasJustImported] = useState(false);
 
-  const [faultCounts, setFaultCounts] = useState<Record<string, number>>({});
+  // Dialog state for viewing serial numbers
+  const [isViewSerialsModalOpen, setIsViewSerialsModalOpen] = useState(false);
+  const [viewingLobby, setViewingLobby] = useState<any>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLobbies = async () => {
     try {
       setIsLoading(true);
-      const [lobbiesRes, faultsRes] = await Promise.all([
-        api.walkieTalkie.listLobbies(),
-        api.dailyPosition.list({ limit: 500, isFaulty: "true" }).catch(() => ({ data: [] }))
-      ]);
-      if (lobbiesRes.success) setLobbies(lobbiesRes.data);
-      // Count active (non-rectified) faults per lobby
-      const counts: Record<string, number> = {};
-      const faults = (faultsRes as any).data || [];
-      for (const r of faults) {
-        if (r.formType !== "Walkie-Talkie Testing") continue;
-        const lobbyKey = (r.stationCode || r.formData?.stationLobby || "").toLowerCase().trim();
-        if (!lobbyKey) continue;
-        counts[lobbyKey] = (counts[lobbyKey] || 0) + 1;
-      }
-      setFaultCounts(counts);
+      const res = await api.walkieTalkie.listLobbies();
+      if (res.success) setLobbies(res.data);
     } catch (err: any) {
       showToast(err.message || "Failed to fetch lobbies");
     } finally {
@@ -5807,14 +5800,19 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
     setTotalWalkieTalkies("");
     setLobbyDivision("Raipur");
     setEditingLobbyId(null);
+    setWalkieTalkies([]);
+    setHasJustImported(false);
     setIsLobbyModalOpen(true);
   };
 
   const handleOpenEditModal = (lobby: any) => {
     setLobbyName(lobby.lobbyName);
-    setTotalWalkieTalkies(lobby.totalWalkieTalkies);
+    const lobbyWTs = lobby.walkieTalkies || [];
+    setTotalWalkieTalkies(lobbyWTs.length > 0 ? lobbyWTs.length : lobby.totalWalkieTalkies);
     setLobbyDivision(lobby.division || "Raipur");
     setEditingLobbyId(lobby.id);
+    setWalkieTalkies(lobbyWTs);
+    setHasJustImported(false);
     setIsLobbyModalOpen(true);
   };
 
@@ -5829,6 +5827,7 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
         lobbyName: lobbyName.trim(),
         totalWalkieTalkies: Number(totalWalkieTalkies),
         division: lobbyDivision,
+        walkieTalkies,
       });
       if (res.success) {
         showToast(editingLobbyId ? "Lobby updated successfully" : "Lobby created successfully");
@@ -5850,6 +5849,112 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
       }
     } catch (err: any) {
       showToast(err.message || "Failed to delete lobby");
+    }
+  };
+
+  const handleInputClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // clear previous file selection to trigger onChange again
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "xlsx", "xls"].includes(ext || "")) {
+      showToast("Please upload a valid .xlsx, .xls, or .csv file.");
+      return;
+    }
+
+    try {
+      const XLSX = await import("xlsx");
+      const reader = new FileReader();
+
+      reader.onload = (loadEvent) => {
+        try {
+          let rows: any[] = [];
+          if (ext === "xlsx" || ext === "xls") {
+            const workbook = XLSX.read(loadEvent.target?.result, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          } else {
+            // CSV parsing
+            const csvText = loadEvent.target?.result as string;
+            const lines = csvText.split(/\r?\n/);
+            if (lines.length === 0) return;
+            const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
+            for (let i = 1; i < lines.length; i++) {
+              if (!lines[i].trim()) continue;
+              const values = lines[i].split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
+              const row: Record<string, string> = {};
+              headers.forEach((h, idx) => {
+                row[h] = values[idx] || "";
+              });
+              rows.push(row);
+            }
+          }
+
+          if (rows.length === 0) {
+            showToast("No data found in the uploaded file.");
+            return;
+          }
+
+          // Search keys for serial numbers and make/model
+          const keys = Object.keys(rows[0]);
+          const serialKey = keys.find(k => {
+            const lk = k.toLowerCase().replace(/[\s_-]/g, "");
+            return lk.includes("serial") || lk === "sn" || lk === "wtsn" || lk.includes("wtno") || lk === "serialnumber";
+          }) || keys[0];
+
+          const makeModelKey = keys.find(k => {
+            const lk = k.toLowerCase().replace(/[\s_-]/g, "");
+            return lk.includes("make") || lk.includes("model") || lk.includes("brand");
+          });
+
+          const imported = rows
+            .map(row => {
+              const sn = String(row[serialKey] || "").trim();
+              const mm = makeModelKey ? String(row[makeModelKey] || "").trim() : "";
+              return { serialNumber: sn, makeModel: mm || "Motorola" };
+            })
+            .filter(item => item.serialNumber);
+
+          if (imported.length === 0) {
+            showToast("No serial numbers could be extracted from the file.");
+            return;
+          }
+
+          // De-duplicate serial numbers
+          const seen = new Set();
+          const uniqueWTs: { serialNumber: string; makeModel: string }[] = [];
+          for (const item of imported) {
+            const lowSn = item.serialNumber.toLowerCase();
+            if (!seen.has(lowSn)) {
+              seen.add(lowSn);
+              uniqueWTs.push(item);
+            }
+          }
+
+          setWalkieTalkies(uniqueWTs);
+          setTotalWalkieTalkies(uniqueWTs.length);
+          setHasJustImported(true);
+          showToast(`Successfully imported and counted ${uniqueWTs.length} unique walkie-talkies.`);
+        } catch (err) {
+          showToast("Error parsing file structure.");
+        }
+      };
+
+      if (ext === "xlsx" || ext === "xls") {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    } catch (err) {
+      showToast("Failed to load Excel parser library.");
     }
   };
 
@@ -5886,13 +5991,16 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                   <th style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
                   <th style={{ textAlign: "center" }}>Tested Count</th>
                   <th style={{ textAlign: "center" }}>To Be Tested</th>
-                  <th style={{ textAlign: "center" }}>Active Faults</th>
+                  <th style={{ textAlign: "center" }}>Serial Numbers</th>
                   <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {lobbies.map((l, idx) => {
-                  const toBeTested = l.totalWalkieTalkies - l.testedCount;
+                  const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
+                    ? l.walkieTalkies.length 
+                    : l.totalWalkieTalkies;
+                  const toBeTested = totalWTs - l.testedCount;
                   return (
                     <tr key={l.id}>
                       <td>{idx + 1}</td>
@@ -5905,7 +6013,7 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                         </td>
                       )}
                       <td style={{ textAlign: "center" }}>
-                        <span className="pill info" style={{ fontWeight: 600 }}>{l.totalWalkieTalkies}</span>
+                        <span className="pill info" style={{ fontWeight: 600 }}>{totalWTs}</span>
                       </td>
                       <td style={{ textAlign: "center" }}>
                         <span className="pill success" style={{ fontWeight: 600 }}>{l.testedCount}</span>
@@ -5916,17 +6024,29 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                         </span>
                       </td>
                       <td style={{ textAlign: "center" }}>
-                        {(() => {
-                          const faultKey = l.lobbyName.toLowerCase().trim();
-                          const faultNum = faultCounts[faultKey] || 0;
-                          return faultNum > 0 ? (
-                            <span className="pill danger" style={{ fontWeight: 700, background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-                              {faultNum} Fault{faultNum > 1 ? "s" : ""}
-                            </span>
-                          ) : (
-                            <span className="pill success" style={{ fontWeight: 600 }}>None</span>
-                          );
-                        })()}
+                        <button
+                          className="action-btn"
+                          onClick={() => {
+                            setViewingLobby(l);
+                            setIsViewSerialsModalOpen(true);
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            border: "1px solid #bfdbfe",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: "13px"
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h2"/></svg>
+                          Excel Sheet
+                        </button>
                       </td>
                       <td style={{ textAlign: "right" }}>
                         <button className="action-btn text-blue" onClick={() => handleOpenEditModal(l)} style={{ marginRight: 8 }}>Edit</button>
@@ -5976,13 +6096,32 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                 <input
                   type="number"
                   value={totalWalkieTalkies}
+                  onClick={handleInputClick}
                   onChange={(e) => setTotalWalkieTalkies(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="e.g. 100"
                   required
                   min="0"
-                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px" }}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", cursor: "pointer" }}
                 />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".csv,.xlsx,.xls"
+                  style={{ display: "none" }}
+                />
+                <small style={{ color: "var(--muted)" }}>
+                  Click this input box to import and count serial numbers from Excel/CSV file.
+                </small>
               </div>
+
+              {walkieTalkies.length > 0 && hasJustImported && (
+                <div style={{ fontSize: "13px", color: "#1e293b", background: "#f0fdf4", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span><strong>{walkieTalkies.length}</strong> walkie-talkies imported successfully.</span>
+                </div>
+              )}
+
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                 <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
                   Division <span style={{ color: "var(--red)" }}>*</span>
@@ -6004,6 +6143,93 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                 <button type="submit" className="export-button" style={{ background: "var(--blue)", color: "#fff", borderColor: "var(--blue)" }}>Save Lobby</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Serial Numbers Modal */}
+      {isViewSerialsModalOpen && viewingLobby && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+          <div className="modal-card" style={{ width: "500px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
+                  Walkie-Talkies Inventory
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>Lobby: <strong>{viewingLobby.lobbyName}</strong></p>
+              </div>
+              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
+            </div>
+            
+            <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+              <div style={{ background: "#f8fafc", padding: "10px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
+                <span>Serial Number</span>
+                <span>Make / Model</span>
+              </div>
+              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
+                  <div style={{ textAlign: "center", padding: "30px", color: "var(--muted)", fontSize: "14px" }}>
+                    No walkie-talkies recorded for this lobby.
+                  </div>
+                ) : (
+                  viewingLobby.walkieTalkies.map((wt: any, index: number) => (
+                    <div key={index} style={{ padding: "10px 15px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", fontSize: "14px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
+                      <span style={{ fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
+                      <span style={{ color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {viewingLobby.walkieTalkies && viewingLobby.walkieTalkies.length > 0 && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const XLSX = await import("xlsx");
+                      const data = viewingLobby.walkieTalkies.map((wt: any, idx: number) => ({
+                        "S.No.": idx + 1,
+                        "Serial Number": wt.serialNumber,
+                        "Make / Model": wt.makeModel || "Motorola",
+                        "Lobby Name": viewingLobby.lobbyName,
+                        "Division": viewingLobby.division
+                      }));
+                      const worksheet = XLSX.utils.json_to_sheet(data);
+                      const workbook = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(workbook, worksheet, "Walkie Talkies");
+                      XLSX.writeFile(workbook, `${viewingLobby.lobbyName}_WalkieTalkie_Serials.xlsx`);
+                      showToast("Exported walkie-talkies list successfully.");
+                    } catch (err) {
+                      showToast("Failed to export Excel file.");
+                    }
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    background: "#10b981",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontSize: "13px"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                  Export to Excel
+                </button>
+              )}
+              <button 
+                className="export-button" 
+                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); }} 
+                style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", marginLeft: "auto" }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
