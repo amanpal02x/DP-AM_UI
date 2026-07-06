@@ -5836,8 +5836,8 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
                 <input value={section} onChange={event => setSection(event.target.value)} placeholder="e.g. BSP-GTW" />
               </label>
               <div className="modal-actions">
-                <button className="export-button" type="button" onClick={() => setAddSectionOpen(false)}>Cancel</button>
-                <button className="export-button" type="submit" disabled={createSectionMutation.isPending}>
+                <button className="cancel-btn" type="button" onClick={() => setAddSectionOpen(false)}>Cancel</button>
+                <button className="submit-btn" type="submit" disabled={createSectionMutation.isPending}>
                   <Plus size={16} />
                   {createSectionMutation.isPending ? "Saving..." : "Add Section"}
                 </button>
