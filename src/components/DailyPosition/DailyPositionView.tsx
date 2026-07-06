@@ -2366,6 +2366,8 @@ function DailyPositionFieldInput({
     maxProps.max = toDateValue(new Date());
   } else if (field.type === "datetime-local" && field.name !== "tdc") {
     maxProps.max = toLocalDateTimeValue(new Date());
+  } else if (field.type === "number") {
+    maxProps.min = "0";
   }
 
 
@@ -2398,6 +2400,11 @@ function DailyPositionFieldInput({
             type={field.type}
             {...maxProps}
             {...commonProps}
+            onKeyDown={(e) => {
+              if (field.type === "number" && (e.key === "-" || e.key === "e" || e.key === "E")) {
+                e.preventDefault();
+              }
+            }}
             onClick={(e) => {
               if (field.type === "date" || field.type === "datetime-local") {
                 try {
@@ -2939,8 +2946,32 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (name === "toBeTestedCount" || name === "testedCount" || name === "newTestedCount") {
         const total = Number(next.toBeTestedCount || 0);
         const tested = Number(next.testedCount || 0);
+        
+        if (name === "newTestedCount") {
+          if (nextValue === "") {
+            next.newTestedCount = "";
+          } else {
+            let rawVal = nextValue;
+            if (typeof rawVal === 'string') {
+              rawVal = rawVal.replace(/-/g, '');
+            }
+            let numVal = Number(rawVal || 0);
+            if (numVal < 0) numVal = 0;
+            
+            const maxVal = Math.max(0, total - tested);
+            if (numVal > maxVal) {
+              numVal = maxVal;
+            }
+            next.newTestedCount = numVal;
+          }
+        }
+
         const newlyTested = Number(next.newTestedCount || 0);
-        next.balanceWalkieTalkies = Math.max(0, total - (tested + newlyTested));
+        const maxVal = Math.max(0, total - tested);
+        if (newlyTested > maxVal) {
+          next.newTestedCount = maxVal;
+        }
+        next.balanceWalkieTalkies = Math.max(0, total - (tested + Number(next.newTestedCount || 0)));
       }
 
       if (name === "openingDefective" || name === "receivedFromUser" || name === "returnedToUser" || name === "setsCondemned") {
@@ -3120,6 +3151,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           setIsSavingAndNext(false);
           return;
         }
+
+        const total = Number(values.toBeTestedCount || 0);
+        const tested = Number(values.testedCount || 0);
+        const newlyTested = Number(values.newTestedCount || 0);
+
+        if (tested >= total && total > 0) {
+          showToast("All sets for this lobby have already been tested. Cannot submit another record.");
+          setIsSavingAndNext(false);
+          return;
+        }
+
+        if (newlyTested < 0) {
+          showToast("Total walkie-talkies tested cannot be negative.");
+          setIsSavingAndNext(false);
+          return;
+        }
+
+        if (newlyTested > (total - tested)) {
+          showToast(`Total walkie-talkies tested cannot exceed the remaining balance (${total - tested}).`);
+          setIsSavingAndNext(false);
+          return;
+        }
+
         // Validate remaining required fields
         for (const field of visibleActiveFields) {
           if (field.required && !values[field.name]) {
@@ -4429,7 +4483,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasNoDrafts = draftsCount === 0;
                     const isCurrentFormEmpty = isFormEmpty();
-                    const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId);
+                    const isWtTestingBalanced = selectedForm?.name === "Walkie-Talkie Testing" && 
+                      walkieTalkieMode === "testing" && 
+                      Number(values.testedCount || 0) >= Number(values.toBeTestedCount || 0) && 
+                      Number(values.toBeTestedCount || 0) > 0;
+                    const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId) || isWtTestingBalanced;
                     const isSubmitDisabledStyle = isHtmlDisabled || (hasNoDrafts && isCurrentFormEmpty);
                     return (
                       <button 
