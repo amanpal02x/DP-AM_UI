@@ -4853,10 +4853,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       {viewMode === "history" && renderHistory()}
 
       {detailsRecord && (() => {
-        const isAllOk = detailsRecord.reason === "All OK" || (detailsRecord.formData && detailsRecord.formData.actionType === "OK");
+        const isAllOk =
+          (detailsRecord.reason || "").toLowerCase() === "all ok" ||
+          (detailsRecord.status || "").toLowerCase() === "all ok" ||
+          (detailsRecord.formData && detailsRecord.formData.actionType === "OK");
+
         return (
           <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
-            <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()}>
+            <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={isAllOk ? { width: "min(540px, calc(100vw - 28px))" } : undefined}>
               <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)} aria-label="Close">
                 <X size={16} />
               </button>
@@ -4864,83 +4868,69 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 <div>
                   <span>Daily Position Record</span>
                   <h2>{detailsRecord.formType}</h2>
-                  <p>{detailsRecord.division} / {detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || (isAllOk ? "" : "-")}</p>
+                  {(() => {
+                    const loc = detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "";
+                    return (
+                      <p>{detailsRecord.division}{loc && loc !== "-" ? ` / ${loc}` : ""}</p>
+                    );
+                  })()}
                 </div>
                 <em className={`status-chip status-${isAllOk ? "All Ok" : String(detailsRecord.status || "").toLowerCase()}`}>
                   {isAllOk ? "All Ok" : detailsRecord.status}
                 </em>
               </div>
 
-              <div className="dp-details-summary">
-                {[
-                  ["Category", detailsRecord.category],
-                  ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "All Ok" ? "OK" : "FAULT")],
-                  ["Submitted", detailsRecord.date ? formatDate24(detailsRecord.date) : (isAllOk ? "" : "-")],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <strong>{value}</strong>
+              {isAllOk ? (
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "48px 24px 54px 24px",
+                  textAlign: "center"
+                }}>
+                  {/* Status Icon */}
+                  <div style={{
+                    background: "rgba(34, 197, 94, 0.1)",
+                    color: "#16a34a",
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "16px",
+                    boxShadow: "0 0 20px rgba(34, 197, 94, 0.15)"
+                  }}>
+                    <CheckCircle2 size={32} />
                   </div>
-                ))}
-              </div>
 
-              {/* Location Details (Priority 1) */}
-              {(() => {
-                const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-                const locationItems = Object.entries(detailsRecord.formData || {})
-                  .filter(([key]) => locationKeys.includes(key))
-                  .map(([key, value]) => {
-                    let displayVal = value;
-                    if (value === "Other" || value === "Others") {
-                      displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
-                    }
-                    return {
-                      key,
-                      label: humanizeFieldName(key, detailsRecord.formType),
-                      value: displayValue(displayVal, isAllOk)
-                    };
-                  });
-
-                if (locationItems.length === 0) return null;
-                return (
-                  <section className="dp-details-section" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", marginTop: "12px" }}>
-                    <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Location Details</h3>
-                    <div className="dp-details-grid">
-                      {locationItems.map(item => (
-                        <div key={item.key}>
-                          <span>{item.label}</span>
-                          <strong style={{ fontWeight: 650 }}>{item.value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                );
-              })()}
-
-              {/* Reason & Remarks Section (Priority 2) */}
-              <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Failures details</h3>
-                <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
-                  <strong style={{ fontWeight: 500 }}>
-                    {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System All Ok") : (
-                      <>
-                        {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
-                        {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && ` · ${detailsRecord.remarks}`}
-                      </>
-                    )}
-                  </strong>
+                  <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>System Operational</h3>
+                  <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b" }}>All services in this category are working normally.</p>
+                  
+                  {/* Centered Submitter Metadata */}
+                  <div style={{
+                    fontSize: "14px",
+                    color: "#475569",
+                    fontWeight: 500,
+                    lineHeight: "1.5",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 20px",
+                    display: "inline-block",
+                    maxWidth: "100%"
+                  }}>
+                    Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"} ({detailsRecord.createdBy?.designation || "N/A"})</strong> at <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                  </div>
                 </div>
-              </section>
-
-              {/* Fault Timing (Priority 3) */}
-              {!isAllOk && (detailsRecord.failureTime || detailsRecord.rectificationTime) && (
-                <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                  <h3>Fault Timing</h3>
-                  <div className="dp-details-grid">
+              ) : (
+                <>
+                  <div className="dp-details-summary">
                     {[
-                      ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : "-"],
-                      ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : "-"],
-                      ["Duration of Failure", detailsRecord.durationText || "-"],
+                      ["Category", detailsRecord.category],
+                      ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "All Ok" ? "OK" : "FAULT")],
+                      ["Submitted", detailsRecord.date ? formatDate24(detailsRecord.date) : (isAllOk ? "" : "-")],
                     ].map(([label, value]) => (
                       <div key={label}>
                         <span>{label}</span>
@@ -4948,70 +4938,137 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       </div>
                     ))}
                   </div>
-                </section>
-              )}
 
-              {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
-              {(() => {
-                const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-                const formFieldItems = Object.entries(detailsRecord.formData || {})
-                  .filter(([key]) => {
-                    if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
-                    if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                    if (key.endsWith("Other") || key.endsWith("Others")) return false;
-                    if (locationKeys.includes(key)) return false;
-                    return true;
-                  })
-                  .map(([key, value]) => {
-                    let displayVal = value;
-                    if (value === "Other" || value === "Others") {
-                      displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
-                    }
-                    return {
-                      key,
-                      label: humanizeFieldName(key, detailsRecord.formType),
-                      value: displayValue(displayVal, isAllOk)
-                    };
-                  });
+                  {/* Location Details (Priority 1) */}
+                  {(() => {
+                    const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                    const locationItems = Object.entries(detailsRecord.formData || {})
+                      .filter(([key]) => locationKeys.includes(key))
+                      .map(([key, value]) => {
+                        let displayVal = value;
+                        if (value === "Other" || value === "Others") {
+                          displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                        }
+                        return {
+                          key,
+                          label: humanizeFieldName(key, detailsRecord.formType),
+                          value: displayValue(displayVal, isAllOk)
+                        };
+                      });
 
-                return (
-                  <section className="dp-details-section" style={{ marginTop: "12px", paddingBottom: "16px" }}>
-                    <h3>Submitted Form Fields</h3>
-                    <div className="dp-details-grid">
-                      {formFieldItems.map(item => (
-                        <div key={item.key}>
-                          <span>{item.label}</span>
-                          <strong>{item.value}</strong>
+                    if (locationItems.length === 0) return null;
+                    return (
+                      <section className="dp-details-section" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", marginTop: "12px" }}>
+                        <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Location Details</h3>
+                        <div className="dp-details-grid">
+                          {locationItems.map(item => (
+                            <div key={item.key}>
+                              <span>{item.label}</span>
+                              <strong style={{ fontWeight: 650 }}>{item.value}</strong>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                      {formFieldItems.length === 0 && (
-                        <div>
-                          <span>Form Data</span>
-                          <strong>No additional fields submitted.</strong>
-                        </div>
-                      )}
+                      </section>
+                    );
+                  })()}
+
+                  {/* Reason & Remarks Section (Priority 2) */}
+                  <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                    <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Failures details</h3>
+                    <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
+                      <strong style={{ fontWeight: 500 }}>
+                        {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System All Ok") : (
+                          <>
+                            {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
+                            {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && ` · ${detailsRecord.remarks}`}
+                          </>
+                        )}
+                      </strong>
                     </div>
                   </section>
-                );
-              })()}
 
-              {/* Footer Metadata */}
-              <div style={{
-                borderTop: "1px solid #e2e8f0",
-                padding: "12px 24px",
-                margin: "12px -24px -24px -24px",
-                background: "#f8fafc",
-                display: "flex",
-                justifyContent: "flex-start",
-                fontSize: "11.5px",
-                color: "#64748b",
-                borderRadius: "0 0 12px 12px"
-              }}>
-                <span>
-                  Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                  {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
-                </span>
-              </div>
+                  {/* Fault Timing (Priority 3) */}
+                  {!isAllOk && (detailsRecord.failureTime || detailsRecord.rectificationTime) && (
+                    <section className="dp-details-section" style={{ marginTop: "12px" }}>
+                      <h3>Fault Timing</h3>
+                      <div className="dp-details-grid">
+                        {[
+                          ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : "-"],
+                          ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : "-"],
+                          ["Duration of Failure", detailsRecord.durationText || "-"],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <span>{label}</span>
+                            <strong>{value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
+                  {(() => {
+                    const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                    const formFieldItems = Object.entries(detailsRecord.formData || {})
+                      .filter(([key]) => {
+                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
+                        if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
+                        if (key.endsWith("Other") || key.endsWith("Others")) return false;
+                        if (locationKeys.includes(key)) return false;
+                        return true;
+                      })
+                      .map(([key, value]) => {
+                        let displayVal = value;
+                        if (value === "Other" || value === "Others") {
+                          displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                        }
+                        return {
+                          key,
+                          label: humanizeFieldName(key, detailsRecord.formType),
+                          value: displayValue(displayVal, isAllOk)
+                        };
+                      });
+
+                    return (
+                      <section className="dp-details-section" style={{ marginTop: "12px", paddingBottom: "16px" }}>
+                        <h3>Submitted Form Fields</h3>
+                        <div className="dp-details-grid">
+                          {formFieldItems.map(item => (
+                            <div key={item.key}>
+                              <span>{item.label}</span>
+                              <strong>{item.value}</strong>
+                            </div>
+                          ))}
+                          {formFieldItems.length === 0 && (
+                            <div>
+                              <span>Form Data</span>
+                              <strong>No additional fields submitted.</strong>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })()}
+
+                  {/* Footer Metadata */}
+                  <div style={{
+                    borderTop: "1px solid #e2e8f0",
+                    padding: "12px 24px",
+                    margin: "12px -24px -24px -24px",
+                    background: "#f8fafc",
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    fontSize: "11.5px",
+                    color: "#64748b",
+                    borderRadius: "0 0 12px 12px"
+                  }}>
+                    <span>
+                      Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
+                      {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         );
