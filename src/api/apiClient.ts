@@ -198,7 +198,7 @@ export const api = {
   },
   walkieTalkie: {
     listLobbies: () => request<ApiResponse<any[]>>("GET", "/api/walkie-talkie"),
-    upsertLobby: (body: { lobbyName: string; totalWalkieTalkies: number; division?: string }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie", body),
+    upsertLobby: (body: { lobbyName: string; totalWalkieTalkies: number; division?: string; walkieTalkies?: { serialNumber: string; makeModel: string }[] }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie", body),
     recordTest: (body: { lobbyId: string; count?: number }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/test", body),
     resetTesting: (lobbyId: string) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/reset", { lobbyId }),
     deleteLobby: (id: string) => request<ApiResponse<any>>("DELETE", `/api/walkie-talkie/${id}`),
