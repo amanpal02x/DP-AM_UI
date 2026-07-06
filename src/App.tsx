@@ -1691,7 +1691,6 @@ function SidebarDailyPositionAccordion() {
   );
 }
 
-<<<<<<< HEAD
 function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
   const { activeNav, setActiveNav, logout, user, division } = useAppStore();
   const [showProfileCard, setShowProfileCard] = useState(false);
@@ -1699,7 +1698,7 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
   if (!user) return null;
 
   const isAnalyticsActive = activeNav === "Analytics";
-  const isReportsActive = activeNav === "DP Summary" || activeNav === "MIS";
+  const isReportsActive = activeNav === "Position Summary" || activeNav === "MIS";
   const isSystemStatusActive = activeNav === "Daily Position";
   const isAdministrationActive = activeNav === "Users & Roles" || activeNav === "Audit Logs" || activeNav === "Sections" || activeNav === "Latest Updates";
 
@@ -1802,7 +1801,9 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
         </div>
       </div>
     </header>
-=======
+  );
+}
+
 function SidebarWalkieTalkieAccordion() {
   const { activeNav, setActiveNav, role } = useAppStore();
   const showTesting = role === "STAFF" || role === "TESTROOM";
@@ -1855,7 +1856,6 @@ function SidebarWalkieTalkieAccordion() {
         );
       })}
     </div>
->>>>>>> e014ed3897d9b679d5f1ae812fc7dee84ac5c8f8
   );
 }
 
