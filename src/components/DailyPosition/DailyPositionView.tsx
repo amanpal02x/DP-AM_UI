@@ -984,10 +984,10 @@ function DailyPositionFieldInput({
 
   if (field.name === "passengerAmenitiesGear") {
     const GEAR_OPTIONS = [
-      "CGDB",
-      "TIB",
-      "AGDB",
-      "TADDB",
+      "Coach Guidance Display Board (CGDB)",
+      "Train Information Board (TIB)",
+      "Automatic Guidance Display Board (AGDB)",
+      "Train Arrival & Departure Display Board (TADDB)",
       "Tower Clock",
       "GPS Based clock"
     ];

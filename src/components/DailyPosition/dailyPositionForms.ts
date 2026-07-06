@@ -387,7 +387,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     fields: [
       { name: "stationCode", label: "Faulty Station Name", type: "select", placeholder: "Select Faulty Station Name" },
       { name: "pfNo", label: "PF NO.", type: "text", required: true, placeholder: "Enter Platform Number (e.g. 2)" },
-      { name: "passengerAmenitiesGear", label: "Passenger Amenities Gear", type: "select", required: true, options: ["CGDB", "TIB", "AGDB", "TADDB", "Tower Clock", "GPS Based clock", "Others"], placeholder: "Select Passenger Amenities Gear" },
+      { name: "passengerAmenitiesGear", label: "Passenger Amenities Gear", type: "select", required: true, options: ["Coach Guidance Display Board (CGDB)", "Train Information Board (TIB)", "Automatic Guidance Display Board (AGDB)", "Train Arrival & Departure Display Board (TADDB)", "Tower Clock", "GPS Based clock", "Others"], placeholder: "Select Passenger Amenities Gear" },
       { name: "faultyGuidanceBoards", label: "No. of faulty board", type: "number", required: false, placeholder: "Enter number of faulty boards" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Rectification Date & Time" },
@@ -451,8 +451,7 @@ export const DAILY_POSITION_FORMS: DailyPositionFormDefinition[] = [
     systemCode: "SECR/TEL/CCTVM-20",
     description: "Video surveillance cameras live status feeds at platforms.",
     fields: [
-      { name: "majorSection", label: "Major Section", type: "select", placeholder: "Select Major Section" },
-      { name: "section", label: "Section", type: "select", placeholder: "Select Section" },
+      { name: "stationCode", label: "Station / Location", type: "select", placeholder: "Select Station / Location" },
       { name: "totalNotWorkingCctvLoc", label: "Total CCTV/No. of faulty Camera", type: "text", required: true, placeholder: "e.g. Total: 16 / Not Working: 2 (PF-1)" },
       { name: "failureTime", label: "Failure (Date & Time)", type: "datetime-local", required: true, placeholder: "Select Failure Date & Time" },
       { name: "rectificationTime", label: "Rectification Time(RT) (Date & Time)", type: "datetime-local", placeholder: "Select Rectification Date & Time" },
