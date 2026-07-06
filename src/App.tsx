@@ -1309,7 +1309,7 @@ function App() {
           ) : activeNav === "DP Form" ? (
             <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
           ) : activeNav === "DP Summary" ? (
-            <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
+            <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
               <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
                 <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} />
               </section>
@@ -3911,7 +3911,7 @@ function DailyPositionDashboardView({
       </section>
 
       {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
-      <section className="dashboard-grid" style={{ marginTop: 0, flex: 1, minHeight: 0 }}>
+      <section className="dashboard-grid" style={{ marginTop: 0 }}>
         <WalkieTalkieDivisionPanel summary={data} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
