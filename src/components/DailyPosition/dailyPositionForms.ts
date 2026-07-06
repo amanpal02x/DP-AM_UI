@@ -176,7 +176,7 @@ export const RAILNET_DIVISIONAL_FIELDS: DailyPositionField[] = [
 
 export const RAILNET_HQ_FIELDS: DailyPositionField[] = [
   docketField,
-  { name: "stationCode", label: "Location", type: "select", placeholder: "Select Location" },
+  { name: "stationCode", label: "Location", type: "text", placeholder: "Enter Location" },
   { name: "attachFile", label: "Attach File / Report", type: "text", placeholder: "Attach file or enter link" },
   { name: "downloadSpeed", label: "Download Link Speed (Mbps)", type: "text", placeholder: "Enter Download Link Speed" },
   { name: "uploadSpeed", label: "Upload Link Speed (Mbps)", type: "text", placeholder: "Enter Upload Link Speed" },

@@ -1824,7 +1824,7 @@ function DailyPositionFieldInput({
     );
   }
 
-  if (field.name === "stationCode") {
+  if (field.name === "stationCode" && field.type === "select") {
     if (formName === "Walkie-Talkie Repairing") {
       return (
         <WalkieTalkieLobbySelect
