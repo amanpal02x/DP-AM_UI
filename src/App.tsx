@@ -583,7 +583,7 @@ const navItems: Array<{
     { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "MIS", icon: Printer, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
+    { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN", "STAFF"] },
     { label: "Latest Updates", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
     { label: "Walkie Talkie Inventory", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] }
   ];
@@ -1275,6 +1275,7 @@ function App() {
         </div>
       </header>
       {sidebarOpen && <button className="sidebar-scrim" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+      <DesktopHeader onEditProfile={() => setEditProfileOpen(true)} />
       <Sidebar onEditProfile={() => setEditProfileOpen(true)} />
       <main className="main">
         <Suspense fallback={<div className="module-loading-skeleton" aria-label="Loading module" />}>
@@ -1670,6 +1671,119 @@ function SidebarDailyPositionAccordion() {
         );
       })}
     </div>
+  );
+}
+
+function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
+  const { activeNav, setActiveNav, logout, user, division } = useAppStore();
+  const [showProfileCard, setShowProfileCard] = useState(false);
+
+  if (!user) return null;
+
+  const isAnalyticsActive = activeNav === "Analytics";
+  const isReportsActive = activeNav === "DP Summary" || activeNav === "MIS";
+  const isSystemStatusActive = activeNav === "Daily Position";
+  const isAdministrationActive = activeNav === "Users & Roles" || activeNav === "Audit Logs" || activeNav === "Sections" || activeNav === "Latest Updates";
+
+  return (
+    <header className="desktop-header">
+      <div className="brand">
+        <div className="brand-icon-box">
+          <RadioTower size={22} />
+        </div>
+        <div className="brand-text">
+          <h2>SECR</h2>
+          <p>Telecom Unit</p>
+        </div>
+      </div>
+
+      {/* <div className="header-nav">
+        <button
+          className={`header-nav-link ${isAnalyticsActive ? "active" : ""}`}
+          onClick={() => setActiveNav("Analytics")}
+        >
+          Analytics
+        </button>
+        <button
+          className={`header-nav-link ${isReportsActive ? "active" : ""}`}
+          onClick={() => setActiveNav("DP Summary")}
+        >
+          Reports
+        </button>
+        <button
+          className={`header-nav-link ${isSystemStatusActive ? "active" : ""}`}
+          onClick={() => setActiveNav("Daily Position")}
+        >
+          System Status
+        </button>
+        <button
+          className={`header-nav-link ${isAdministrationActive ? "active" : ""}`}
+          onClick={() => setActiveNav("Users & Roles")}
+        >
+          Administration
+        </button>
+      </div> */}
+
+      <div className="header-right">
+        <div
+          className="header-profile-card"
+          onMouseEnter={() => setShowProfileCard(true)}
+          onMouseLeave={() => setShowProfileCard(false)}
+        >
+          <div className="user-profile-info">
+            <strong>{user.name}</strong>
+            <small>{user.division || user.role}</small>
+          </div>
+          <div className="user-avatar">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+          {showProfileCard && (
+            <div className="profile-hover-card header-profile-hover-card">
+              <div className="profile-header">
+                <div style={{ textAlign: "left" }}>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>{user.name}</h4>
+                  <span className="pill info" style={{ display: "inline-block", marginTop: "4px", fontSize: 9, padding: "2px 6px", textTransform: "uppercase" }}>{user.role}</span>
+                </div>
+              </div>
+              <div className="profile-body" style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "12px 0 0 0" }}>
+                <div className="profile-field" style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
+                  <span className="label" style={{ fontWeight: 600 }}>Username</span>
+                  <span className="value" style={{ fontWeight: 700 }}>{user.username}</span>
+                </div>
+                <div className="profile-field" style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
+                  <span className="label" style={{ fontWeight: 600 }}>Designation</span>
+                  <span className="value" style={{ fontWeight: 700 }}>{user.designation || "-"}</span>
+                </div>
+                <div className="profile-field" style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
+                  <span className="label" style={{ fontWeight: 600 }}>Division</span>
+                  <span className="value" style={{ fontWeight: 700 }}>{normalizeDivision(user.division) || "HQ (All)"}</span>
+                </div>
+              </div>
+              <div className="profile-actions-row">
+                <button
+                  className="profile-hover-action-btn edit-btn"
+                  onClick={onEditProfile}
+                  type="button"
+                >
+                  <Edit size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button
+                  className="profile-hover-action-btn logout-btn"
+                  onClick={logout}
+                  type="button"
+                >
+                  <LogOut size={14} />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -3897,7 +4011,7 @@ function DailyPositionDashboardView({
       </section>
 
       {/* Row 2 (Middle Section): Division Active Faults, Category-wise Fault, & Weekly Trends */}
-      <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: 0 }}>
+      <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: -15 }}>
         {userDivision ? (
           <LatestUpdatesWidget showToast={showToast} />
         ) : (
