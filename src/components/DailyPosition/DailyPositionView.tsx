@@ -2655,6 +2655,8 @@ function DailyPositionFieldInput({
           placeholder={field.placeholder || `Select ${field.label}`}
           required={field.required}
           readOnly={readOnly || field.readonly}
+          clearable={field.name !== "reportType"}
+          searchable={field.name !== "reportType"}
         />
       ) : field.type === "textarea" ? (
         <textarea {...commonProps} />
@@ -2744,7 +2746,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [isOkHovered, setIsOkHovered] = useState(false);
-  const [walkieTalkieMode, setWalkieTalkieMode] = useState<"testing" | "fault">("testing");
+  const [walkieTalkieMode, setWalkieTalkieMode] = useState<"testing" | "fault">("fault");
 
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
@@ -2846,20 +2848,43 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             continue;
           }
         } else if (walkieTalkieMode === "fault") {
-          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount.
-          if (field.name === "testedCount") {
+          const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+          // Hide Antenna field on Healthy Report
+          if (field.name === "antennaStatus" && isHealthy) {
             continue;
           }
-          // Inject a Date & Time of Fault field right after testDate
+          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount but inject newTestedCount.
+          if (field.name === "testedCount") {
+            list.push({
+              name: "newTestedCount",
+              label: "Total walkie-talkies tested",
+              type: "number",
+              required: true,
+              placeholder: "Total count tested"
+            });
+            // Inject reportType selection field right after newTestedCount
+            list.push({
+              name: "reportType",
+              label: "Report Type",
+              type: "select",
+              required: true,
+              options: ["Healthy Report", "Faulty Report"],
+              placeholder: "Select Report"
+            });
+            continue;
+          }
+          // Inject a Date & Time of Fault field right after testDate (only if not Healthy Report)
           if (field.name === "testDate") {
             list.push(field); // push testDate first
-            list.push({
-              name: "failureTime",
-              label: "Date & Time of Fault",
-              type: "datetime-local",
-              required: true,
-              placeholder: "Select date and time when fault occurred"
-            });
+            if (!isHealthy) {
+              list.push({
+                name: "failureTime",
+                label: "Date & Time of Fault",
+                type: "datetime-local",
+                required: true,
+                placeholder: "Select date and time when fault occurred"
+              });
+            }
             continue; // skip default push below, already pushed
           }
         }
@@ -3275,9 +3300,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     });
 
-    if (selectedForm.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") {
+    if (selectedForm.name === "Walkie-Talkie Testing") {
       // Map the input count to testedCount before sending to the backend controller
       processedValues.testedCount = Number(processedValues.newTestedCount || 0);
+      const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+      if (isHealthy) {
+        processedValues.antennaStatus = "OK";
+        processedValues.failureTime = null;
+      }
     }
 
     return {
@@ -3500,6 +3530,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           setIsSavingAndNext(false);
           return;
         }
+        if (selectedForm.name === "Walkie-Talkie Testing") {
+          const total = Number(values.toBeTestedCount || 0);
+          const tested = Number(values.testedCount || 0);
+          const newlyTested = Number(values.newTestedCount || 0);
+          if (newlyTested < 0) {
+            showToast("Total walkie-talkies tested cannot be negative.");
+            setIsSavingAndNext(false);
+            return;
+          }
+          if (newlyTested > (total - tested)) {
+            showToast(`Total walkie-talkies tested cannot exceed the remaining balance (${total - tested}).`);
+            setIsSavingAndNext(false);
+            return;
+          }
+        }
         // Validate current form fields (visible fields only)
         for (const field of visibleActiveFields) {
           if (field.required && !values[field.name]) {
@@ -3695,6 +3740,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     for (const field of visibleActiveFields) {
       if (field.required && !values[field.name]) {
         showToast(`Please fill in all required fields.`);
+        return;
+      }
+    }
+
+    if (selectedForm.name === "Walkie-Talkie Testing") {
+      const total = Number(values.toBeTestedCount || 0);
+      const tested = Number(values.testedCount || 0);
+      const newlyTested = Number(values.newTestedCount || 0);
+      if (newlyTested < 0) {
+        showToast("Total walkie-talkies tested cannot be negative.");
+        return;
+      }
+      if (newlyTested > (total - tested)) {
+        showToast(`Total walkie-talkies tested cannot exceed the remaining balance (${total - tested}).`);
         return;
       }
     }
@@ -4256,7 +4315,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
                 )}
 
-                {selectedForm?.name === "Walkie-Talkie Testing" && (
+                {/* Removed Testing Report / Fault Report toggle to only show Fault Report mode */}
+                {false && selectedForm?.name === "Walkie-Talkie Testing" && (
                   <div style={{
                     display: "flex",
                     alignItems: "center",
@@ -4317,7 +4377,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={!canFill || (isCompletedToday && !editingRecordId)}
+                      readOnly={!canFill || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
                       formName={selectedForm.name}
                     />
                   ))}
@@ -4686,7 +4746,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       Cancel
                     </button>
                   )}
-                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") && (() => {
+                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing") && (() => {
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasDrafts = draftsCount > 0;
                     const isCurrentFormEmpty = isFormEmpty();
