@@ -30,6 +30,7 @@ import {
   Wifi,
   X,
   Trash2,
+  CheckCircle2,
   LogOut,
   Layers,
   Building2,
@@ -65,6 +66,7 @@ import {
   Legend
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
+import WalkieTalkieInventoryViewExternal from "./components/WalkieTalkie/WalkieTalkieInventoryView";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -428,7 +430,9 @@ type NavKey =
   | "Audit Logs"
   | "MIS"
   | "Latest Updates"
-  | "Walkie Talkie Inventory";
+  | "Walkie-Talkie"
+  | "Walkie Talkie Inventory"
+  | "Walkie Talkie Testing";
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
@@ -447,7 +451,9 @@ const navToHash: Record<NavKey, string> = {
   "Audit Logs": "#/audit-logs",
   "MIS": "#/mis",
   "Latest Updates": "#/latest-updates",
-  "Walkie Talkie Inventory": "#/walkie-talkie-inventory"
+  "Walkie-Talkie": "#/walkie-talkie",
+  "Walkie Talkie Inventory": "#/walkie-talkie-inventory",
+  "Walkie Talkie Testing": "#/walkie-talkie-testing"
 };
 
 const IndianStates = []; // placeholder, not needed
@@ -469,7 +475,9 @@ const hashToNav: Record<string, NavKey> = {
   "#/audit-logs": "Audit Logs",
   "#/mis": "MIS",
   "#/latest-updates": "Latest Updates",
-  "#/walkie-talkie-inventory": "Walkie Talkie Inventory"
+  "#/walkie-talkie": "Walkie-Talkie",
+  "#/walkie-talkie-inventory": "Walkie Talkie Inventory",
+  "#/walkie-talkie-testing": "Walkie Talkie Testing"
 };
 
 type AppState = {
@@ -569,6 +577,7 @@ const navItems: Array<{
   roles: UserRole[];
   badge?: string;
   expandable?: boolean;
+  hidden?: boolean;
 }> = [
     { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
@@ -580,12 +589,14 @@ const navItems: Array<{
     { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "Sections", icon: Layers, roles: ["SUPER_ADMIN"] },
     { label: "Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
-    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM"] },
     { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "MIS", icon: Printer, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN"] },
     { label: "Latest Updates", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
-    { label: "Walkie Talkie Inventory", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] }
+    { label: "Walkie-Talkie", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"], expandable: true },
+    { label: "Walkie Talkie Inventory", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"], hidden: true },
+    { label: "Walkie Talkie Testing", icon: RadioTower, roles: ["DIVISIONAL_ADMIN", "STAFF", "TESTROOM"], hidden: true }
   ];
 
 // Fallback points for Leaflet map if DB is empty
@@ -1052,6 +1063,10 @@ function App() {
   // Reset category faults page view when activeNav changes
   useEffect(() => {
     setViewCategoryFaults(null);
+    if (activeNav === "Walkie Talkie Testing") {
+      useAppStore.getState().setDpSelectedCategory("Testing & Maintenance");
+      useAppStore.getState().setDpSelectedFormName("Walkie-Talkie Testing");
+    }
   }, [activeNav]);
 
   // Synchronize hash routing with store activeNav
@@ -1135,7 +1150,7 @@ function App() {
     const hasDailyPositionAccess = user.accessDailyPosition !== false;
 
     const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
-    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Summary", "DP Logs"];
+    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Summary", "DP Logs", "Walkie Talkie Inventory", "Walkie Talkie Testing"];
 
     if (assetRoutes.includes(activeNav) && !hasAssetAccess) {
       if (hasDailyPositionAccess) {
@@ -1193,7 +1208,7 @@ function App() {
     queryKey: ["dashboard-summary", division, token],
     queryFn: () => getDashboardSummary(division),
     enabled: !!token && ["Asset Dashboard", "Daily Position"].includes(activeNav),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
     placeholderData: previousData => previousData,
     initialData: () => {
       try {
@@ -1324,8 +1339,10 @@ function App() {
             )
           ) : activeNav === "Sections" ? (
             <SectionsManagementView showToast={showToast} />
-          ) : activeNav === "Walkie Talkie Inventory" ? (
+          ) : activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie-Talkie" ? (
             <WalkieTalkieInventoryView showToast={showToast} />
+          ) : activeNav === "Walkie Talkie Testing" ? (
+            <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
           ) : activeNav === "Latest Updates" ? (
             <AnnouncementsManager showToast={showToast} />
           ) : (
@@ -1571,9 +1588,9 @@ function SidebarDailyPositionAccordion() {
 
   return (
     <div className="dp-circuit-accordion" style={{ paddingLeft: "8px", margin: "4px 0 12px 0", display: "grid", gap: "6px" }}>
-      {DAILY_POSITION_CATEGORIES.map(category => {
+      {DAILY_POSITION_CATEGORIES.filter(c => c !== "Testing & Maintenance").map(category => {
         const isOpen = category === dpOpenCategory;
-        const forms = DAILY_POSITION_FORMS.filter(form => form.category === category);
+        const forms = DAILY_POSITION_FORMS.filter(form => form.category === category && form.name !== "Walkie-Talkie Testing");
         const visibleForms = forms.filter(form =>
           `${form.name} ${form.badge} ${form.systemCode}`.toLowerCase().includes(dpCircuitSearch.toLowerCase())
         );
@@ -1673,16 +1690,73 @@ function SidebarDailyPositionAccordion() {
   );
 }
 
+function SidebarWalkieTalkieAccordion() {
+  const { activeNav, setActiveNav, role } = useAppStore();
+  const showTesting = role === "STAFF" || role === "TESTROOM";
+  const subItems = [
+    { label: "Inventory", value: "Walkie Talkie Inventory" },
+    ...(showTesting ? [{ label: "Testing", value: "Walkie Talkie Testing" }] : [])
+  ];
+
+  return (
+    <div style={{ paddingLeft: "16px", margin: "4px 0 12px 24px", display: "grid", gap: "6px", borderLeft: "1.5px solid rgba(255, 255, 255, 0.15)" }}>
+      {subItems.map(item => {
+        const isActive = activeNav === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            style={{
+              width: "100%",
+              padding: "6px 12px",
+              borderRadius: "6px",
+              border: "none",
+              background: isActive ? "rgba(255, 255, 255, 0.1)" : "transparent",
+              color: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.65)",
+              fontSize: "13px",
+              fontWeight: isActive ? 700 : 500,
+              textAlign: "left",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              transition: "all 0.15s ease"
+            }}
+            onClick={() => {
+              setActiveNav(item.value as any);
+            }}
+            onMouseEnter={e => {
+              if (!isActive) {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                e.currentTarget.style.color = "#ffffff";
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isActive) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "rgba(255, 255, 255, 0.65)";
+              }
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
   const { activeNav, role, sidebarOpen, setActiveNav, logout, user, division, token } = useAppStore();
   const queryClient = useQueryClient();
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [dpDropdownOpen, setDpDropdownOpen] = useState(true);
+  const [wtDropdownOpen, setWtDropdownOpen] = useState(true);
 
   const hasAccessAssets = user?.role !== "STAFF" && user?.accessAssets !== false;
   const hasAccessDailyPosition = user?.accessDailyPosition !== false;
 
   const visibleNav = navItems.filter((item) => {
+    if (item.hidden) return false;
     if (!item.roles.includes(role)) return false;
     if (item.label === "Feedback" && role !== "SUPER_ADMIN") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
@@ -1722,7 +1796,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
       void queryClient.prefetchQuery({
         queryKey: ["dashboard-summary", division, token],
         queryFn: () => getDashboardSummary(division),
-        staleTime: 60_000,
+        staleTime: 5 * 60_000,
       });
     }
     if ((label === "Master List" || label === "Assets") && token) {
@@ -1762,7 +1836,11 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
           return (
             <Fragment key={item.label}>
               <button
-                className={`nav-item ${item.label === activeNav ? "active" : ""}`}
+                className={`nav-item ${
+                  item.label === activeNav || 
+                  (item.label === "Walkie-Talkie" && (activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing")) 
+                    ? "active" : ""
+                }`}
                 style={{ opacity: hasAccess ? 1 : 0.6 }}
                 onMouseEnter={() => hasAccess && prefetchNav(item.label)}
                 onFocus={() => hasAccess && prefetchNav(item.label)}
@@ -1777,6 +1855,14 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
                     } else {
                       setActiveNav(item.label);
                       setDpDropdownOpen(true);
+                    }
+                  } else if (item.label === "Walkie-Talkie") {
+                    const isWtActive = activeNav === "Walkie-Talkie" || activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing";
+                    if (isWtActive) {
+                      setWtDropdownOpen(!wtDropdownOpen);
+                    } else {
+                      setActiveNav("Walkie Talkie Inventory");
+                      setWtDropdownOpen(true);
                     }
                   } else {
                     setActiveNav(item.label);
@@ -1805,6 +1891,11 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
               </button>
               {item.label === "DP Form" && activeNav === "DP Form" && dpDropdownOpen && hasAccess && (
                 <SidebarDailyPositionAccordion />
+              )}
+              {item.label === "Walkie-Talkie" && 
+                (activeNav === "Walkie-Talkie" || activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing") && 
+                wtDropdownOpen && hasAccess && (
+                  <SidebarWalkieTalkieAccordion />
               )}
             </Fragment>
           );
@@ -3616,7 +3707,7 @@ function WalkieTalkieDivisionPanel({
             className="wt-kpi-badge"
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalDefective > 0 ? "#ef4444" : "#10b981" }} />
-            Defective Sets: {totalDefective}
+            Active Faults: {totalDefective}
           </button>
         </div>
 
@@ -3639,11 +3730,11 @@ function WalkieTalkieDivisionPanel({
               </div>
             </div>
 
-            {/* Defective Sets Card */}
+            {/* Active Faults Card */}
             <div style={{ flex: 1, background: pendingRepair > 0 ? "#fff5f5" : "#f0fdf4", border: pendingRepair > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Repair Status</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Active Faults</div>
               <strong style={{ fontSize: 22, fontWeight: 800, color: pendingRepair > 0 ? "#b91c1c" : "#14532d" }}>{pendingRepair}</strong>
-              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Sets Pending Repair" : "All Sets Repaired"}</div>
+              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Faulty Sets Found" : "All Sets Healthy"}</div>
               <div style={{ height: 4, background: pendingRepair > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
                 <div style={{ width: pendingRepair > 0 ? "100%" : "0%", height: "100%", background: pendingRepair > 0 ? "#ef4444" : "#10b981" }} />
               </div>
@@ -3678,7 +3769,7 @@ function WalkieTalkieDivisionPanel({
           className="wt-kpi-badge"
         >
           <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalDefective > 0 ? "#ef4444" : "#10b981" }} />
-          Defective Sets: {totalDefective}
+          Active Faults: {totalDefective}
         </button>
       </div>
 
@@ -3709,7 +3800,7 @@ function WalkieTalkieDivisionPanel({
                       padding: "2px 6px",
                       borderRadius: 4
                     }}>
-                      {pendingRepair} Defective
+                      {pendingRepair} Faulty
                     </span>
                   )}
                 </div>
@@ -5761,10 +5852,17 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
 
 
 function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string) => void }) {
+  return <WalkieTalkieInventoryViewExternal showToast={showToast} />;
+}
+
+function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message: string) => void }) {
+  const queryClient = useQueryClient();
   const [lobbies, setLobbies] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { role } = useAppStore();
   const isNonDivisional = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
+  const isViewer = role === "VIEWER" || role === "DIVISIONAL_VIEWER" || role === "ALL_DIVISION_VIEWER";
 
   // Form states
   const [isLobbyModalOpen, setIsLobbyModalOpen] = useState(false);
@@ -5778,6 +5876,14 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
   // Dialog state for viewing serial numbers
   const [isViewSerialsModalOpen, setIsViewSerialsModalOpen] = useState(false);
   const [viewingLobby, setViewingLobby] = useState<any>(null);
+
+  // States for managing individual walkie-talkies inside a lobby
+  const [editingWTIndex, setEditingWTIndex] = useState<number | null>(null);
+  const [editingWTSerial, setEditingWTSerial] = useState("");
+  const [editingWTMakeModel, setEditingWTMakeModel] = useState("");
+  const [newWTSerial, setNewWTSerial] = useState("");
+  const [newWTMakeModel, setNewWTMakeModel] = useState("Motorola");
+  const [isMutating, setIsMutating] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -5823,6 +5929,7 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
       return;
     }
     try {
+      setIsMutating(true);
       const res = await api.walkieTalkie.upsertLobby({
         lobbyName: lobbyName.trim(),
         totalWalkieTalkies: Number(totalWalkieTalkies),
@@ -5832,25 +5939,151 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
       if (res.success) {
         showToast(editingLobbyId ? "Lobby updated successfully" : "Lobby created successfully");
         setIsLobbyModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
         fetchLobbies();
       }
     } catch (err: any) {
       showToast(err.message || "Failed to save lobby");
+    } finally {
+      setIsMutating(false);
     }
   };
+
 
   const handleDeleteLobby = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this lobby?")) return;
     try {
+      setIsMutating(true);
       const res = await api.walkieTalkie.deleteLobby(id);
       if (res.success) {
         showToast("Lobby deleted successfully");
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
         fetchLobbies();
       }
     } catch (err: any) {
       showToast(err.message || "Failed to delete lobby");
+    } finally {
+      setIsMutating(false);
     }
   };
+
+  const handleAddSingleWalkieTalkie = async (lobby: any) => {
+    if (!newWTSerial.trim() || !newWTMakeModel.trim()) {
+      showToast("Please enter both Serial Number and Make/Model.");
+      return;
+    }
+    const currentList = Array.isArray(lobby.walkieTalkies) ? lobby.walkieTalkies : [];
+    const duplicate = currentList.some((wt: any) => wt.serialNumber.toLowerCase() === newWTSerial.trim().toLowerCase());
+    if (duplicate) {
+      showToast("This serial number already exists in this lobby.");
+      return;
+    }
+    const updatedList = [...currentList, { serialNumber: newWTSerial.trim(), makeModel: newWTMakeModel.trim() }];
+    try {
+      setIsMutating(true);
+      const res = await api.walkieTalkie.upsertLobby({
+        lobbyName: lobby.lobbyName,
+        totalWalkieTalkies: updatedList.length,
+        division: lobby.division,
+        walkieTalkies: updatedList,
+      });
+      if (res.success) {
+        showToast("Walkie-talkie added successfully.");
+        setNewWTSerial("");
+        const refreshedLobby = { ...lobby, walkieTalkies: updatedList };
+        setViewingLobby(refreshedLobby);
+        // Refresh background lobbies list
+        const updatedLobbies = lobbies.map(l => l.id === lobby.id ? refreshedLobby : l);
+        setLobbies(updatedLobbies);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to add walkie-talkie.");
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleDeleteSingleWalkieTalkie = async (lobby: any, indexToDelete: number) => {
+    if (!window.confirm("Are you sure you want to remove this walkie-talkie?")) return;
+    const currentList = Array.isArray(lobby.walkieTalkies) ? lobby.walkieTalkies : [];
+    const updatedList = currentList.filter((_: any, idx: number) => idx !== indexToDelete);
+    try {
+      setIsMutating(true);
+      const res = await api.walkieTalkie.upsertLobby({
+        lobbyName: lobby.lobbyName,
+        totalWalkieTalkies: updatedList.length,
+        division: lobby.division,
+        walkieTalkies: updatedList,
+      });
+      if (res.success) {
+        showToast("Walkie-talkie removed successfully.");
+        const refreshedLobby = { ...lobby, walkieTalkies: updatedList };
+        setViewingLobby(refreshedLobby);
+        // Refresh background lobbies list
+        const updatedLobbies = lobbies.map(l => l.id === lobby.id ? refreshedLobby : l);
+        setLobbies(updatedLobbies);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to remove walkie-talkie.");
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleSaveSingleWalkieTalkieEdit = async (lobby: any, indexToEdit: number) => {
+    if (!editingWTSerial.trim() || !editingWTMakeModel.trim()) {
+      showToast("Fields cannot be empty.");
+      return;
+    }
+    const currentList = Array.isArray(lobby.walkieTalkies) ? lobby.walkieTalkies : [];
+    
+    // Check duplication excluding self
+    const duplicate = currentList.some((wt: any, idx: number) => 
+      idx !== indexToEdit && wt.serialNumber.toLowerCase() === editingWTSerial.trim().toLowerCase()
+    );
+    if (duplicate) {
+      showToast("This serial number already exists in this lobby.");
+      return;
+    }
+
+    const updatedList = currentList.map((wt: any, idx: number) => 
+      idx === indexToEdit ? { serialNumber: editingWTSerial.trim(), makeModel: editingWTMakeModel.trim() } : wt
+    );
+
+
+    try {
+      setIsMutating(true);
+      const res = await api.walkieTalkie.upsertLobby({
+        lobbyName: lobby.lobbyName,
+        totalWalkieTalkies: updatedList.length,
+        division: lobby.division,
+        walkieTalkies: updatedList,
+      });
+      if (res.success) {
+        showToast("Walkie-talkie updated successfully.");
+        setEditingWTIndex(null);
+        const refreshedLobby = { ...lobby, walkieTalkies: updatedList };
+        setViewingLobby(refreshedLobby);
+        // Refresh background lobbies list
+        const updatedLobbies = lobbies.map(l => l.id === lobby.id ? refreshedLobby : l);
+        setLobbies(updatedLobbies);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to update walkie-talkie.");
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+
 
   const handleInputClick = () => {
     if (fileInputRef.current) {
@@ -5958,21 +6191,43 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
     }
   };
 
+  const filteredLobbies = lobbies.filter(l => 
+    String(l.lobbyName || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Page Header */}
       <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: "14px" }}>Manage walkie-talkie inventory counts per lobby. Lobby names appear as a dropdown in the Walkie-Talkie Testing form.</p>
         </div>
-        <button className="export-button" onClick={handleOpenAddModal} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Plus size={16} /> Add New Lobby
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <input 
+            type="text" 
+            placeholder="Search lobby..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border: "1px solid var(--line)",
+              fontSize: "14px",
+              outline: "none",
+              width: "220px",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+            }} 
+          />
+          {!isViewer && (
+            <button className="export-button" onClick={handleOpenAddModal} style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
+              <Plus size={16} /> Add New Lobby
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Inventory Table */}
-      <div className="panel" style={{ padding: "20px" }}>
+      <div className="panel" style={{ padding: "20px", background: "transparent", border: "none", boxShadow: "none" }}>
         <h3 style={{ margin: "0 0 15px", fontSize: "16px", color: "var(--navy)", fontWeight: 600 }}>Lobby Inventory Status</h3>
         {isLoading && lobbies.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>Loading lobbies data...</div>
@@ -5982,48 +6237,96 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
           </div>
         ) : (
           <div className="table-scroll-container" style={{ overflow: "auto" }}>
-            <table className="data-table">
+            <style>{`
+              .wt-lobby-table {
+                border-collapse: separate;
+                border-spacing: 0 12px;
+                width: 100%;
+                margin-top: -12px;
+              }
+              .wt-lobby-row {
+                background: #ffffff;
+                transition: all 0.2s ease-in-out;
+              }
+              .wt-lobby-row:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 10px rgba(13, 59, 111, 0.08) !important;
+              }
+              .wt-lobby-cell {
+                padding: 14px 16px;
+                background: #ffffff;
+                border-top: 1px solid #e2e8f0;
+                border-bottom: 1px solid #e2e8f0;
+                font-size: 14px;
+                color: #334155;
+                font-family: 'Outfit', 'Inter', sans-serif;
+              }
+              .wt-lobby-cell:first-child {
+                border-left: 1px solid #e2e8f0;
+                border-top-left-radius: 10px;
+                border-bottom-left-radius: 10px;
+              }
+              .wt-lobby-cell:last-child {
+                border-right: 1px solid #e2e8f0;
+                border-top-right-radius: 10px;
+                border-bottom-right-radius: 10px;
+              }
+              .wt-lobby-row.completed .wt-lobby-cell {
+                border-top-color: #82C43C;
+                border-bottom-color: #82C43C;
+              }
+              .wt-lobby-row.completed .wt-lobby-cell:first-child {
+                border-left-color: #82C43C;
+                border-left-width: 1.5px;
+              }
+              .wt-lobby-row.completed .wt-lobby-cell:last-child {
+                border-right-color: #82C43C;
+                border-right-width: 1.5px;
+              }
+            `}</style>
+            <table className="wt-lobby-table">
               <thead>
-                <tr>
-                  <th style={{ width: "60px" }}>#</th>
-                  <th>Lobby Name</th>
-                  {isNonDivisional && <th>Division</th>}
-                  <th style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
-                  <th style={{ textAlign: "center" }}>Tested Count</th>
-                  <th style={{ textAlign: "center" }}>To Be Tested</th>
-                  <th style={{ textAlign: "center" }}>Serial Numbers</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
+                <tr style={{ background: "transparent", boxShadow: "none" }}>
+                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "left" }}>Lobby Name</th>
+                  {isNonDivisional && <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "left" }}>Division</th>}
+                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Total Walkie-Talkies</th>
+                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Tested Count</th>
+                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>To Be Tested</th>
+                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Serial Numbers</th>
+                  {!isViewer && <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "right" }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {lobbies.map((l, idx) => {
+                {filteredLobbies.map((l, idx) => {
                   const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
                     ? l.walkieTalkies.length 
                     : l.totalWalkieTalkies;
                   const toBeTested = totalWTs - l.testedCount;
+                  const isCompleted = toBeTested === 0 && totalWTs > 0;
                   return (
-                    <tr key={l.id}>
-                      <td>{idx + 1}</td>
-                      <td><strong>{l.lobbyName}</strong></td>
+                    <tr key={l.id} className={`wt-lobby-row ${isCompleted ? "completed" : ""}`} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                      <td className="wt-lobby-cell">
+                        <strong style={{ fontSize: "15px", color: "var(--navy)", fontWeight: 600 }}>{l.lobbyName}</strong>
+                      </td>
                       {isNonDivisional && (
-                        <td>
-                          <span className="pill info" style={{ fontWeight: 600, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
+                        <td className="wt-lobby-cell">
+                          <span className="pill info" style={{ fontWeight: 650, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
                             {l.division}
                           </span>
                         </td>
                       )}
-                      <td style={{ textAlign: "center" }}>
-                        <span className="pill info" style={{ fontWeight: 600 }}>{totalWTs}</span>
+                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                        <span className="pill info" style={{ fontWeight: 650, background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" }}>{totalWTs}</span>
                       </td>
-                      <td style={{ textAlign: "center" }}>
-                        <span className="pill success" style={{ fontWeight: 600 }}>{l.testedCount}</span>
+                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                        <span className="pill success" style={{ fontWeight: 650, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>{l.testedCount}</span>
                       </td>
-                      <td style={{ textAlign: "center" }}>
-                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600 }}>
+                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 650, background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}` }}>
                           {toBeTested}
                         </span>
                       </td>
-                      <td style={{ textAlign: "center" }}>
+                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
                         <button
                           className="action-btn"
                           onClick={() => {
@@ -6039,7 +6342,7 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                             background: "#eff6ff",
                             color: "#2563eb",
                             border: "1px solid #bfdbfe",
-                            fontWeight: 600,
+                            fontWeight: 650,
                             cursor: "pointer",
                             fontSize: "13px"
                           }}
@@ -6048,10 +6351,12 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                           Excel Sheet
                         </button>
                       </td>
-                      <td style={{ textAlign: "right" }}>
-                        <button className="action-btn text-blue" onClick={() => handleOpenEditModal(l)} style={{ marginRight: 8 }}>Edit</button>
-                        <button className="action-btn text-red" onClick={() => handleDeleteLobby(l.id)}>Delete</button>
-                      </td>
+                      {!isViewer && (
+                        <td className="wt-lobby-cell" style={{ textAlign: "right", paddingRight: "20px" }}>
+                          <button className="action-btn text-blue" onClick={() => handleOpenEditModal(l)} style={{ marginRight: 12, fontWeight: 600 }}>Edit</button>
+                          <button className="action-btn text-red" onClick={() => handleDeleteLobby(l.id)} style={{ fontWeight: 600 }}>Delete</button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -6139,8 +6444,10 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                 </select>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "5px" }}>
-                <button type="button" className="export-button" onClick={() => setIsLobbyModalOpen(false)} style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)" }}>Cancel</button>
-                <button type="submit" className="export-button" style={{ background: "var(--blue)", color: "#fff", borderColor: "var(--blue)" }}>Save Lobby</button>
+                <button type="button" className="export-button" disabled={isMutating} onClick={() => setIsLobbyModalOpen(false)} style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", cursor: isMutating ? "not-allowed" : "pointer" }}>Cancel</button>
+                <button type="submit" className="export-button" disabled={isMutating} style={{ background: "var(--blue)", color: "#fff", borderColor: "var(--blue)", cursor: isMutating ? "not-allowed" : "pointer" }}>
+                  {isMutating ? "Saving..." : "Save Lobby"}
+                </button>
               </div>
             </form>
           </div>
@@ -6150,37 +6457,128 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
-          <div className="modal-card" style={{ width: "500px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className="modal-card" style={{ width: "550px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
-                  Walkie-Talkies Inventory
+                  Manage Walkie-Talkies Inventory
                 </h3>
                 <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>Lobby: <strong>{viewingLobby.lobbyName}</strong></p>
               </div>
-              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
+              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
             </div>
             
             <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
               <div style={{ background: "#f8fafc", padding: "10px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
-                <span>Serial Number</span>
-                <span>Make / Model</span>
+                <span style={{ flex: 2 }}>Serial Number</span>
+                <span style={{ flex: 2 }}>Make / Model</span>
+                {!isViewer && <span style={{ flex: 1, textAlign: "right" }}>Actions</span>}
               </div>
-              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+              <div style={{ maxHeight: "250px", overflowY: "auto" }}>
                 {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
                   <div style={{ textAlign: "center", padding: "30px", color: "var(--muted)", fontSize: "14px" }}>
                     No walkie-talkies recorded for this lobby.
                   </div>
                 ) : (
-                  viewingLobby.walkieTalkies.map((wt: any, index: number) => (
-                    <div key={index} style={{ padding: "10px 15px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", fontSize: "14px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                      <span style={{ fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
-                      <span style={{ color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
-                    </div>
-                  ))
+                  viewingLobby.walkieTalkies.map((wt: any, index: number) => {
+                    const isEditing = editingWTIndex === index;
+                    return (
+                      <div key={index} style={{ padding: "8px 15px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
+                        {isEditing ? (
+                          <>
+                            <input 
+                              type="text" 
+                              value={editingWTSerial} 
+                              disabled={isMutating}
+                              onChange={(e) => setEditingWTSerial(e.target.value)} 
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
+                            />
+                            <input 
+                              type="text" 
+                              value={editingWTMakeModel} 
+                              disabled={isMutating}
+                              onChange={(e) => setEditingWTMakeModel(e.target.value)} 
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }} 
+                            />
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button 
+                                onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)} 
+                                disabled={isMutating}
+                                style={{ background: "#22c55e", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer", opacity: isMutating ? 0.7 : 1 }}
+                              >
+                                {isMutating ? "Saving..." : "Save"}
+                              </button>
+                              <button 
+                                onClick={() => setEditingWTIndex(null)} 
+                                disabled={isMutating}
+                                style={{ background: "#cbd5e1", color: "#334155", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer" }}
+                              >Cancel</button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ flex: 2, fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
+                            <span style={{ flex: 2, color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
+                            {!isViewer && (
+                              <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                                <button 
+                                  onClick={() => {
+                                    setEditingWTIndex(index);
+                                    setEditingWTSerial(wt.serialNumber);
+                                    setEditingWTMakeModel(wt.makeModel || "Motorola");
+                                  }}
+                                  disabled={isMutating}
+                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
+                                >Edit</button>
+                                <button 
+                                  onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, index)} 
+                                  disabled={isMutating}
+                                  style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
+                                >
+                                  {isMutating ? "Removing..." : "Delete"}
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
+
+            {/* Add single walkie talkie manually */}
+            {!isViewer && (
+              <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <h4 style={{ margin: 0, fontSize: "13px", color: "var(--navy)", fontWeight: 600 }}>Add Walkie-Talkie Manually</h4>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <input
+                    type="text"
+                    placeholder="Serial Number..."
+                    value={newWTSerial}
+                    disabled={isMutating}
+                    onChange={(e) => setNewWTSerial(e.target.value)}
+                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Make / Model..."
+                    value={newWTMakeModel}
+                    disabled={isMutating}
+                    onChange={(e) => setNewWTMakeModel(e.target.value)}
+                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
+                  />
+                  <button
+                    onClick={() => handleAddSingleWalkieTalkie(viewingLobby)}
+                    disabled={isMutating}
+                    style={{ flex: 1, padding: "8px 12px", background: "var(--blue)", color: "#fff", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer", opacity: isMutating ? 0.7 : 1 }}
+                  >
+                    {isMutating ? "Adding..." : "Add Set"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               {viewingLobby.walkieTalkies && viewingLobby.walkieTalkies.length > 0 && (
@@ -6219,12 +6617,12 @@ function WalkieTalkieInventoryView({ showToast }: { showToast: (message: string)
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Export to Excel
+                  Export Excel
                 </button>
               )}
               <button 
                 className="export-button" 
-                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); }} 
+                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} 
                 style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", marginLeft: "auto" }}
               >
                 Close
@@ -7523,7 +7921,7 @@ function ModuleView({
                 <tbody>
                   {paginatedList.map((u: any, idx: number) => {
                     const canManage = useAppStore.getState().role === "SUPER_ADMIN" ||
-                      (useAppStore.getState().role === "DIVISIONAL_ADMIN" && normalizeDivision(u.division) === normalizeDivision(useAppStore.getState().user?.division));
+                      ((useAppStore.getState().role === "DIVISIONAL_ADMIN" || useAppStore.getState().role === "TESTROOM") && normalizeDivision(u.division) === normalizeDivision(useAppStore.getState().user?.division));
                     return (
                       <tr key={u.id}>
                         <td>{(currentPage - 1) * 10 + idx + 1}</td>
@@ -7695,7 +8093,7 @@ function ModuleView({
     (activeNav === "Master List" && canEditStations) ||
     (activeNav === "Assets" && canEditAssets) ||
     (activeNav === "LC Gate" && canEditGates) ||
-    (activeNav === "Users & Roles" && ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || ""))
+    (activeNav === "Users & Roles" && ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM"].includes(role || ""))
   );
 
   const getCreateLabel = (nav: NavKey): string => {

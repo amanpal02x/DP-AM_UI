@@ -826,8 +826,13 @@ function WalkieTalkieLobbySelect({
     const lobby = lobbies.find((l: any) => l.lobbyName === lobbyName);
     if (lobby) {
       if (field.name === "stationLobby") {
-        setValue("toBeTestedCount", lobby.totalWalkieTalkies);
+        const totalWTs = Array.isArray(lobby.walkieTalkies) && lobby.walkieTalkies.length > 0 
+          ? lobby.walkieTalkies.length 
+          : lobby.totalWalkieTalkies;
+        setValue("toBeTestedCount", totalWTs);
         setValue("testedCount", lobby.testedCount);
+        setValue("makeModel", "");
+        setValue("serialNo", "");
       } else if (field.name === "stationCode") {
         setValue("openingDefective", getFaultCount(lobbyName));
       }
@@ -840,7 +845,10 @@ function WalkieTalkieLobbySelect({
       const lobby = lobbies.find((l: any) => l.lobbyName === value);
       if (lobby) {
         if (field.name === "stationLobby") {
-          setValue("toBeTestedCount", lobby.totalWalkieTalkies);
+          const totalWTs = Array.isArray(lobby.walkieTalkies) && lobby.walkieTalkies.length > 0 
+            ? lobby.walkieTalkies.length 
+            : lobby.totalWalkieTalkies;
+          setValue("toBeTestedCount", totalWTs);
           setValue("testedCount", lobby.testedCount);
         } else if (field.name === "stationCode") {
           setValue("openingDefective", getFaultCount(value));
@@ -867,20 +875,24 @@ function WalkieTalkieLobbySelect({
           border: "1px solid #cbd5e1",
           fontSize: "14px",
           background: readOnly ? "#f8fafc" : "#fff",
-          color: value ? "#1e293b" : "#94a3b8",
+          color: value ? "#0f172a" : "#64748b",
+          fontWeight: 500,
           cursor: readOnly ? "not-allowed" : "pointer",
         }}
       >
-        <option value="" disabled>
+        <option value="" disabled style={{ color: "#94a3b8" }}>
           {isLoadingLobbies ? "Loading lobbies..." : (field.placeholder || "Select Station / Lobby")}
         </option>
         {lobbies.map((l: any) => {
           const faultCount = getFaultCount(l.lobbyName);
+          const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
+            ? l.walkieTalkies.length 
+            : l.totalWalkieTalkies;
           const displayText = field.name === "stationCode"
             ? `${l.lobbyName} (${faultCount} fault${faultCount !== 1 ? "s" : ""})`
-            : `${l.lobbyName} (${l.totalWalkieTalkies} sets)`;
+            : `${l.lobbyName} (${totalWTs} sets)`;
           return (
-            <option key={l.id} value={l.lobbyName}>
+            <option key={l.id} value={l.lobbyName} style={{ color: "#0f172a", fontWeight: 500 }}>
               {displayText}
             </option>
           );
@@ -2555,20 +2567,6 @@ function DailyPositionFieldInput({
     );
   }
 
-  if (field.name === "pendingRepair") {
-    const opening = Number(values.openingDefective || 0);
-    const received = Number(values.receivedFromUser || 0);
-    const returned = Number(values.returnedToUser || 0);
-    const condemned = Number(values.setsCondemned || 0);
-    const balance = opening + received - returned - condemned;
-    return (
-      <div className="dp-field">
-        <label>{field.label}</label>
-        <input readOnly value={balance} />
-      </div>
-    );
-  }
-
   if (field.name === "netBalanceCaseOnDate") {
     const lastDate = Number(values.caseBalanceLastDate || 0);
     const received = Number(values.caseReceivedOnDate || 0);
@@ -2594,7 +2592,7 @@ function DailyPositionFieldInput({
 
 
   // Walkie-Talkie lobby dropdown - fetches from API
-  if (field.name === "stationLobby" || (formName === "Walkie-Talkie Repairing" && field.name === "stationCode")) {
+  if (field.name === "stationLobby") {
     return (
       <WalkieTalkieLobbySelect
         field={field}
@@ -2615,6 +2613,32 @@ function DailyPositionFieldInput({
         readOnly={readOnly}
       />
     );
+  }
+
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-select"],
+    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
+    staleTime: 5000,
+    enabled: formName === "Walkie-Talkie Testing",
+  });
+  const lobbies = lobbiesQuery.data || [];
+
+  let options = field.options || [];
+  let isSerialDropdown = false;
+  let serialOptions: string[] = [];
+
+  if (formName === "Walkie-Talkie Testing") {
+    const selectedLobby = lobbies.find((l: any) => l.lobbyName === values.stationLobby);
+    const registeredWTs = selectedLobby?.walkieTalkies || [];
+
+    if (field.name === "makeModel") {
+      const lobbyMakes = Array.from(new Set(registeredWTs.map((wt: any) => wt.makeModel).filter(Boolean))) as string[];
+      options = lobbyMakes.length > 0 ? lobbyMakes : ["Motorola", "Kenwood", "Icom", "Hytera", "Vertex Standard", "Convey W/T", "Other"];
+    } else if (field.name === "serialNo") {
+      isSerialDropdown = true;
+      const matchingWTs = registeredWTs.filter((wt: any) => wt.makeModel === values.makeModel);
+      serialOptions = matchingWTs.map((wt: any) => wt.serialNumber).filter(Boolean) as string[];
+    }
   }
 
   const commonProps = {
@@ -2647,14 +2671,162 @@ function DailyPositionFieldInput({
         )}
         {field.required && <span>*</span>}
       </label>
-      {field.type === "select" ? (
+      {isSerialDropdown ? (
+        (!values.reportType || values.reportType === "Healthy") ? (
+          <div className="multi-dropdown" style={{ position: "relative" }} ref={dropdownRef}>
+            <button
+              type="button"
+              className="multi-dropdown-trigger"
+              disabled={readOnly || !values.makeModel}
+              onClick={() => {
+                if (readOnly || !values.makeModel) return;
+                if (!isOpen) setSearchTerm("");
+                setIsOpen(!isOpen);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly || !values.makeModel ? "#f8fafc" : "#ffffff",
+                color: value ? "#1e293b" : "#94a3b8",
+                fontSize: "14px",
+                textAlign: "left",
+                cursor: readOnly || !values.makeModel ? "not-allowed" : "pointer"
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {value || field.placeholder || "Select Serial Numbers"}
+              </span>
+              <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
+            </button>
+
+            {isOpen && !readOnly && (
+              <div
+                className="multi-dropdown-menu"
+                style={{
+                  position: "absolute",
+                  zIndex: 100,
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  marginTop: "4px",
+                  maxHeight: "300px",
+                  display: "flex",
+                  flexDirection: "column",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  background: "#ffffff",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                  padding: "8px"
+                }}
+              >
+                <div style={{ padding: "4px 4px 8px 4px" }}>
+                  <input
+                    type="text"
+                    placeholder="Search serial number..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{
+                      width: "100%",
+                      minHeight: "36px",
+                      padding: "6px 10px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      background: "#f8fafc"
+                    }}
+                  />
+                </div>
+                <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {serialOptions.filter((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? (
+                    serialOptions
+                      .filter((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((opt: string) => {
+                        const checked = (value || "").split(/,\s*/).map((s: string) => s.trim()).includes(opt);
+                        return (
+                          <div
+                            key={opt}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              color: "#1e293b",
+                              transition: "background 0.15s"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const selected = (value || "").split(/,\s*/).map((s: string) => s.trim()).filter(Boolean);
+                              let nextVal: string[];
+                              if (selected.includes(opt)) {
+                                nextVal = selected.filter((s: string) => s !== opt);
+                              } else {
+                                nextVal = [...selected, opt];
+                              }
+                              setValue(field.name, nextVal.join(", "));
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="dp-checkbox"
+                              checked={checked}
+                              onChange={() => {}}
+                              style={{ cursor: "pointer" }}
+                            />
+                            <span>{opt}</span>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                      No serial numbers found
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <SearchableDropdown
+            options={serialOptions}
+            value={value}
+            onChange={(val) => setValue(field.name, val)}
+            placeholder={values.makeModel ? "Select Serial Number" : "Select Make / Model first"}
+            required={field.required}
+            readOnly={readOnly || field.readonly || !values.makeModel}
+            clearable={true}
+            searchable={true}
+          />
+        )
+      ) : field.type === "select" ? (
         <SearchableDropdown
-          options={field.options || []}
+          options={options}
           value={value}
-          onChange={(val) => setValue(field.name, val)}
+          onChange={(val) => {
+            setValue(field.name, val);
+            if (field.name === "makeModel" && formName === "Walkie-Talkie Testing") {
+              setValue("serialNo", "");
+            }
+            if (field.name === "reportType" && formName === "Walkie-Talkie Testing") {
+              setValue("serialNo", "");
+            }
+          }}
           placeholder={field.placeholder || `Select ${field.label}`}
           required={field.required}
-          readOnly={readOnly || field.readonly}
+          readOnly={readOnly || field.readonly || (field.name === "makeModel" && formName === "Walkie-Talkie Testing" && !values.stationLobby)}
           clearable={field.name !== "reportType"}
           searchable={field.name !== "reportType"}
         />
@@ -2848,7 +3020,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             continue;
           }
         } else if (walkieTalkieMode === "fault") {
-          const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+          const isHealthy = !values.reportType || values.reportType === "Healthy";
           // Hide Antenna field on Healthy Report
           if (field.name === "antennaStatus" && isHealthy) {
             continue;
@@ -2868,7 +3040,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               label: "Report Type",
               type: "select",
               required: true,
-              options: ["Healthy Report", "Faulty Report"],
+              options: ["Healthy", "Fault"],
               placeholder: "Select Report"
             });
             continue;
@@ -2937,6 +3109,12 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     }
   }, [selectedForm?.name, values.section]);
 
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDivision, setHistoryDivision] = useState(role === "STAFF" ? (division || "") : "");
+  const [historyStatus, setHistoryStatus] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 50;
+
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
     queryFn: () => api.dailyPosition.metadata(selectedDivision ? { division: selectedDivision } : {}),
@@ -2945,21 +3123,33 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   });
 
   const recordsQuery = useQuery({
-    queryKey: ["daily-position-records", selectedDivision, selectedDate, historyDate, dpHistoryFilter, viewMode],
+    queryKey: ["daily-position-records", selectedDivision, selectedDate, historyDate, dpHistoryFilter, viewMode, historyPage, historySearch, historyDivision, historyCategory, historyFormType, historyStatus],
     queryFn: () => {
-      const params: any = {
-        division: selectedDivision || "",
-        limit: "500",
-      };
-      if (dpHistoryFilter === "active-faults") {
-        params.isFaulty = "true";
-      } else if (dpHistoryFilter === "resolved-faults") {
-        params.isResolved = "true";
+      const params: any = {};
+
+      if (viewMode === "history") {
+        // History mode: server-side pagination + filtering
+        params.page = String(historyPage);
+        params.pageSize = String(HISTORY_PAGE_SIZE);
+        params.division = historyDivision || selectedDivision || "";
+        if (historySearch) params.search = historySearch;
+        if (historyCategory) params.category = historyCategory;
+        if (historyFormType) params.formType = historyFormType;
+        if (dpHistoryFilter === "active-faults") {
+          params.isFaulty = "true";
+        } else if (dpHistoryFilter === "resolved-faults") {
+          params.isResolved = "true";
+        } else if (historyDate) {
+          params.date = historyDate;
+        }
       } else {
-        if (viewMode === "history") {
-          if (historyDate) {
-            params.date = historyDate;
-          }
+        // Form mode: fetch today's records for this division
+        params.division = selectedDivision || "";
+        params.limit = "500";
+        if (dpHistoryFilter === "active-faults") {
+          params.isFaulty = "true";
+        } else if (dpHistoryFilter === "resolved-faults") {
+          params.isResolved = "true";
         } else {
           params.date = selectedDate;
         }
@@ -2968,6 +3158,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     },
     placeholderData: previousData => previousData,
   });
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyDivision, historyCategory, historyFormType, historyStatus, historyDate, dpHistoryFilter]);
 
   const activeCircuitFaultsQuery = useQuery({
     queryKey: ["daily-position-active-faults", selectedDivision, selectedForm?.name],
@@ -3124,10 +3319,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
   };
 
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyDivision, setHistoryDivision] = useState(role === "STAFF" ? (division || "") : "");
-  const [historyStatus, setHistoryStatus] = useState("");
-
   const uniqueCategories = useMemo(() => {
     return Array.from(new Set(records.map((r: any) => r.category).filter(Boolean))) as string[];
   }, [records]);
@@ -3140,60 +3331,51 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     return Array.from(new Set(records.map((r: any) => r.status).filter(Boolean))) as string[];
   }, [records]);
 
+  // In history mode: records come pre-filtered from server. In form mode: filter client-side (small dataset).
   const filteredHistoryRecords = useMemo(() => {
-    return records.filter((r: any) => {
-      if (r.status === "DRAFT") return false;
+    const rawList = viewMode === "history"
+      ? (recordsQuery.data?.data || [])
+      : records;
 
+    if (viewMode === "history") {
+      // Server already filtered — just exclude DRAFTs
+      return rawList.filter((r: any) => r.status !== "DRAFT");
+    }
+
+    // Form mode: apply client-side filters on the small today-dataset
+    return rawList.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
       const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isActive = !isAllOk && (r.status === "ACTIVE" || r.status === "PENDING" || (!r.rectificationTime && !isAllOk));
-      const isFault = !isAllOk && !!r.failureTime && (r.status === "FAULT" || r.status === "ACTIVE" || r.status === "PENDING" || r.status === "RECTIFIED" || r.status === "All Ok");
 
-      // Tab filter
       if (dpHistoryFilter === "active-faults" && !isActive) return false;
       if (dpHistoryFilter === "resolved-faults") {
         if (!r.rectificationTime) return false;
         try {
           const rectDate = new Date(r.rectificationTime);
           if (isNaN(rectDate.getTime()) || toDateValue(rectDate) !== selectedDate) return false;
-        } catch {
-          return false;
-        }
+        } catch { return false; }
       }
-
-      // Status-wise filter
-      if (historyStatus === "active") {
-        if (!isActive) return false;
-      } else if (historyStatus === "allok") {
-        if (!isAllOk) return false;
-      } else if (historyStatus === "fault") {
-        if (isAllOk) return false;
-      }
-
+      if (historyStatus === "active" && !isActive) return false;
+      if (historyStatus === "allok" && !isAllOk) return false;
+      if (historyStatus === "fault" && isAllOk) return false;
       if (historyDivision && r.division !== historyDivision) return false;
       if (historyCategory && r.category !== historyCategory) return false;
       if (historyFormType && r.formType !== historyFormType) return false;
       if (historySearch) {
-        const query = historySearch.toLowerCase();
-        const division = String(r.division || "").toLowerCase();
-        const category = String(r.category || "").toLowerCase();
-        const formType = String(r.formType || "").toLowerCase();
-        const station = String(r.stationCode || r.stationName || r.section || "").toLowerCase();
-        const status = String(r.status || "").toLowerCase();
-        const remarks = String(r.remarks || r.reason || "").toLowerCase();
-        const customFields = r.formData ? JSON.stringify(r.formData).toLowerCase() : "";
-
-        const match = division.includes(query) ||
-                      category.includes(query) ||
-                      formType.includes(query) ||
-                      station.includes(query) ||
-                      status.includes(query) ||
-                      remarks.includes(query) ||
-                      customFields.includes(query);
+        const q = historySearch.toLowerCase();
+        const match = [r.division, r.category, r.formType, r.stationCode, r.stationName, r.section, r.status, r.remarks, r.reason]
+          .some(v => String(v || "").toLowerCase().includes(q));
         if (!match) return false;
       }
       return true;
     });
-  }, [records, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, historyDate, dpHistoryFilter]);
+  }, [records, recordsQuery.data, viewMode, historySearch, historyDivision, historyCategory, historyFormType, historyStatus, historyDate, dpHistoryFilter, selectedDate]);
+
+  // Server-side pagination metadata (history mode only)
+  const historyPagination = viewMode === "history" ? (recordsQuery.data as any)?.pagination : null;
+  const historyTotalPages = historyPagination?.totalPages ?? 1;
+  const historyTotalCount = historyPagination?.total ?? filteredHistoryRecords.length;
   const divisions = metadata?.divisions?.length ? metadata.divisions : ["Bilaspur", "Raipur", "Nagpur"];
   const normalizedDivisions = Array.from(new Map<string, string>(divisions.map((item: string) => {
     const aliases = divisionAliases(item);
@@ -3204,6 +3386,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const setValue = (name: string, nextValue: any) => {
     setValues(prev => {
       const next = { ...prev, [name]: nextValue };
+      if (name === "serialNo" && selectedForm?.name === "Walkie-Talkie Testing") {
+        const serialCount = (nextValue || "").split(/,\s*/).map((s: string) => s.trim()).filter(Boolean).length;
+        next.newTestedCount = serialCount;
+      }
       if (name === "majorSection") {
         next.section = "";
         next.stationCode = "";
@@ -3303,7 +3489,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     if (selectedForm.name === "Walkie-Talkie Testing") {
       // Map the input count to testedCount before sending to the backend controller
       processedValues.testedCount = Number(processedValues.newTestedCount || 0);
-      const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+      const isHealthy = !values.reportType || values.reportType === "Healthy";
       if (isHealthy) {
         processedValues.antennaStatus = "OK";
         processedValues.failureTime = null;
@@ -3960,7 +4146,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             }}
           >
             <div style={{ fontSize: "12px", color: "#64748b" }}>
-              <strong style={{ color: "#0f172a" }}>{filteredHistoryRecords.length}</strong> Total
+              <strong style={{ color: "#0f172a" }}>{historyTotalCount}</strong> Total
             </div>
             <div style={{ width: "1px", height: "14px", background: "#cbd5e1" }} />
             <div style={{ fontSize: "12px", color: "#64748b" }}>
@@ -4137,6 +4323,49 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           </tbody>
         </table>
       </div>
+      {/* Pagination bar — only shown in history mode when data spans multiple pages */}
+      {viewMode === "history" && historyTotalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderTop: "1px solid #e2e8f0", background: "#fafafa", flexShrink: 0 }}>
+          <span style={{ fontSize: "12px", color: "#64748b" }}>
+            Showing <strong>{((historyPage - 1) * HISTORY_PAGE_SIZE) + 1}</strong>–<strong>{Math.min(historyPage * HISTORY_PAGE_SIZE, historyTotalCount)}</strong> of <strong>{historyTotalCount}</strong> records
+          </span>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+              disabled={historyPage === 1}
+              style={{ padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: historyPage === 1 ? "#f1f5f9" : "#fff", color: historyPage === 1 ? "#94a3b8" : "#374151", cursor: historyPage === 1 ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600 }}
+            >← Prev</button>
+            {Array.from({ length: Math.min(7, historyTotalPages) }, (_, i) => {
+              let pageNum: number;
+              if (historyTotalPages <= 7) {
+                pageNum = i + 1;
+              } else if (historyPage <= 4) {
+                pageNum = i + 1;
+              } else if (historyPage >= historyTotalPages - 3) {
+                pageNum = historyTotalPages - 6 + i;
+              } else {
+                pageNum = historyPage - 3 + i;
+              }
+              const isActive = pageNum === historyPage;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setHistoryPage(pageNum)}
+                  style={{ width: "32px", height: "32px", borderRadius: "6px", border: isActive ? "1px solid #3b82f6" : "1px solid #e2e8f0", background: isActive ? "#3b82f6" : "#fff", color: isActive ? "#fff" : "#374151", cursor: "pointer", fontSize: "13px", fontWeight: isActive ? 700 : 500, transition: "all 0.15s" }}
+                >{pageNum}</button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+              disabled={historyPage === historyTotalPages}
+              style={{ padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: historyPage === historyTotalPages ? "#f1f5f9" : "#fff", color: historyPage === historyTotalPages ? "#94a3b8" : "#374151", cursor: historyPage === historyTotalPages ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600 }}
+            >Next →</button>
+          </div>
+        </div>
+      )}
     </section>
   );
 
@@ -4237,7 +4466,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
 
 
-                {(selectedForm?.name === "Walkie-Talkie Testing" || selectedForm?.name === "Walkie-Talkie Repairing") && (
+                {selectedForm?.name === "Walkie-Talkie Testing" && (
                   <div style={{
                     display: "grid",
                     gridTemplateColumns: "1.2fr 0.90fr 0.90fr 0.90fr",
@@ -4251,65 +4480,48 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   }}>
                     {/* Lobby Select Column */}
                     <div>
-                      {selectedForm.name === "Walkie-Talkie Testing" ? (
-                        <DailyPositionFieldInput
-                          field={activeFields.find(f => f.name === "stationLobby")!}
-                          value={values.stationLobby}
-                          values={values}
-                          setValue={setValue}
-                          metadata={metadata}
-                          selectedDivision={selectedDivision}
-                          readOnly={!canFill || (isCompletedToday && !editingRecordId)}
-                          formName={selectedForm.name}
-                        />
-                      ) : (
-                        <DailyPositionFieldInput
-                          field={activeFields.find(f => f.name === "stationCode")!}
-                          value={values.stationCode}
-                          values={values}
-                          setValue={setValue}
-                          metadata={metadata}
-                          selectedDivision={selectedDivision}
-                          readOnly={!canFill || (isCompletedToday && !editingRecordId)}
-                          formName={selectedForm.name}
-                        />
-                      )}
+                      <DailyPositionFieldInput
+                        field={activeFields.find(f => f.name === "stationLobby")!}
+                        value={values.stationLobby}
+                        values={values}
+                        setValue={setValue}
+                        metadata={metadata}
+                        selectedDivision={selectedDivision}
+                        readOnly={!canFill || (isCompletedToday && !editingRecordId)}
+                        formName={selectedForm.name}
+                      />
                     </div>
 
                     {/* Stats Card 1 */}
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Total sets</div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", marginTop: "2px" }}>
-                        {selectedForm.name === "Walkie-Talkie Testing" ? (values.toBeTestedCount || 0) : (Number(values.openingDefective || 0) + Number(values.receivedFromUser || 0))}
+                        {values.toBeTestedCount || 0}
                       </div>
                     </div>
 
                     {/* Stats Card 2 */}
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        {selectedForm.name === "Walkie-Talkie Testing" ? "Tested sets" : "Repaired sets"}
+                        Tested sets
                       </div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--green)", marginTop: "2px" }}>
-                        {selectedForm.name === "Walkie-Talkie Testing" ? (values.testedCount || 0) : (values.repairedFromFirm || 0)}
+                        {values.testedCount || 0}
                       </div>
                     </div>
 
                     {/* Stats Card 3 */}
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        {selectedForm.name === "Walkie-Talkie Testing" ? "Balance for Testing" : "Pending Repair"}
+                        Balance for Testing
                       </div>
                       <div style={{
                         fontSize: "18px",
                         fontWeight: 800,
-                        color: (selectedForm.name === "Walkie-Talkie Testing"
-                          ? Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))
-                          : Number(values.pendingRepair || 0)) > 0 ? "var(--amber)" : "var(--green)",
+                        color: Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0))) > 0 ? "var(--amber)" : "var(--green)",
                         marginTop: "2px"
                       }}>
-                        {selectedForm.name === "Walkie-Talkie Testing"
-                          ? Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))
-                          : (values.pendingRepair || 0)}
+                        {Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))}
                       </div>
                     </div>
                   </div>
