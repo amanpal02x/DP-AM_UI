@@ -457,6 +457,13 @@ textarea {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--page);
+  padding-top: 4px;
+  padding-bottom: 10px;
+  margin-top: -4px;
 }
 
 .bottom-stats {
