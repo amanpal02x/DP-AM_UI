@@ -4053,7 +4053,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={!canFill || (isCompletedToday && !editingRecordId)}
+                      readOnly={!canFill || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
                       formName={selectedForm.name}
                     />
                   ))}
@@ -4422,7 +4422,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       Cancel
                     </button>
                   )}
-                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") && (() => {
+                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing") && (() => {
                     const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
                     const hasDrafts = draftsCount > 0;
                     const isCurrentFormEmpty = isFormEmpty();
