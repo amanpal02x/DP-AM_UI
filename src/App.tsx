@@ -416,14 +416,14 @@ import type {
 type NavKey =
   | "Asset Dashboard"
   | "Daily Position"
-  | "DP Summary"
+  | "Position Summary"
   | "Master List"
   | "Assets"
   | "LC Gate"
   | "Feedback"
   | "GIS Mapping"
   | "DP Form"
-  | "DP Logs"
+  | "Saved Record"
   | "Sections"
   | "Analytics"
   | "Users & Roles"
@@ -437,14 +437,14 @@ type NavKey =
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
   "Daily Position": "#/dashboard/daily-position",
-  "DP Summary": "#/dashboard/daily-position-summary",
+  "Position Summary": "#/dashboard/daily-position-summary",
   "Master List": "#/stations",
   "Assets": "#/assets",
   "LC Gate": "#/gates",
   "Feedback": "#/feedback",
   "GIS Mapping": "#/gis",
   "DP Form": "#/daily-position",
-  "DP Logs": "#/daily-position-history",
+  "Saved Record": "#/daily-position-history",
   "Sections": "#/sections",
   "Analytics": "#/reports",
   "Users & Roles": "#/users",
@@ -461,14 +461,14 @@ const IndianStates = []; // placeholder, not needed
 const hashToNav: Record<string, NavKey> = {
   "#/dashboard/asset-management": "Asset Dashboard",
   "#/dashboard/daily-position": "Daily Position",
-  "#/dashboard/daily-position-summary": "DP Summary",
+  "#/dashboard/daily-position-summary": "Position Summary",
   "#/stations": "Master List",
   "#/assets": "Assets",
   "#/gates": "LC Gate",
   "#/feedback": "Feedback",
   "#/gis": "GIS Mapping",
   "#/daily-position": "DP Form",
-  "#/daily-position-history": "DP Logs",
+  "#/daily-position-history": "Saved Record",
   "#/sections": "Sections",
   "#/reports": "Analytics",
   "#/users": "Users & Roles",
@@ -582,8 +582,8 @@ const navItems: Array<{
     { label: "Asset Dashboard", icon: Home, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "Daily Position", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
     { label: "DP Form", icon: ClipboardList, roles: ["TESTROOM", "STAFF"] },
-    { label: "DP Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
-    { label: "DP Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF"] },
+    { label: "Position Summary", icon: FileText, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+    { label: "Saved Record", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF"] },
     { label: "Master List", icon: Train, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "Assets", icon: Box, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
     { label: "LC Gate", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "VIEWER", "TESTROOM"] },
@@ -1150,7 +1150,7 @@ function App() {
     const hasDailyPositionAccess = user.accessDailyPosition !== false;
 
     const assetRoutes: NavKey[] = ["Asset Dashboard", "Master List", "Assets", "LC Gate"];
-    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "DP Summary", "DP Logs", "Walkie Talkie Inventory", "Walkie Talkie Testing"];
+    const dpRoutes: NavKey[] = ["Daily Position", "DP Form", "Position Summary", "Saved Record", "Walkie Talkie Inventory", "Walkie Talkie Testing"];
 
     if (assetRoutes.includes(activeNav) && !hasAssetAccess) {
       if (hasDailyPositionAccess) {
@@ -1323,13 +1323,13 @@ function App() {
             )
           ) : activeNav === "DP Form" ? (
             <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
-          ) : activeNav === "DP Summary" ? (
+          ) : activeNav === "Position Summary" ? (
             <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
               <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
                 <DailyPositionSummaryTable user={user} queries={queries} showToast={showToast} />
               </section>
             </div>
-          ) : activeNav === "DP Logs" ? (
+          ) : activeNav === "Saved Record" ? (
             <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
           ) : activeNav === "Feedback" ? (
             role === "SUPER_ADMIN" ? (
@@ -1760,7 +1760,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     if (!item.roles.includes(role)) return false;
     if (item.label === "Feedback" && role !== "SUPER_ADMIN") return false;
     const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-    const isDpLink = ["Daily Position", "DP Form", "DP Summary", "DP Logs"].includes(item.label);
+    const isDpLink = ["Daily Position", "DP Form", "Position Summary", "Saved Record"].includes(item.label);
     if (isAssetLink && !hasAccessAssets) return false;
     if (isDpLink && !hasAccessDailyPosition) return false;
     return true;
@@ -1789,7 +1789,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     };
 
   const prefetchNav = (label: NavKey) => {
-    if (label === "DP Form" || label === "DP Logs") {
+    if (label === "DP Form" || label === "Saved Record") {
       void import("./components/DailyPosition/DailyPositionView");
     }
     if ((label === "Asset Dashboard" || label === "Daily Position") && token) {
@@ -1830,17 +1830,16 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
       <nav className="nav-list" aria-label="Primary">
         {visibleNav.map((item) => {
           const isAssetLink = ["Asset Dashboard", "Master List", "Assets", "LC Gate"].includes(item.label);
-          const isDpLink = ["Daily Position", "DP Form", "DP Summary", "DP Logs"].includes(item.label);
+          const isDpLink = ["Daily Position", "DP Form", "Position Summary", "Saved Record"].includes(item.label);
           const hasAccess = (isAssetLink ? hasAccessAssets : true) && (isDpLink ? hasAccessDailyPosition : true);
 
           return (
             <Fragment key={item.label}>
               <button
-                className={`nav-item ${
-                  item.label === activeNav || 
-                  (item.label === "Walkie-Talkie" && (activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing")) 
-                    ? "active" : ""
-                }`}
+                className={`nav-item ${item.label === activeNav ||
+                  (item.label === "Walkie-Talkie" && (activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing"))
+                  ? "active" : ""
+                  }`}
                 style={{ opacity: hasAccess ? 1 : 0.6 }}
                 onMouseEnter={() => hasAccess && prefetchNav(item.label)}
                 onFocus={() => hasAccess && prefetchNav(item.label)}
@@ -1892,11 +1891,11 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
               {item.label === "DP Form" && activeNav === "DP Form" && dpDropdownOpen && hasAccess && (
                 <SidebarDailyPositionAccordion />
               )}
-              {item.label === "Walkie-Talkie" && 
-                (activeNav === "Walkie-Talkie" || activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing") && 
+              {item.label === "Walkie-Talkie" &&
+                (activeNav === "Walkie-Talkie" || activeNav === "Walkie Talkie Inventory" || activeNav === "Walkie Talkie Testing") &&
                 wtDropdownOpen && hasAccess && (
                   <SidebarWalkieTalkieAccordion />
-              )}
+                )}
             </Fragment>
           );
         })}
@@ -2210,7 +2209,7 @@ function DailyPositionDivisionPanel({ divisionData }: { divisionData: any[] }) {
   const handleDivisionClick = (divName: string) => {
     setDivision(divName);
     setDpHistoryFilter("active-faults");
-    setActiveNav("DP Logs");
+    setActiveNav("Saved Record");
   };
 
   return (
@@ -2298,7 +2297,7 @@ function DailyPositionStatusPanel({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 16px 0", borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 17, color: "var(--navy)", fontWeight: 700 }}>Monthly Faults Trend</h3>
         <button
-          onClick={() => setActiveNav("DP Logs")}
+          onClick={() => setActiveNav("Saved Record")}
           style={{ fontSize: 12, color: "var(--blue)", border: 0, background: "none", fontWeight: 600, padding: 0 }}
         >
           View Logs
@@ -3364,15 +3363,15 @@ function LatestUpdatesWidget({ showToast }: { showToast: (msg: string) => void }
             const isLongText = a.content.length > 60;
 
             return (
-              <div 
-                key={a.id} 
-                style={{ 
-                  display: "flex", 
-                  gap: "12px", 
-                  padding: "12px", 
-                  borderRadius: "8px", 
-                  border: "1px solid #f1f5f9", 
-                  background: "#fafafa" 
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "1px solid #f1f5f9",
+                  background: "#fafafa"
                 }}
               >
                 {a.imageUrl && (
@@ -3382,13 +3381,13 @@ function LatestUpdatesWidget({ showToast }: { showToast: (msg: string) => void }
                 )}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                    <span 
-                      style={{ 
-                        fontSize: "9.5px", 
-                        fontWeight: 700, 
-                        padding: "1px 6px", 
-                        borderRadius: "10px", 
-                        background: colors.bg, 
+                    <span
+                      style={{
+                        fontSize: "9.5px",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "10px",
+                        background: colors.bg,
                         color: colors.text,
                         border: `1px solid ${colors.border}`
                       }}
@@ -3880,7 +3879,7 @@ function DailyPositionDashboardView({
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
-      setActiveNav(data.user.role === "TESTROOM" ? "DP Form" : "DP Logs");
+      setActiveNav(data.user.role === "TESTROOM" ? "DP Form" : "Saved Record");
     } else {
       setActiveNav(label as any);
     }
@@ -4453,7 +4452,7 @@ function DailyPositionDetailsModal({
   );
 }
 
-// Daily Position Summary Table Component
+// Daily  Table Component
 function DailyPositionSummaryTable({
   user,
   queries,
@@ -4791,7 +4790,7 @@ function DailyPositionSummaryTable({
             <div>
               <div className="position-summary-title-row">
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
-                  Position Summary
+
                 </h3>
                 <input
                   type="date"
@@ -5051,7 +5050,7 @@ function DailyPositionSummaryTableSuperAdmin({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
         <div>
           <div className="position-summary-title-row">
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Position Summary of</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}> of</h3>
             <input
               type="date"
               value={selectedDate}
@@ -6042,9 +6041,9 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
       return;
     }
     const currentList = Array.isArray(lobby.walkieTalkies) ? lobby.walkieTalkies : [];
-    
+
     // Check duplication excluding self
-    const duplicate = currentList.some((wt: any, idx: number) => 
+    const duplicate = currentList.some((wt: any, idx: number) =>
       idx !== indexToEdit && wt.serialNumber.toLowerCase() === editingWTSerial.trim().toLowerCase()
     );
     if (duplicate) {
@@ -6052,7 +6051,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
       return;
     }
 
-    const updatedList = currentList.map((wt: any, idx: number) => 
+    const updatedList = currentList.map((wt: any, idx: number) =>
       idx === indexToEdit ? { serialNumber: editingWTSerial.trim(), makeModel: editingWTMakeModel.trim() } : wt
     );
 
@@ -6191,7 +6190,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
     }
   };
 
-  const filteredLobbies = lobbies.filter(l => 
+  const filteredLobbies = lobbies.filter(l =>
     String(l.lobbyName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -6203,11 +6202,11 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
           <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <input 
-            type="text" 
-            placeholder="Search lobby..." 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
+          <input
+            type="text"
+            placeholder="Search lobby..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             style={{
               padding: "8px 14px",
               borderRadius: "8px",
@@ -6216,7 +6215,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
               outline: "none",
               width: "220px",
               boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
-            }} 
+            }}
           />
           {!isViewer && (
             <button className="export-button" onClick={handleOpenAddModal} style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
@@ -6298,8 +6297,8 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
               </thead>
               <tbody>
                 {filteredLobbies.map((l, idx) => {
-                  const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
-                    ? l.walkieTalkies.length 
+                  const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
+                    ? l.walkieTalkies.length
                     : l.totalWalkieTalkies;
                   const toBeTested = totalWTs - l.testedCount;
                   const isCompleted = toBeTested === 0 && totalWTs > 0;
@@ -6347,7 +6346,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                             fontSize: "13px"
                           }}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h2"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h8" /><path d="M8 17h8" /><path d="M10 9h2" /></svg>
                           Excel Sheet
                         </button>
                       </td>
@@ -6422,7 +6421,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
 
               {walkieTalkies.length > 0 && hasJustImported && (
                 <div style={{ fontSize: "13px", color: "#1e293b", background: "#f0fdf4", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                   <span><strong>{walkieTalkies.length}</strong> walkie-talkies imported successfully.</span>
                 </div>
               )}
@@ -6467,7 +6466,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
               </div>
               <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
             </div>
-            
+
             <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
               <div style={{ background: "#f8fafc", padding: "10px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
                 <span style={{ flex: 2 }}>Serial Number</span>
@@ -6486,30 +6485,30 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                       <div key={index} style={{ padding: "8px 15px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
                         {isEditing ? (
                           <>
-                            <input 
-                              type="text" 
-                              value={editingWTSerial} 
+                            <input
+                              type="text"
+                              value={editingWTSerial}
                               disabled={isMutating}
-                              onChange={(e) => setEditingWTSerial(e.target.value)} 
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
+                              onChange={(e) => setEditingWTSerial(e.target.value)}
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
                             />
-                            <input 
-                              type="text" 
-                              value={editingWTMakeModel} 
+                            <input
+                              type="text"
+                              value={editingWTMakeModel}
                               disabled={isMutating}
-                              onChange={(e) => setEditingWTMakeModel(e.target.value)} 
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }} 
+                              onChange={(e) => setEditingWTMakeModel(e.target.value)}
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }}
                             />
                             <div style={{ display: "flex", gap: "6px" }}>
-                              <button 
-                                onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)} 
+                              <button
+                                onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)}
                                 disabled={isMutating}
                                 style={{ background: "#22c55e", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer", opacity: isMutating ? 0.7 : 1 }}
                               >
                                 {isMutating ? "Saving..." : "Save"}
                               </button>
-                              <button 
-                                onClick={() => setEditingWTIndex(null)} 
+                              <button
+                                onClick={() => setEditingWTIndex(null)}
                                 disabled={isMutating}
                                 style={{ background: "#cbd5e1", color: "#334155", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer" }}
                               >Cancel</button>
@@ -6521,7 +6520,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                             <span style={{ flex: 2, color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
                             {!isViewer && (
                               <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                                <button 
+                                <button
                                   onClick={() => {
                                     setEditingWTIndex(index);
                                     setEditingWTSerial(wt.serialNumber);
@@ -6530,8 +6529,8 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                                   disabled={isMutating}
                                   style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
                                 >Edit</button>
-                                <button 
-                                  onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, index)} 
+                                <button
+                                  onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, index)}
                                   disabled={isMutating}
                                   style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
                                 >
@@ -6616,13 +6615,13 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                     fontSize: "13px"
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
                   Export Excel
                 </button>
               )}
-              <button 
-                className="export-button" 
-                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} 
+              <button
+                className="export-button"
+                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }}
                 style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", marginLeft: "auto" }}
               >
                 Close
@@ -8144,98 +8143,98 @@ function ModuleView({
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
 
-            <button
-              type="button"
-              className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
-              onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
-            >
-              <SlidersHorizontal size={16} />
-              <span>Filters</span>
-              {(filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
-            </button>
+              <button
+                type="button"
+                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
+                onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+              >
+                <SlidersHorizontal size={16} />
+                <span>Filters</span>
+                {(filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
+              </button>
 
-            {filterPopoverOpen && (
-              <div className="filter-popover">
-                <h4 className="filter-popover-title">Filter Records</h4>
+              {filterPopoverOpen && (
+                <div className="filter-popover">
+                  <h4 className="filter-popover-title">Filter Records</h4>
 
-                {/* Division Filter */}
-                <div className="filter-group">
-                  <label>Division</label>
-                  <ClearableSelect value={filterDivision} onChange={setFilterDivision}>
-                    <option value="">All Divisions</option>
-                    {uniqueDivisions.map((div) => (
-                      <option key={div} value={div}>{div}</option>
-                    ))}
-                  </ClearableSelect>
-                </div>
-
-                {/* State Filter */}
-                <div className="filter-group">
-                  <label>State</label>
-                  <ClearableSelect value={filterState} onChange={setFilterState}>
-                    <option value="">All States</option>
-                    {uniqueStates.map((st) => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </ClearableSelect>
-                </div>
-
-                {/* Category / Telecom Asset Filter */}
-                <div className="filter-group">
-                  <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
-                  <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
-                    <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
-                    {categoriesList.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </ClearableSelect>
-                </div>
-
-                {/* Status Filter for Assets */}
-                {activeNav === "Assets" && (
+                  {/* Division Filter */}
                   <div className="filter-group">
-                    <label>Status</label>
-                    <ClearableSelect
-                      value={assetStatusFilter}
-                      onChange={setAssetStatusFilter}
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="All Ok">All Ok</option>
-                      <option value="UNDER_MAINTENANCE">Under Maintenance</option>
-                      <option value="FAULTY">Faulty</option>
-                      <option value="OBSOLETE">Obsolete</option>
+                    <label>Division</label>
+                    <ClearableSelect value={filterDivision} onChange={setFilterDivision}>
+                      <option value="">All Divisions</option>
+                      {uniqueDivisions.map((div) => (
+                        <option key={div} value={div}>{div}</option>
+                      ))}
                     </ClearableSelect>
                   </div>
-                )}
 
-                <div className="filter-popover-footer">
-                  <button
-                    type="button"
-                    className="filter-reset-btn"
-                    onClick={() => {
-                      setFilterDivision("");
-                      setFilterState("");
-                      setFilterCategory("");
-                      if (activeNav === "Assets") setAssetStatusFilter("");
-                      setFilterPopoverOpen(false);
-                    }}
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    className="filter-apply-btn"
-                    onClick={() => setFilterPopoverOpen(false)}
-                  >
-                    Apply
-                  </button>
+                  {/* State Filter */}
+                  <div className="filter-group">
+                    <label>State</label>
+                    <ClearableSelect value={filterState} onChange={setFilterState}>
+                      <option value="">All States</option>
+                      {uniqueStates.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </ClearableSelect>
+                  </div>
+
+                  {/* Category / Telecom Asset Filter */}
+                  <div className="filter-group">
+                    <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
+                    <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
+                      <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
+                      {categoriesList.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </ClearableSelect>
+                  </div>
+
+                  {/* Status Filter for Assets */}
+                  {activeNav === "Assets" && (
+                    <div className="filter-group">
+                      <label>Status</label>
+                      <ClearableSelect
+                        value={assetStatusFilter}
+                        onChange={setAssetStatusFilter}
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="All Ok">All Ok</option>
+                        <option value="UNDER_MAINTENANCE">Under Maintenance</option>
+                        <option value="FAULTY">Faulty</option>
+                        <option value="OBSOLETE">Obsolete</option>
+                      </ClearableSelect>
+                    </div>
+                  )}
+
+                  <div className="filter-popover-footer">
+                    <button
+                      type="button"
+                      className="filter-reset-btn"
+                      onClick={() => {
+                        setFilterDivision("");
+                        setFilterState("");
+                        setFilterCategory("");
+                        if (activeNav === "Assets") setAssetStatusFilter("");
+                        setFilterPopoverOpen(false);
+                      }}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      className="filter-apply-btn"
+                      onClick={() => setFilterPopoverOpen(false)}
+                    >
+                      Apply
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
       {renderContent()}
     </article>
   );

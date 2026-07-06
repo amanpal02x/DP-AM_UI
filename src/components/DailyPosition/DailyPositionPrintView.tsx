@@ -41,11 +41,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     queryFn: () => api.stations.list(),
   });
 
-  const isLoading = 
+  const isLoading =
     stationsQuery.isLoading ||
-    ( (!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading ) ||
-    ( (!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading ) ||
-    ( (!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading );
+    ((!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading) ||
+    ((!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading) ||
+    ((!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading);
 
   const buildEntriesMap = (rawEntries: any[]): Record<string, any[]> => {
     const map: Record<string, any[]> = {};
@@ -264,7 +264,8 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
       overflowY: "auto"
     }}>
       {/* CSS overrides for print display */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .print-watermark {
           position: absolute;
           top: 0;
@@ -599,12 +600,12 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         let faultySec = "-";
                         let actionRemarks = "-";
 
-                        const hasFault = !entry.isPlaceholder && 
-                                         !entry.rectificationTime && 
-                                         entry.status !== "All Ok" && 
-                                         entry.status !== "RECTIFIED" && 
-                                         entry.reason !== "All OK" &&
-                                         !(entry.formData && entry.formData.actionType === "OK");
+                        const hasFault = !entry.isPlaceholder &&
+                          !entry.rectificationTime &&
+                          entry.status !== "All Ok" &&
+                          entry.status !== "RECTIFIED" &&
+                          entry.reason !== "All OK" &&
+                          !(entry.formData && entry.formData.actionType === "OK");
 
                         if (!entry.isPlaceholder) {
                           if (isWtRepair) {
@@ -644,7 +645,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             failTimeStr = formatTime(entry.failureTime) || "-";
                             rtTimeStr = formatTime(entry.rectificationTime) || "-";
                             durationStr = getDurationText(entry);
-                            
+
                             // Map location to name/code
                             const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
                             if (codeOrName) {
@@ -668,16 +669,16 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               actionRemarks = "-";
                             }
                           }
-                          const isAllOk = !entry.isPlaceholder && 
-                                         (entry.reason === "All OK" || 
-                                          (entry.formData && entry.formData.actionType === "OK"));
-                         if (isAllOk) {
-                           if (failTimeStr === "-") failTimeStr = "";
-                           if (rtTimeStr === "-") rtTimeStr = "";
-                           if (durationStr === "-") durationStr = "";
-                           if (faultySec === "-") faultySec = "";
-                           if (actionRemarks === "-") actionRemarks = "";
-                         }
+                          const isAllOk = !entry.isPlaceholder &&
+                            (entry.reason === "All OK" ||
+                              (entry.formData && entry.formData.actionType === "OK"));
+                          if (isAllOk) {
+                            if (failTimeStr === "-") failTimeStr = "";
+                            if (rtTimeStr === "-") rtTimeStr = "";
+                            if (durationStr === "-") durationStr = "";
+                            if (faultySec === "-") faultySec = "";
+                            if (actionRemarks === "-") actionRemarks = "";
+                          }
                         }
 
                         return (
@@ -744,7 +745,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
           {/* Footer Area */}
           <div style={{ marginTop: "30px", borderTop: "1px solid #000000", paddingTop: "12px", display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#475569" }}>
-            <span>SECR Daily Position Summary System</span>
+            <span>SECR Daily  System</span>
             <span>Generated on {formatDateTime24(new Date(), true)} IST</span>
           </div>
         </div>
