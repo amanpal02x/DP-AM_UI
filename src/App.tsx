@@ -3620,7 +3620,7 @@ function WalkieTalkieDivisionPanel({
           </button>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "10px 0" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", alignItems: "center", gap: 14, padding: "10px 0" }}>
           {/* Large Division Badge */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
@@ -3682,7 +3682,7 @@ function WalkieTalkieDivisionPanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "center" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "flex-start" }}>
         {divisions.map((div: any) => {
           const tested = div.testing?.tested ?? 0;
           const total = div.testing?.total ?? 0;

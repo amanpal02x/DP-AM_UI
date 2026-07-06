@@ -982,6 +982,270 @@ function DailyPositionFieldInput({
     }
   }, [formName, selectedDivision, field.name, value, setValue]);
 
+  if (field.name === "passengerAmenitiesGear") {
+    const GEAR_OPTIONS = [
+      "CGDB",
+      "TIB",
+      "AGDB",
+      "TADDB",
+      "Tower Clock",
+      "GPS Based clock"
+    ];
+
+    const parts = (value || "").split(/,\s*/).map((p: string) => {
+      if (p.startsWith("Others:")) return p;
+      return p.trim();
+    }).filter(Boolean);
+    const selectedOptions = GEAR_OPTIONS.filter(opt => parts.includes(opt));
+    const hasOthers = parts.some((p: string) => p === "Others" || p.startsWith("Others:"));
+    const othersPart = parts.find((p: string) => p.startsWith("Others:"));
+    const othersText = othersPart ? othersPart.substring("Others:".length).replace(/^\s/, "") : "";
+
+    const toggleOption = (opt: string) => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (parts.includes(opt)) {
+        nextParts = parts.filter((p: string) => p !== opt);
+      } else {
+        nextParts = [...parts.filter((p: string) => GEAR_OPTIONS.includes(p) || p === "Others" || p.startsWith("Others:")), opt];
+        nextParts.sort((a, b) => {
+          const idxA = GEAR_OPTIONS.indexOf(a);
+          const idxB = GEAR_OPTIONS.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return 0;
+        });
+      }
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const toggleOthers = () => {
+      if (readOnly) return;
+      let nextParts: string[];
+      if (hasOthers) {
+        nextParts = parts.filter((p: string) => p !== "Others" && !p.startsWith("Others:"));
+      } else {
+        const othersVal = othersText ? `Others: ${othersText}` : "Others";
+        nextParts = [...parts, othersVal];
+      }
+      setValue(field.name, nextParts.join(", "));
+      setIsOpen(false);
+    };
+
+    const handleOthersTextChange = (text: string) => {
+      if (readOnly) return;
+      const filteredParts = parts.filter((p: string) => p !== "Others" && !p.startsWith("Others:"));
+      const othersVal = text ? `Others: ${text}` : "Others";
+      const nextParts = [...filteredParts, othersVal];
+      setValue(field.name, nextParts.join(", "));
+    };
+
+    const displaySelected = () => {
+      const displayParts = [...selectedOptions];
+      if (hasOthers) {
+        if (othersText) {
+          displayParts.push(`Others: ${othersText}`);
+        } else {
+          displayParts.push("Others");
+        }
+      }
+      return displayParts.join(", ") || "Select Passenger Amenities Gear";
+    };
+
+    const filteredOptions = GEAR_OPTIONS.filter(opt =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const toggleDropdown = () => {
+      if (readOnly) return;
+      if (!isOpen) {
+        setSearchTerm("");
+      }
+      setIsOpen(!isOpen);
+    };
+
+    return (
+      <div className={`dp-field ${field.fullWidth ? "full" : ""}`} ref={dropdownRef} style={{ position: "relative" }}>
+        <label>{field.label}{field.required && <span>*</span>}</label>
+        <div className="multi-dropdown" style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="multi-dropdown-trigger"
+            disabled={readOnly}
+            onClick={toggleDropdown}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              minHeight: "42px",
+              padding: "10px 14px",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              background: readOnly ? "#f8fafc" : "#ffffff",
+              color: readOnly ? "#64748b" : "#1e293b",
+              fontSize: "14px",
+              textAlign: "left",
+              cursor: readOnly ? "not-allowed" : "pointer"
+            }}
+          >
+            <span style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: (selectedOptions.length || hasOthers) ? (readOnly ? "#64748b" : "#1e293b") : "#94a3b8"
+            }}>
+              {displaySelected()}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+              {(selectedOptions.length > 0 || hasOthers) && !readOnly && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setValue(field.name, "");
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#94a3b8",
+                    cursor: "pointer",
+                    padding: "2px 4px",
+                    borderRadius: "4px",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = "#94a3b8"; }}
+                >
+                  <X size={14} />
+                </span>
+              )}
+              <ChevronDown size={16} style={{ color: "#64748b" }} />
+            </div>
+          </button>
+
+          {isOpen && !readOnly && (
+            <div
+              className="multi-dropdown-menu"
+              style={{
+                position: "absolute",
+                zIndex: 100,
+                top: "100%",
+                left: 0,
+                right: 0,
+                marginTop: "4px",
+                maxHeight: "250px",
+                overflowY: "auto",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: "#ffffff",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+                padding: "6px"
+              }}
+            >
+              {filteredOptions.map(opt => {
+                const checked = selectedOptions.includes(opt);
+                return (
+                  <div
+                    key={opt}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1e293b",
+                      margin: 0,
+                      transition: "background 0.15s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOption(opt);
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      className="dp-checkbox"
+                      checked={checked}
+                      disabled={readOnly}
+                      onChange={() => {}}
+                    />
+                    <span>{opt}</span>
+                  </div>
+                );
+              })}
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 10px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#1e293b",
+                  margin: 0,
+                  transition: "background 0.15s",
+                  borderTop: "1px solid #f1f5f9"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleOthers();
+                }}
+              >
+                <input
+                  type="checkbox"
+                  className="dp-checkbox"
+                  checked={hasOthers}
+                  disabled={readOnly}
+                  onChange={() => {}}
+                />
+                <span>Others</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {hasOthers && (
+          <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>Specify Other Passenger Amenities Gear:</label>
+            <input
+              type="text"
+              autoFocus
+              required={field.required && !readOnly}
+              disabled={readOnly}
+              value={othersText}
+              onChange={e => handleOthersTextChange(e.target.value)}
+              placeholder="Type manual gear details..."
+              style={{
+                width: "100%",
+                minHeight: "42px",
+                padding: "10px 14px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                background: readOnly ? "#f8fafc" : "#ffffff",
+                color: readOnly ? "#64748b" : "#1e293b",
+                fontSize: "14px",
+                cursor: readOnly ? "not-allowed" : "text"
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (field.name === "nameOfFault") {
     const FAULT_OPTIONS = [
       "MDF Card Fault",
@@ -2391,6 +2655,8 @@ function DailyPositionFieldInput({
           placeholder={field.placeholder || `Select ${field.label}`}
           required={field.required}
           readOnly={readOnly || field.readonly}
+          clearable={field.name !== "reportType"}
+          searchable={field.name !== "reportType"}
         />
       ) : field.type === "textarea" ? (
         <textarea {...commonProps} />
@@ -2480,7 +2746,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [detailsRecord, setDetailsRecord] = useState<any | null>(null);
   const [maintenanceType, setMaintenanceType] = useState<"Divisional" | "HQ">("Divisional");
   const [isOkHovered, setIsOkHovered] = useState(false);
-  const [walkieTalkieMode, setWalkieTalkieMode] = useState<"testing" | "fault">("testing");
+  const [walkieTalkieMode, setWalkieTalkieMode] = useState<"testing" | "fault">("fault");
 
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
@@ -2582,20 +2848,43 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             continue;
           }
         } else if (walkieTalkieMode === "fault") {
-          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount.
-          if (field.name === "testedCount") {
+          const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+          // Hide Antenna field on Healthy Report
+          if (field.name === "antennaStatus" && isHealthy) {
             continue;
           }
-          // Inject a Date & Time of Fault field right after testDate
+          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount but inject newTestedCount.
+          if (field.name === "testedCount") {
+            list.push({
+              name: "newTestedCount",
+              label: "Total walkie-talkies tested",
+              type: "number",
+              required: true,
+              placeholder: "Total count tested"
+            });
+            // Inject reportType selection field right after newTestedCount
+            list.push({
+              name: "reportType",
+              label: "Report Type",
+              type: "select",
+              required: true,
+              options: ["Healthy Report", "Faulty Report"],
+              placeholder: "Select Report"
+            });
+            continue;
+          }
+          // Inject a Date & Time of Fault field right after testDate (only if not Healthy Report)
           if (field.name === "testDate") {
             list.push(field); // push testDate first
-            list.push({
-              name: "failureTime",
-              label: "Date & Time of Fault",
-              type: "datetime-local",
-              required: true,
-              placeholder: "Select date and time when fault occurred"
-            });
+            if (!isHealthy) {
+              list.push({
+                name: "failureTime",
+                label: "Date & Time of Fault",
+                type: "datetime-local",
+                required: true,
+                placeholder: "Select date and time when fault occurred"
+              });
+            }
             continue; // skip default push below, already pushed
           }
         }
@@ -3011,9 +3300,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     });
 
-    if (selectedForm.name === "Walkie-Talkie Testing" && walkieTalkieMode === "testing") {
+    if (selectedForm.name === "Walkie-Talkie Testing") {
       // Map the input count to testedCount before sending to the backend controller
       processedValues.testedCount = Number(processedValues.newTestedCount || 0);
+      const isHealthy = !values.reportType || values.reportType === "Healthy Report";
+      if (isHealthy) {
+        processedValues.antennaStatus = "OK";
+        processedValues.failureTime = null;
+      }
     }
 
     return {
@@ -3236,6 +3530,21 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           setIsSavingAndNext(false);
           return;
         }
+        if (selectedForm.name === "Walkie-Talkie Testing") {
+          const total = Number(values.toBeTestedCount || 0);
+          const tested = Number(values.testedCount || 0);
+          const newlyTested = Number(values.newTestedCount || 0);
+          if (newlyTested < 0) {
+            showToast("Total walkie-talkies tested cannot be negative.");
+            setIsSavingAndNext(false);
+            return;
+          }
+          if (newlyTested > (total - tested)) {
+            showToast(`Total walkie-talkies tested cannot exceed the remaining balance (${total - tested}).`);
+            setIsSavingAndNext(false);
+            return;
+          }
+        }
         // Validate current form fields (visible fields only)
         for (const field of visibleActiveFields) {
           if (field.required && !values[field.name]) {
@@ -3431,6 +3740,20 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     for (const field of visibleActiveFields) {
       if (field.required && !values[field.name]) {
         showToast(`Please fill in all required fields.`);
+        return;
+      }
+    }
+
+    if (selectedForm.name === "Walkie-Talkie Testing") {
+      const total = Number(values.toBeTestedCount || 0);
+      const tested = Number(values.testedCount || 0);
+      const newlyTested = Number(values.newTestedCount || 0);
+      if (newlyTested < 0) {
+        showToast("Total walkie-talkies tested cannot be negative.");
+        return;
+      }
+      if (newlyTested > (total - tested)) {
+        showToast(`Total walkie-talkies tested cannot exceed the remaining balance (${total - tested}).`);
         return;
       }
     }
@@ -3992,7 +4315,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
                 )}
 
-                {selectedForm?.name === "Walkie-Talkie Testing" && (
+                {/* Removed Testing Report / Fault Report toggle to only show Fault Report mode */}
+                {false && selectedForm?.name === "Walkie-Talkie Testing" && (
                   <div style={{
                     display: "flex",
                     alignItems: "center",
