@@ -492,7 +492,6 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                       </td>
                       {!isViewer && (
                         <td className="wt-lobby-cell" style={{ textAlign: "right", paddingRight: "20px" }}>
-                          <button className="action-btn text-blue" onClick={() => handleOpenEditModal(l)} style={{ marginRight: 12, fontWeight: 600 }}>Edit</button>
                           <button className="action-btn text-red" onClick={() => handleDeleteLobby(l.id)} style={{ fontWeight: 600 }}>Delete</button>
                         </td>
                       )}
@@ -535,39 +534,6 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                 <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
-                  Total Walkie-Talkies <span style={{ color: "var(--red)" }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  value={totalWalkieTalkies}
-                  onClick={handleInputClick}
-                  onChange={(e) => setTotalWalkieTalkies(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="e.g. 100"
-                  required
-                  min="0"
-                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", cursor: "pointer" }}
-                />
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".csv,.xlsx,.xls"
-                  style={{ display: "none" }}
-                />
-                <small style={{ color: "var(--muted)" }}>
-                  Click this input box to import and count serial numbers from Excel/CSV file.
-                </small>
-              </div>
-
-              {walkieTalkies.length > 0 && hasJustImported && (
-                <div style={{ fontSize: "13px", color: "#1e293b", background: "#f0fdf4", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                  <span><strong>{walkieTalkies.length}</strong> walkie-talkies imported successfully.</span>
-                </div>
-              )}
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
                   Division <span style={{ color: "var(--red)" }}>*</span>
                 </label>
                 <select
@@ -582,6 +548,65 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   <option value="Nagpur">Nagpur</option>
                 </select>
               </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>
+                  Total Walkie-Talkies <span style={{ color: "var(--red)" }}>*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleInputClick}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    padding: "10px 12px",
+                    borderRadius: "6px",
+                    border: "1px dashed #cbd5e1",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#0b6dff",
+                    background: "#f0f7ff",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    minHeight: "44px"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#e0eefe";
+                    e.currentTarget.style.borderColor = "#0b6dff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#f0f7ff";
+                    e.currentTarget.style.borderColor = "#cbd5e1";
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {totalWalkieTalkies ? `Imported: ${totalWalkieTalkies} Walkie-Talkies` : "Import from Excel/CSV"}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".csv,.xlsx,.xls"
+                  style={{ display: "none" }}
+                />
+                <small style={{ color: "var(--muted)" }}>
+                  Click this button to upload and count serial numbers from Excel/CSV file.
+                </small>
+              </div>
+
+              {walkieTalkies.length > 0 && hasJustImported && (
+                <div style={{ fontSize: "13px", color: "#1e293b", background: "#f0fdf4", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span><strong>{walkieTalkies.length}</strong> walkie-talkies imported successfully.</span>
+                </div>
+              )}
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "5px" }}>
                 <button type="button" className="export-button" disabled={isMutating} onClick={() => setIsLobbyModalOpen(false)} style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", cursor: isMutating ? "not-allowed" : "pointer" }}>Cancel</button>
                 <button type="submit" className="export-button" disabled={isMutating} style={{ background: "var(--blue)", color: "#fff", borderColor: "var(--blue)", cursor: isMutating ? "not-allowed" : "pointer" }}>
@@ -596,7 +621,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
-          <div className="modal-card" style={{ width: "550px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className="modal-card" style={{ width: "90vw", maxWidth: "600px", maxHeight: "90vh", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
@@ -607,13 +632,13 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
               <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
             </div>
             
-            <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+            <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div style={{ background: "#f8fafc", padding: "10px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
                 <span style={{ flex: 2 }}>Serial Number</span>
                 <span style={{ flex: 2 }}>Make / Model</span>
                 {!isViewer && <span style={{ flex: 1, textAlign: "right" }}>Actions</span>}
               </div>
-              <div style={{ maxHeight: "250px", overflowY: "auto" }}>
+              <div style={{ overflowY: "auto", flex: 1, maxHeight: "35vh" }}>
                 {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
                   <div style={{ textAlign: "center", padding: "30px", color: "var(--muted)", fontSize: "14px" }}>
                     No walkie-talkies recorded for this lobby.
