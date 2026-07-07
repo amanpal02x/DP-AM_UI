@@ -994,6 +994,14 @@ function DailyPositionFieldInput({
     }
   }, [formName, selectedDivision, field.name, value, setValue]);
 
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-select"],
+    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
+    staleTime: 5000,
+    enabled: formName === "Walkie-Talkie Testing",
+  });
+  const lobbies = lobbiesQuery.data || [];
+
   if (field.name === "passengerAmenitiesGear") {
     const GEAR_OPTIONS = [
       "Coach Guidance Display Board (CGDB)",
@@ -2615,13 +2623,6 @@ function DailyPositionFieldInput({
     );
   }
 
-  const lobbiesQuery = useQuery({
-    queryKey: ["walkie-talkie-lobbies-select"],
-    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
-    staleTime: 5000,
-    enabled: formName === "Walkie-Talkie Testing",
-  });
-  const lobbies = lobbiesQuery.data || [];
 
   let options = field.options || [];
   let isSerialDropdown = false;
@@ -3117,7 +3118,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
-    queryFn: () => api.dailyPosition.metadata(selectedDivision ? { division: selectedDivision } : {}),
+    queryFn: () => api.dailyPosition.metadata(selectedDivision && selectedDivision !== "HQ" ? { division: selectedDivision } : {}),
     staleTime: 2 * 60 * 1000,
     placeholderData: previousData => previousData,
   });
@@ -3131,7 +3132,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         // History mode: server-side pagination + filtering
         params.page = String(historyPage);
         params.pageSize = String(HISTORY_PAGE_SIZE);
-        params.division = historyDivision || selectedDivision || "";
+        params.division = historyDivision || (selectedDivision === "HQ" ? "" : selectedDivision) || "";
         if (historySearch) params.search = historySearch;
         if (historyCategory) params.category = historyCategory;
         if (historyFormType) params.formType = historyFormType;
@@ -3144,7 +3145,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         }
       } else {
         // Form mode: fetch today's records for this division
-        params.division = selectedDivision || "";
+        params.division = (selectedDivision === "HQ" ? "" : selectedDivision) || "";
         params.limit = "500";
         if (dpHistoryFilter === "active-faults") {
           params.isFaulty = "true";
@@ -3167,7 +3168,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const activeCircuitFaultsQuery = useQuery({
     queryKey: ["daily-position-active-faults", selectedDivision, selectedForm?.name],
     queryFn: () => api.dailyPosition.activeFaults({
-      division: selectedDivision || "",
+      division: (selectedDivision === "HQ" ? "" : selectedDivision) || "",
       formType: selectedForm?.name || "",
     }),
     enabled: canFill && viewMode === "form" && !!selectedDivision && !!selectedForm?.name,
@@ -4058,6 +4059,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <option value="Bilaspur">Bilaspur</option>
               <option value="Raipur">Raipur</option>
               <option value="Nagpur">Nagpur</option>
+              <option value="HQ">HQ</option>
             </ClearableSelect>
           </div>
           {/* Status-wise filter */}
@@ -4392,6 +4394,33 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
+          {viewMode === "form" && role !== "STAFF" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Division:</span>
+              <select
+                value={selectedDivision}
+                onChange={(e) => setSelectedDivision(e.target.value)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#1e293b",
+                  outline: "none",
+                  cursor: "pointer",
+                  background: "#fff",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}
+              >
+                <option value="">Select Division</option>
+                <option value="Bilaspur">Bilaspur</option>
+                <option value="Raipur">Raipur</option>
+                <option value="Nagpur">Nagpur</option>
+                <option value="HQ">HQ</option>
+              </select>
+            </div>
+          )}
         </div>
       </section>
 
@@ -5438,7 +5467,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
                 }}
               >
-                Γ£ô
+                ✓
               </div>
               <div style={{ margin: 0 }}>
                 {successModal.message}
