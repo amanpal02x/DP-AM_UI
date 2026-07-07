@@ -4906,6 +4906,7 @@ function DailyPositionSummaryTable({
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
 
                 </h3>
+                <span>Position as on</span>
                 <input
                   type="date"
                   value={selectedDate}
