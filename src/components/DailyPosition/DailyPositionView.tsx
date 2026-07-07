@@ -5438,7 +5438,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)"
                 }}
               >
-                Γ£ô
+                ✓
               </div>
               <div style={{ margin: 0 }}>
                 {successModal.message}

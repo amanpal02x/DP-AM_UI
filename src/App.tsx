@@ -1323,7 +1323,7 @@ function App() {
               </div>
             )
           ) : activeNav === "DP Form" ? (
-            <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
+            <DailyPositionView key="dp-form" role={role} division={division} user={user} mode="form" showToast={showToast} />
           ) : activeNav === "Position Summary" ? (
             <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4, height: "100%" }}>
               <section className="operations-grid" style={{ gridTemplateColumns: "1fr", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, marginTop: 0 }}>
@@ -1331,7 +1331,7 @@ function App() {
               </section>
             </div>
           ) : activeNav === "Saved Record" ? (
-            <DailyPositionView role={role} division={division} user={user} mode="history" showToast={showToast} />
+            <DailyPositionView key="dp-history" role={role} division={division} user={user} mode="history" showToast={showToast} />
           ) : activeNav === "Feedback" ? (
             role === "SUPER_ADMIN" ? (
               <FeedbackAdminView showToast={showToast} />
