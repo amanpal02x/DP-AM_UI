@@ -1714,32 +1714,23 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
         </div>
       </div>
 
-      {/* <div className="header-nav">
-        <button
-          className={`header-nav-link ${isAnalyticsActive ? "active" : ""}`}
-          onClick={() => setActiveNav("Analytics")}
-        >
-          Analytics
-        </button>
-        <button
-          className={`header-nav-link ${isReportsActive ? "active" : ""}`}
-          onClick={() => setActiveNav("DP Summary")}
-        >
-          Reports
-        </button>
-        <button
-          className={`header-nav-link ${isSystemStatusActive ? "active" : ""}`}
-          onClick={() => setActiveNav("Daily Position")}
-        >
-          System Status
-        </button>
-        <button
-          className={`header-nav-link ${isAdministrationActive ? "active" : ""}`}
-          onClick={() => setActiveNav("Users & Roles")}
-        >
-          Administration
-        </button>
-      </div> */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        <span style={{
+          fontSize: "18px",
+          fontWeight: 800,
+          color: "#0d3b6f",
+          textTransform: "uppercase",
+          letterSpacing: "1.5px",
+          display: "inline-block"
+        }}>
+          {normalizeDivision(user.division) || "HQ"} DIVISION
+        </span>
+      </div>
 
       <div className="header-right">
         <div
@@ -1749,7 +1740,7 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
         >
           <div className="user-profile-info">
             <strong>{user.name}</strong>
-            <small>{user.division || user.role}</small>
+            <small>{user.designation || user.role}</small>
           </div>
           <div className="user-avatar">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
