@@ -6469,7 +6469,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
 
       {/* Add / Edit Lobby Modal */}
       {isLobbyModalOpen && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
           <div className="modal-card" style={{ width: "450px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
@@ -6557,7 +6557,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
 
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
           <div className="modal-card" style={{ width: "550px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -8674,7 +8674,7 @@ function AssetDetailsModal({ itemId, close, queries }: { itemId: string; close: 
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -8912,7 +8912,7 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -9101,7 +9101,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",

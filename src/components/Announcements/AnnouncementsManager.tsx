@@ -224,7 +224,7 @@ export default function AnnouncementsManager({ showToast }: { showToast: (messag
         <div style={{
           position: "fixed",
           inset: 0,
-          zIndex: 1000,
+          zIndex: 9999,
           backgroundColor: "rgba(15, 23, 42, 0.4)",
           backdropFilter: "blur(4px)",
           display: "flex",

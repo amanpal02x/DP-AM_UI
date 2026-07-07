@@ -506,7 +506,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
 
       {/* Add / Edit Lobby Modal */}
       {isLobbyModalOpen && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
           <div className="modal-card" style={{ width: "450px", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
@@ -620,7 +620,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
 
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
           <div className="modal-card" style={{ width: "92vw", maxWidth: "700px", maxHeight: "88vh", padding: "22px", background: "#fff", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", gap: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: "14px", borderBottom: "1px solid #f1f5f9" }}>
               <div>
@@ -639,10 +639,10 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             </div>
             
             <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ background: "#f8fafc", padding: "10px 15px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
-                <span style={{ flex: 2 }}>Serial Number</span>
-                <span style={{ flex: 2 }}>Make / Model</span>
-                {!isViewer && <span style={{ flex: 1, textAlign: "right" }}>Actions</span>}
+              <div style={{ background: "#f8fafc", padding: "10px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
+                <span style={{ width: isViewer ? "50%" : "40%" }}>Serial Number</span>
+                <span style={{ width: isViewer ? "50%" : "40%" }}>Make / Model</span>
+                {!isViewer && <span style={{ width: "20%" }}>Actions</span>}
               </div>
               <div style={{ overflowY: "auto", flex: 1, maxHeight: "38vh" }}>
                 {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
@@ -653,24 +653,28 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   viewingLobby.walkieTalkies.map((wt: any, index: number) => {
                     const isEditing = editingWTIndex === index;
                     return (
-                      <div key={index} style={{ padding: "7px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
+                      <div key={index} style={{ padding: "7px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", fontSize: "13px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
                         {isEditing ? (
                           <>
-                            <input 
-                              type="text" 
-                              value={editingWTSerial} 
-                              disabled={isMutating}
-                              onChange={(e) => setEditingWTSerial(e.target.value)} 
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
-                            />
-                            <input 
-                              type="text" 
-                              value={editingWTMakeModel} 
-                              disabled={isMutating}
-                              onChange={(e) => setEditingWTMakeModel(e.target.value)} 
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }} 
-                            />
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div style={{ width: "40%", paddingRight: "16px" }}>
+                              <input 
+                                type="text" 
+                                value={editingWTSerial} 
+                                disabled={isMutating}
+                                onChange={(e) => setEditingWTSerial(e.target.value)} 
+                                style={{ width: "100%", padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
+                              />
+                            </div>
+                            <div style={{ width: "40%", paddingRight: "16px" }}>
+                              <input 
+                                type="text" 
+                                value={editingWTMakeModel} 
+                                disabled={isMutating}
+                                onChange={(e) => setEditingWTMakeModel(e.target.value)} 
+                                style={{ width: "100%", padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", opacity: isMutating ? 0.7 : 1 }} 
+                              />
+                            </div>
+                            <div style={{ width: "20%", display: "flex", gap: "6px" }}>
                               <button 
                                 onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)} 
                                 disabled={isMutating}
@@ -687,10 +691,10 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                           </>
                         ) : (
                           <>
-                            <span style={{ flex: 2, fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
-                            <span style={{ flex: 2, color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
+                            <span style={{ width: isViewer ? "50%" : "40%", fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
+                            <span style={{ width: isViewer ? "50%" : "40%", color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
                             {!isViewer && (
-                              <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                              <div style={{ width: "20%", display: "flex", gap: "12px" }}>
                                 <button 
                                   onClick={() => {
                                     setEditingWTIndex(index);
@@ -698,12 +702,12 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                                     setEditingWTMakeModel(wt.makeModel || "Motorola");
                                   }}
                                   disabled={isMutating}
-                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
+                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1, padding: 0 }}
                                 >Edit</button>
                                 <button 
                                   onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, index)} 
                                   disabled={isMutating}
-                                  style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1 }}
+                                  style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1, padding: 0 }}
                                 >
                                   {isMutating ? "Removing..." : "Delete"}
                                 </button>
