@@ -4394,33 +4394,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           <RealTimeClock />
         </div>
         <div className="header-controls-section">
-          {viewMode === "form" && role !== "STAFF" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Division:</span>
-              <select
-                value={selectedDivision}
-                onChange={(e) => setSelectedDivision(e.target.value)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #cbd5e1",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#1e293b",
-                  outline: "none",
-                  cursor: "pointer",
-                  background: "#fff",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                }}
-              >
-                <option value="">Select Division</option>
-                <option value="Bilaspur">Bilaspur</option>
-                <option value="Raipur">Raipur</option>
-                <option value="Nagpur">Nagpur</option>
-                <option value="HQ">HQ</option>
-              </select>
-            </div>
-          )}
         </div>
       </section>
 
@@ -4466,27 +4439,29 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       >
                         Divisional Maintenance
                       </button>
-                      <button
-                        type="button"
-                        className="export-button"
-                        style={{
-                          background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
-                          color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
-                          borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
-                          fontWeight: 700,
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
-                        }}
-                        disabled={isCompletedToday && !editingRecordId}
-                        onClick={() => {
-                          setMaintenanceType("HQ");
-                          setValue("maintenanceType", "HQ Maintenance");
-                        }}
-                      >
-                        HQ Maintenance
-                      </button>
+                      {selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && (
+                        <button
+                          type="button"
+                          className="export-button"
+                          style={{
+                            background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
+                            color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
+                            borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
+                            fontWeight: 700,
+                            padding: "6px 14px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
+                          }}
+                          disabled={isCompletedToday && !editingRecordId}
+                          onClick={() => {
+                            setMaintenanceType("HQ");
+                            setValue("maintenanceType", "HQ Maintenance");
+                          }}
+                        >
+                          HQ Maintenance
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
