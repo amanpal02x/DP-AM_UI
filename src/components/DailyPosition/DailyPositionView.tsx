@@ -4416,7 +4416,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </h3>
                     <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
                   </div>
-                  {selectedForm.name === "Railnet / Internet" && (
+                  {selectedForm.name === "Railnet / Internet" && selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && selectedDivision !== "Raipur" && selectedDivision !== "R" && (
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button
                         type="button"
@@ -4439,8 +4439,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       >
                         Divisional Maintenance
                       </button>
-                      {selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && (
-                        <button
+                      <button
                           type="button"
                           className="export-button"
                           style={{
@@ -4461,7 +4460,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         >
                           HQ Maintenance
                         </button>
-                      )}
                     </div>
                   )}
                 </div>
