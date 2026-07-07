@@ -1721,6 +1721,7 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
         alignItems: "center"
       }}>
         <span style={{
+          marginLeft: "140px",
           fontSize: "18px",
           fontWeight: 800,
           color: "#0d3b6f",
@@ -4895,9 +4896,8 @@ function DailyPositionSummaryTable({
             <div>
               <div className="position-summary-title-row">
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>
-
+                  Position as on
                 </h3>
-                <span>Position as on</span>
                 <input
                   type="date"
                   value={selectedDate}
@@ -5156,7 +5156,7 @@ function DailyPositionSummaryTableSuperAdmin({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 12px", borderBottom: "1px solid var(--line)" }}>
         <div>
           <div className="position-summary-title-row">
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}> of</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy)" }}>Position as on</h3>
             <input
               type="date"
               value={selectedDate}
