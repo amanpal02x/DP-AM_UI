@@ -1758,12 +1758,12 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
           </div>
           {showProfileCard && (
             <div className="profile-hover-card header-profile-hover-card">
-              <div className="profile-header">
+              {/* <div className="profile-header">
                 <div style={{ textAlign: "left" }}>
                   <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>{user.name}</h4>
                   <span className="pill info" style={{ display: "inline-block", marginTop: "4px", fontSize: 9, padding: "2px 6px", textTransform: "uppercase" }}>{user.role}</span>
                 </div>
-              </div>
+              </div> */}
               <div className="profile-body" style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "12px 0 0 0" }}>
                 <div className="profile-field" style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
                   <span className="label" style={{ fontWeight: 600 }}>Username</span>
