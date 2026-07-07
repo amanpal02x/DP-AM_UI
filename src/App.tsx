@@ -1206,7 +1206,7 @@ function App() {
   const dashboardCacheKey = `telecom_dashboard_${user?.id || user?.username || "user"}_${division || "all"}`;
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["dashboard-summary", division, token],
-    queryFn: () => getDashboardSummary(division),
+    queryFn: () => getDashboardSummary(division && division !== "HQ" ? division : undefined),
     enabled: !!token && ["Asset Dashboard", "Daily Position"].includes(activeNav),
     staleTime: 5 * 60_000,
     placeholderData: previousData => previousData,
@@ -1553,7 +1553,7 @@ function SidebarDailyPositionAccordion() {
   // Fetch today's records so we can reconcile with localStorage
   const sidebarRecordsQuery = useQuery({
     queryKey: ["daily-position-records", division, todayStr, "date"],
-    queryFn: () => api.dailyPosition.list({ division: division || "", date: todayStr, limit: 500 }),
+    queryFn: () => api.dailyPosition.list({ division: (division === "HQ" ? "" : division) || "", date: todayStr, limit: 500 }),
     staleTime: 30_000,
   });
 
@@ -1909,7 +1909,7 @@ function Sidebar({ onEditProfile }: { onEditProfile: () => void }) {
     if ((label === "Asset Dashboard" || label === "Daily Position") && token) {
       void queryClient.prefetchQuery({
         queryKey: ["dashboard-summary", division, token],
-        queryFn: () => getDashboardSummary(division),
+        queryFn: () => getDashboardSummary(division && division !== "HQ" ? division : undefined),
         staleTime: 5 * 60_000,
       });
     }
@@ -3123,7 +3123,7 @@ function CategoryFaultsPageView({
                   style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
                 >
                   <option value="">All Divisions</option>
-                  {["Bilaspur", "Nagpur", "Raipur"].map(div => (
+                  {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
                     <option key={div} value={div}>{div}</option>
                   ))}
                 </ClearableSelect>
@@ -3946,7 +3946,7 @@ function DailyPositionDashboardView({
 
   const activeFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-active-faults", userDivision],
-    queryFn: () => api.dailyPosition.list({ division: userDivision || "", isFaulty: "true", limit: 500 }),
+    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", isFaulty: "true", limit: 500 }),
     staleTime: 30 * 1000,
   });
 
