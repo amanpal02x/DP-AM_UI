@@ -994,6 +994,14 @@ function DailyPositionFieldInput({
     }
   }, [formName, selectedDivision, field.name, value, setValue]);
 
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-select"],
+    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
+    staleTime: 5000,
+    enabled: formName === "Walkie-Talkie Testing",
+  });
+  const lobbies = lobbiesQuery.data || [];
+
   if (field.name === "passengerAmenitiesGear") {
     const GEAR_OPTIONS = [
       "Coach Guidance Display Board (CGDB)",
@@ -2615,13 +2623,6 @@ function DailyPositionFieldInput({
     );
   }
 
-  const lobbiesQuery = useQuery({
-    queryKey: ["walkie-talkie-lobbies-select"],
-    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
-    staleTime: 5000,
-    enabled: formName === "Walkie-Talkie Testing",
-  });
-  const lobbies = lobbiesQuery.data || [];
 
   let options = field.options || [];
   let isSerialDropdown = false;
@@ -3117,7 +3118,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const metadataQuery = useQuery({
     queryKey: ["daily-position-metadata", selectedDivision],
-    queryFn: () => api.dailyPosition.metadata(selectedDivision ? { division: selectedDivision } : {}),
+    queryFn: () => api.dailyPosition.metadata(selectedDivision && selectedDivision !== "HQ" ? { division: selectedDivision } : {}),
     staleTime: 2 * 60 * 1000,
     placeholderData: previousData => previousData,
   });
@@ -3131,7 +3132,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         // History mode: server-side pagination + filtering
         params.page = String(historyPage);
         params.pageSize = String(HISTORY_PAGE_SIZE);
-        params.division = historyDivision || selectedDivision || "";
+        params.division = historyDivision || (selectedDivision === "HQ" ? "" : selectedDivision) || "";
         if (historySearch) params.search = historySearch;
         if (historyCategory) params.category = historyCategory;
         if (historyFormType) params.formType = historyFormType;
@@ -3144,7 +3145,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         }
       } else {
         // Form mode: fetch today's records for this division
-        params.division = selectedDivision || "";
+        params.division = (selectedDivision === "HQ" ? "" : selectedDivision) || "";
         params.limit = "500";
         if (dpHistoryFilter === "active-faults") {
           params.isFaulty = "true";
@@ -3167,7 +3168,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const activeCircuitFaultsQuery = useQuery({
     queryKey: ["daily-position-active-faults", selectedDivision, selectedForm?.name],
     queryFn: () => api.dailyPosition.activeFaults({
-      division: selectedDivision || "",
+      division: (selectedDivision === "HQ" ? "" : selectedDivision) || "",
       formType: selectedForm?.name || "",
     }),
     enabled: canFill && viewMode === "form" && !!selectedDivision && !!selectedForm?.name,
@@ -4058,6 +4059,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               <option value="Bilaspur">Bilaspur</option>
               <option value="Raipur">Raipur</option>
               <option value="Nagpur">Nagpur</option>
+              <option value="HQ">HQ</option>
             </ClearableSelect>
           </div>
           {/* Status-wise filter */}
@@ -4414,7 +4416,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </h3>
                     <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
                   </div>
-                  {selectedForm.name === "Railnet / Internet" && (
+                  {selectedForm.name === "Railnet / Internet" && selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && selectedDivision !== "Raipur" && selectedDivision !== "R" && (
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button
                         type="button"
@@ -4438,26 +4440,26 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         Divisional Maintenance
                       </button>
                       <button
-                        type="button"
-                        className="export-button"
-                        style={{
-                          background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
-                          color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
-                          borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
-                          fontWeight: 700,
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
-                        }}
-                        disabled={isCompletedToday && !editingRecordId}
-                        onClick={() => {
-                          setMaintenanceType("HQ");
-                          setValue("maintenanceType", "HQ Maintenance");
-                        }}
-                      >
-                        HQ Maintenance
-                      </button>
+                          type="button"
+                          className="export-button"
+                          style={{
+                            background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
+                            color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
+                            borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
+                            fontWeight: 700,
+                            padding: "6px 14px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
+                          }}
+                          disabled={isCompletedToday && !editingRecordId}
+                          onClick={() => {
+                            setMaintenanceType("HQ");
+                            setValue("maintenanceType", "HQ Maintenance");
+                          }}
+                        >
+                          HQ Maintenance
+                        </button>
                     </div>
                   )}
                 </div>
