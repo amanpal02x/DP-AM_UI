@@ -621,15 +621,21 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
-          <div className="modal-card" style={{ width: "90vw", maxWidth: "600px", maxHeight: "90vh", padding: "25px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="modal-card" style={{ width: "92vw", maxWidth: "700px", maxHeight: "88vh", padding: "22px", background: "#fff", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: "14px", borderBottom: "1px solid #f1f5f9" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 700 }}>
+                <h3 style={{ margin: 0, fontSize: "16px", color: "var(--navy)", fontWeight: 700 }}>
                   Manage Walkie-Talkies Inventory
                 </h3>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>Lobby: <strong>{viewingLobby.lobbyName}</strong></p>
+                <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>Lobby: <strong style={{ color: "var(--navy)" }}>{viewingLobby.lobbyName}</strong>
+                  {viewingLobby.walkieTalkies?.length > 0 && (
+                    <span style={{ marginLeft: "8px", background: "#eff6ff", color: "#2563eb", borderRadius: "12px", padding: "1px 8px", fontSize: "11px", fontWeight: 600 }}>
+                      {viewingLobby.walkieTalkies.length} sets
+                    </span>
+                  )}
+                </p>
               </div>
-              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}><X size={18} /></button>
+              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "#f1f5f9", border: "none", color: "var(--navy)", cursor: "pointer", borderRadius: "6px", padding: "4px 6px", display: "flex", alignItems: "center" }}><X size={15} /></button>
             </div>
             
             <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -638,7 +644,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                 <span style={{ flex: 2 }}>Make / Model</span>
                 {!isViewer && <span style={{ flex: 1, textAlign: "right" }}>Actions</span>}
               </div>
-              <div style={{ overflowY: "auto", flex: 1, maxHeight: "35vh" }}>
+              <div style={{ overflowY: "auto", flex: 1, maxHeight: "38vh" }}>
                 {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
                   <div style={{ textAlign: "center", padding: "30px", color: "var(--muted)", fontSize: "14px" }}>
                     No walkie-talkies recorded for this lobby.
@@ -647,7 +653,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   viewingLobby.walkieTalkies.map((wt: any, index: number) => {
                     const isEditing = editingWTIndex === index;
                     return (
-                      <div key={index} style={{ padding: "8px 15px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
+                      <div key={index} style={{ padding: "7px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
                         {isEditing ? (
                           <>
                             <input 
@@ -713,7 +719,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             </div>
 
             {!isViewer && (
-              <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ padding: "10px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <h4 style={{ margin: 0, fontSize: "13px", color: "var(--navy)", fontWeight: 600 }}>Add Walkie-Talkie Manually</h4>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <input
