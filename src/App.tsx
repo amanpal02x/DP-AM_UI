@@ -1753,7 +1753,7 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
           </div>
           <div className="user-avatar">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           </div>
           {showProfileCard && (
@@ -5876,10 +5876,6 @@ function SectionsManagementView({ showToast }: { showToast: (message: string) =>
           <p>Manage Daily Position division, major section, and section master data</p>
         </div>
         <div className="header-controls-section">
-          <button type="button" className="export-button" onClick={() => setAddSectionOpen(true)}>
-            <Plus size={16} />
-            Add Section
-          </button>
         </div>
       </section>
 
@@ -7435,6 +7431,7 @@ function ModuleView({
   const [filterDivision, setFilterDivision] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterAsset, setFilterAsset] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [expandedStationCode, setExpandedStationCode] = useState<string | null>(null);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null); // "stationCode::CATEGORY"
@@ -7460,6 +7457,7 @@ function ModuleView({
     setFilterDivision("");
     setFilterState("");
     setFilterCategory("");
+    setFilterAsset("");
     setFilterPopoverOpen(false);
     setCurrentPage(1);
   }, [activeNav]);
@@ -7467,7 +7465,7 @@ function ModuleView({
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDivision, filterState, filterCategory, assetStatusFilter]);
+  }, [searchTerm, filterDivision, filterState, filterCategory, filterAsset, assetStatusFilter]);
 
   const stations = queries.stationsQuery.data?.data || [];
   const uniqueDivisions = Array.from(new Set(stations.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
@@ -7486,6 +7484,281 @@ function ModuleView({
     return [];
   };
   const categoriesList = getCategories();
+
+  // Dynamic filter options for Master List
+  const dynamicDivisions = useMemo(() => {
+    if (activeNav !== "Master List") {
+      return uniqueDivisions;
+    }
+    let filtered = stations;
+    if (filterState) {
+      filtered = filtered.filter((s: any) => s.state === filterState);
+    }
+    if (filterCategory) {
+      filtered = filtered.filter((s: any) => s.category === filterCategory);
+    }
+    if (filterAsset) {
+      const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
+      const assetsList = queries.assetsQuery.data?.data || [];
+      const stationCodesWithAsset = new Set(
+        assetsList
+          .filter((a: any) => isTelecomAssetMatch(getTelecomAssetName(a), filterAsset))
+          .map((a: any) => a.stationCode)
+      );
+      filtered = filtered.filter((s: any) => {
+        const hasDetailedAsset = stationCodesWithAsset.has(s.code);
+        const hasCheckedAsset = matchedCap ? !!s[matchedCap.key] : false;
+        return hasDetailedAsset || hasCheckedAsset;
+      });
+    }
+    return Array.from(new Set(filtered.map((s: any) => s.division).filter(Boolean).map(normalizeDivision))) as string[];
+  }, [stations, activeNav, filterState, filterCategory, filterAsset, queries.assetsQuery.data, uniqueDivisions]);
+
+  const dynamicStates = useMemo(() => {
+    if (activeNav !== "Master List") {
+      return uniqueStates;
+    }
+    let filtered = stations;
+    if (filterDivision) {
+      filtered = filtered.filter((s: any) => normalizeDivision(s.division) === filterDivision);
+    }
+    if (filterCategory && filterCategory !== "Category-wise") {
+      filtered = filtered.filter((s: any) => s.category === filterCategory);
+    }
+    if (filterAsset) {
+      const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
+      const assetsList = queries.assetsQuery.data?.data || [];
+      const stationCodesWithAsset = new Set(
+        assetsList
+          .filter((a: any) => isTelecomAssetMatch(getTelecomAssetName(a), filterAsset))
+          .map((a: any) => a.stationCode)
+      );
+      filtered = filtered.filter((s: any) => {
+        const hasDetailedAsset = stationCodesWithAsset.has(s.code);
+        const hasCheckedAsset = matchedCap ? !!s[matchedCap.key] : false;
+        return hasDetailedAsset || hasCheckedAsset;
+      });
+    }
+    return Array.from(new Set(filtered.map((s: any) => s.state).filter(Boolean))) as string[];
+  }, [stations, activeNav, filterDivision, filterCategory, filterAsset, queries.assetsQuery.data, uniqueStates]);
+
+  const dynamicCategories = useMemo(() => {
+    if (activeNav !== "Master List") {
+      return categoriesList;
+    }
+    let filtered = stations;
+    if (filterDivision) {
+      filtered = filtered.filter((s: any) => normalizeDivision(s.division) === filterDivision);
+    }
+    if (filterState && filterState !== "State-wise") {
+      filtered = filtered.filter((s: any) => s.state === filterState);
+    }
+    if (filterAsset) {
+      const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
+      const assetsList = queries.assetsQuery.data?.data || [];
+      const stationCodesWithAsset = new Set(
+        assetsList
+          .filter((a: any) => isTelecomAssetMatch(getTelecomAssetName(a), filterAsset))
+          .map((a: any) => a.stationCode)
+      );
+      filtered = filtered.filter((s: any) => {
+        const hasDetailedAsset = stationCodesWithAsset.has(s.code);
+        const hasCheckedAsset = matchedCap ? !!s[matchedCap.key] : false;
+        return hasDetailedAsset || hasCheckedAsset;
+      });
+    }
+    return Array.from(new Set(filtered.map((s: any) => s.category).filter(Boolean))) as string[];
+  }, [stations, activeNav, filterDivision, filterState, filterAsset, queries.assetsQuery.data, categoriesList]);
+
+  const dynamicAssetsList = useMemo(() => {
+    if (activeNav !== "Master List") return [];
+    let filteredStations = stations;
+    if (filterDivision) {
+      filteredStations = filteredStations.filter((s: any) => normalizeDivision(s.division) === filterDivision);
+    }
+    if (filterState && filterState !== "State-wise") {
+      filteredStations = filteredStations.filter((s: any) => s.state === filterState);
+    }
+    if (filterCategory && filterCategory !== "Category-wise") {
+      filteredStations = filteredStations.filter((s: any) => s.category === filterCategory);
+    }
+
+    const stationCodes = new Set(filteredStations.map((s: any) => s.code));
+    const allAssets = queries.assetsQuery.data?.data || [];
+    const matchedAssets = allAssets.filter((a: any) => stationCodes.has(a.stationCode));
+
+    const assetNames = new Set<string>();
+
+    // Add assets from detailed assets records
+    matchedAssets.forEach((a: any) => {
+      const name = getTelecomAssetName(a);
+      if (name) assetNames.add(name);
+    });
+
+    // Add assets from station ticked capabilities
+    filteredStations.forEach((s: any) => {
+      TELECOM_ASSET_CHECKS.forEach(cap => {
+        if (!!s[cap.key]) {
+          assetNames.add(cap.label);
+        }
+      });
+    });
+
+    return Array.from(assetNames).sort() as string[];
+  }, [stations, queries.assetsQuery.data, activeNav, filterDivision, filterState, filterCategory]);
+
+  const renderSummaryCard = (filteredList: any[]) => {
+    if (activeNav !== "Master List") return null;
+    const isFilterSelected = !!(filterDivision || filterState || filterCategory || filterAsset);
+    if (!isFilterSelected) return null;
+
+    const headerTitle = filterDivision ? filterDivision : "Overall Divisions";
+
+    const activeFiltersText = [
+      filterState && (filterState === "State-wise" ? "State-wise" : `State: ${filterState}`),
+      filterCategory && (filterCategory === "Category-wise" ? "Category-wise" : `Category: ${filterCategory}`),
+      filterAsset && `Telecom Asset: ${filterAsset}`,
+    ].filter(Boolean).join(" | ");
+
+    // If filterState is active, render State-wise matrix
+    if (filterState) {
+      const cols = Array.from(new Set(stations.map((s: any) => s.state).filter(Boolean))).sort() as string[];
+      const rows = ["Bilaspur", "Nagpur", "Raipur"];
+
+      const matrix: Record<string, Record<string, number>> = {};
+      rows.forEach(r => {
+        matrix[r] = {};
+        cols.forEach(c => {
+          matrix[r][c] = 0;
+        });
+      });
+
+      filteredList.forEach(item => {
+        const div = normalizeDivision(item.division);
+        const st = item.state;
+        if (rows.includes(div) && cols.includes(st)) {
+          matrix[div][st] = (matrix[div][st] || 0) + 1;
+        }
+      });
+
+      return (
+        <div className="filter-summary-card">
+          <div className="summary-card-header">
+            <h4>
+              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+            </h4>
+            <span className="total-badge">Total Stations: {filteredList.length}</span>
+          </div>
+          <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
+            <table className="data-table text-center" style={{ margin: 0 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ fontWeight: 800, textAlign: "left", paddingLeft: "16px" }}>Division</th>
+                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r}>
+                    <td style={{ fontWeight: 700, textAlign: "left", background: "#f8fafc", paddingLeft: "16px" }}>{r}</td>
+                    {cols.map(c => (
+                      <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                        {matrix[r][c] || "-"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // If filterCategory is active, render Category-wise matrix
+    if (filterCategory) {
+      const cols = Array.from(new Set(stations.map((s: any) => s.category).filter(Boolean))).sort() as string[];
+      const rows = ["Bilaspur", "Nagpur", "Raipur"];
+
+      const matrix: Record<string, Record<string, number>> = {};
+      rows.forEach(r => {
+        matrix[r] = {};
+        cols.forEach(c => {
+          matrix[r][c] = 0;
+        });
+      });
+
+      filteredList.forEach(item => {
+        const div = normalizeDivision(item.division);
+        const cat = item.category;
+        if (rows.includes(div) && cols.includes(cat)) {
+          matrix[div][cat] = (matrix[div][cat] || 0) + 1;
+        }
+      });
+
+      return (
+        <div className="filter-summary-card">
+          <div className="summary-card-header">
+            <h4>
+              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+            </h4>
+            <span className="total-badge">Total Stations: {filteredList.length}</span>
+          </div>
+          <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
+            <table className="data-table text-center" style={{ margin: 0 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ fontWeight: 800, textAlign: "left", paddingLeft: "16px" }}>Division</th>
+                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r}>
+                    <td style={{ fontWeight: 700, textAlign: "left", background: "#f8fafc", paddingLeft: "16px" }}>{r}</td>
+                    {cols.map(c => (
+                      <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                        {matrix[r][c] || "-"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Default: flat count list (for Division or Asset filters when category/state are not filtered)
+    const counts: Record<string, number> = {};
+    filteredList.forEach(item => {
+      const div = normalizeDivision(item.division) || "Unknown";
+      counts[div] = (counts[div] || 0) + 1;
+    });
+
+    const divisionKeys = Object.keys(counts).sort();
+    if (divisionKeys.length === 0) return null;
+
+    return (
+      <div className="filter-summary-card">
+        <div className="summary-card-header">
+          <h4>
+            {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+          </h4>
+          <span className="total-badge">Total Stations: {filteredList.length}</span>
+        </div>
+        <div className="summary-card-grid">
+          {divisionKeys.map(div => (
+            <div key={div} className="summary-grid-item">
+              <span className="div-name">{div}</span>
+              <span className="div-count">{counts[div]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Delete mutations
   const deleteStation = useMutation({
@@ -7580,13 +7853,26 @@ function ModuleView({
             normDiv.includes(searchTerm.toLowerCase()) ||
             (s.state && s.state.toLowerCase().includes(searchTerm.toLowerCase()));
           const matchesDivision = !filterDivision || normalizeDivision(s.division) === filterDivision;
-          const matchesState = !filterState || s.state === filterState;
-          const matchesCategory = !filterCategory || s.category === filterCategory;
-          return matchesSearch && matchesDivision && matchesState && matchesCategory;
+          const matchesState = !filterState || filterState === "State-wise" || s.state === filterState;
+          const matchesCategory = !filterCategory || filterCategory === "Category-wise" || s.category === filterCategory;
+          
+          let matchesAsset = true;
+          if (filterAsset) {
+            const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
+            const hasDetailedAsset = stationAssets.some((a: any) => isTelecomAssetMatch(getTelecomAssetName(a), filterAsset));
+            
+            const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
+            const hasCheckedAsset = matchedCap ? !!s[matchedCap.key] : false;
+            
+            matchesAsset = hasDetailedAsset || hasCheckedAsset;
+          }
+
+          return matchesSearch && matchesDivision && matchesState && matchesCategory && matchesAsset;
         });
         const paginatedList = list.slice((currentPage - 1) * 50, currentPage * 50);
         return (
           <>
+            {renderSummaryCard(list)}
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
               <table className="data-table">
                 <thead>
@@ -8202,8 +8488,7 @@ function ModuleView({
   const canEditAssets = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
   const canEditGates = ["SUPER_ADMIN", "DIVISIONAL_ADMIN"].includes(role || "");
 
-  const shouldShowActionButtons = ["Master List", "Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
-    (activeNav === "Master List" && canEditStations) ||
+  const shouldShowActionButtons = ["Assets", "LC Gate", "Users & Roles"].includes(activeNav) && (
     (activeNav === "Assets" && canEditAssets) ||
     (activeNav === "LC Gate" && canEditGates) ||
     (activeNav === "Users & Roles" && ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM"].includes(role || ""))
@@ -8259,12 +8544,12 @@ function ModuleView({
 
               <button
                 type="button"
-                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
+                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
                 onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
               >
                 <SlidersHorizontal size={16} />
                 <span>Filters</span>
-                {(filterDivision || filterState || filterCategory || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
+                {(filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
               </button>
 
               {filterPopoverOpen && (
@@ -8276,7 +8561,7 @@ function ModuleView({
                     <label>Division</label>
                     <ClearableSelect value={filterDivision} onChange={setFilterDivision}>
                       <option value="">All Divisions</option>
-                      {uniqueDivisions.map((div) => (
+                      {dynamicDivisions.map((div) => (
                         <option key={div} value={div}>{div}</option>
                       ))}
                     </ClearableSelect>
@@ -8287,7 +8572,8 @@ function ModuleView({
                     <label>State</label>
                     <ClearableSelect value={filterState} onChange={setFilterState}>
                       <option value="">All States</option>
-                      {uniqueStates.map((st) => (
+                      {activeNav === "Master List" && <option value="State-wise">State-wise</option>}
+                      {dynamicStates.map((st) => (
                         <option key={st} value={st}>{st}</option>
                       ))}
                     </ClearableSelect>
@@ -8298,19 +8584,33 @@ function ModuleView({
                     <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
                     <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
                       <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
-                      {categoriesList.map((cat) => (
+                      {activeNav === "Master List" && <option value="Category-wise">Category-wise</option>}
+                      {dynamicCategories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </ClearableSelect>
                   </div>
+
+                  {/* Telecom Asset Filter (Master List only) */}
+                  {activeNav === "Master List" && (
+                    <div className="filter-group">
+                      <label>Telecom Asset</label>
+                      <ClearableSelect value={filterAsset} onChange={setFilterAsset}>
+                        <option value="">All Telecom Assets</option>
+                        {dynamicAssetsList.map((asset) => (
+                          <option key={asset} value={asset}>{asset}</option>
+                        ))}
+                      </ClearableSelect>
+                    </div>
+                  )}
 
                   {/* Status Filter for Assets */}
                   {activeNav === "Assets" && (
                     <div className="filter-group">
                       <label>Status</label>
                       <ClearableSelect
-                        value={assetStatusFilter}
-                        onChange={setAssetStatusFilter}
+                          value={assetStatusFilter}
+                          onChange={setAssetStatusFilter}
                       >
                         <option value="">All Statuses</option>
                         <option value="All Ok">All Ok</option>
@@ -8329,6 +8629,7 @@ function ModuleView({
                         setFilterDivision("");
                         setFilterState("");
                         setFilterCategory("");
+                        setFilterAsset("");
                         if (activeNav === "Assets") setAssetStatusFilter("");
                         setFilterPopoverOpen(false);
                       }}
