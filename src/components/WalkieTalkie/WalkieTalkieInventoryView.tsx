@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Search, Download, PlusCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/apiClient";
 import { useAppStore } from "../../App";
@@ -37,6 +37,15 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
   const [newWTSerial, setNewWTSerial] = useState("");
   const [newWTMakeModel, setNewWTMakeModel] = useState("Motorola");
   const [isMutating, setIsMutating] = useState(false);
+  const [wtSearchTerm, setWtSearchTerm] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const filteredWalkieTalkies = viewingLobby?.walkieTalkies
+    ? viewingLobby.walkieTalkies.filter((wt: any) => 
+        (wt.serialNumber || "").toLowerCase().includes(wtSearchTerm.toLowerCase()) ||
+        (wt.makeModel || "Motorola").toLowerCase().includes(wtSearchTerm.toLowerCase())
+      )
+    : [];
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -621,186 +630,281 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
       {/* View Serial Numbers Modal */}
       {isViewSerialsModalOpen && viewingLobby && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(10, 20, 42, 0.45)", backdropFilter: "blur(6px)" }}>
-          <div className="modal-card" style={{ width: "92vw", maxWidth: "700px", maxHeight: "88vh", padding: "22px", background: "#fff", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: "14px", borderBottom: "1px solid #f1f5f9" }}>
+          <style>{`
+            .wt-table-row-hover:hover {
+              background-color: #f8f9fb !important;
+            }
+            .wt-action-btn:hover {
+              text-decoration: underline !important;
+            }
+            .wt-add-grid {
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 16px;
+            }
+            @media (min-width: 768px) {
+              .wt-add-grid {
+                grid-template-columns: 5fr 4fr 3fr;
+                align-items: flex-end;
+              }
+            }
+          `}</style>
+          <div className="modal-card" style={{ width: "95vw", maxWidth: "850px", maxHeight: "90vh", background: "#ffffff", borderRadius: "16px", border: "1px solid #edeef0", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            
+            {/* Header */}
+            <header style={{ padding: "18px 32px", borderBottom: "1px solid #edeef0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "16px", color: "var(--navy)", fontWeight: 700 }}>
+                <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#111827", margin: 0, letterSpacing: "-0.025em" }}>
                   Manage Walkie-Talkies Inventory
-                </h3>
-                <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>Lobby: <strong style={{ color: "var(--navy)" }}>{viewingLobby.lobbyName}</strong>
+                </h1>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                  <p style={{ color: "#45464c", fontSize: "14px", margin: 0 }}>Lobby: <span style={{ fontWeight: 600, color: "#111827" }}>{viewingLobby.lobbyName}</span></p>
                   {viewingLobby.walkieTalkies?.length > 0 && (
-                    <span style={{ marginLeft: "8px", background: "#eff6ff", color: "#2563eb", borderRadius: "12px", padding: "1px 8px", fontSize: "11px", fontWeight: 600 }}>
+                    <span style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #dbeafe", borderRadius: "9999px", padding: "2px 8px", fontSize: "12px", fontWeight: 500 }}>
                       {viewingLobby.walkieTalkies.length} sets
                     </span>
                   )}
-                </p>
-              </div>
-              <button onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} style={{ background: "#f1f5f9", border: "none", color: "var(--navy)", cursor: "pointer", borderRadius: "6px", padding: "4px 6px", display: "flex", alignItems: "center" }}><X size={15} /></button>
-            </div>
-            
-            <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ background: "#f8fafc", padding: "10px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>
-                <span style={{ width: isViewer ? "50%" : "40%" }}>Serial Number</span>
-                <span style={{ width: isViewer ? "50%" : "40%" }}>Make / Model</span>
-                {!isViewer && <span style={{ width: "20%" }}>Actions</span>}
-              </div>
-              <div style={{ overflowY: "auto", flex: 1, maxHeight: "38vh" }}>
-                {(!viewingLobby.walkieTalkies || viewingLobby.walkieTalkies.length === 0) ? (
-                  <div style={{ textAlign: "center", padding: "30px", color: "var(--muted)", fontSize: "14px" }}>
-                    No walkie-talkies recorded for this lobby.
-                  </div>
-                ) : (
-                  viewingLobby.walkieTalkies.map((wt: any, index: number) => {
-                    const isEditing = editingWTIndex === index;
-                    return (
-                      <div key={index} style={{ padding: "7px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", fontSize: "13px", background: index % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                        {isEditing ? (
-                          <>
-                            <div style={{ width: "40%", paddingRight: "16px" }}>
-                              <input 
-                                type="text" 
-                                value={editingWTSerial} 
-                                disabled={isMutating}
-                                onChange={(e) => setEditingWTSerial(e.target.value)} 
-                                style={{ width: "100%", padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
-                              />
-                            </div>
-                            <div style={{ width: "40%", paddingRight: "16px" }}>
-                              <input 
-                                type="text" 
-                                value={editingWTMakeModel} 
-                                disabled={isMutating}
-                                onChange={(e) => setEditingWTMakeModel(e.target.value)} 
-                                style={{ width: "100%", padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", opacity: isMutating ? 0.7 : 1 }} 
-                              />
-                            </div>
-                            <div style={{ width: "20%", display: "flex", gap: "6px" }}>
-                              <button 
-                                onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)} 
-                                disabled={isMutating}
-                                style={{ background: "#22c55e", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer", opacity: isMutating ? 0.7 : 1 }}
-                              >
-                                {isMutating ? "Saving..." : "Save"}
-                              </button>
-                              <button 
-                                onClick={() => setEditingWTIndex(null)} 
-                                disabled={isMutating}
-                                style={{ background: "#cbd5e1", color: "#334155", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer" }}
-                              >Cancel</button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <span style={{ width: isViewer ? "50%" : "40%", fontFamily: "monospace", fontWeight: 500, color: "#334155" }}>{wt.serialNumber}</span>
-                            <span style={{ width: isViewer ? "50%" : "40%", color: "#475569", fontWeight: 500 }}>{wt.makeModel || "Motorola"}</span>
-                            {!isViewer && (
-                              <div style={{ width: "20%", display: "flex", gap: "12px" }}>
-                                <button 
-                                  onClick={() => {
-                                    setEditingWTIndex(index);
-                                    setEditingWTSerial(wt.serialNumber);
-                                    setEditingWTMakeModel(wt.makeModel || "Motorola");
-                                  }}
-                                  disabled={isMutating}
-                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1, padding: 0 }}
-                                >Edit</button>
-                                <button 
-                                  onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, index)} 
-                                  disabled={isMutating}
-                                  style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: 600, opacity: isMutating ? 0.5 : 1, padding: 0 }}
-                                >
-                                  {isMutating ? "Removing..." : "Delete"}
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {!isViewer && (
-              <div style={{ padding: "10px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <h4 style={{ margin: 0, fontSize: "13px", color: "var(--navy)", fontWeight: 600 }}>Add Walkie-Talkie Manually</h4>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <input
-                    type="text"
-                    placeholder="Serial Number..."
-                    value={newWTSerial}
-                    disabled={isMutating}
-                    onChange={(e) => setNewWTSerial(e.target.value)}
-                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Make / Model..."
-                    value={newWTMakeModel}
-                    disabled={isMutating}
-                    onChange={(e) => setNewWTMakeModel(e.target.value)}
-                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
-                  />
-                  <button
-                    onClick={() => handleAddSingleWalkieTalkie(viewingLobby)}
-                    disabled={isMutating}
-                    style={{ flex: 1, padding: "8px 12px", background: "var(--blue)", color: "#fff", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer", opacity: isMutating ? 0.7 : 1 }}
-                  >
-                    {isMutating ? "Adding..." : "Add Set"}
-                  </button>
                 </div>
               </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              {viewingLobby.walkieTalkies && viewingLobby.walkieTalkies.length > 0 && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const XLSX = await import("xlsx");
-                      const data = viewingLobby.walkieTalkies.map((wt: any, idx: number) => ({
-                        "S.No.": idx + 1,
-                        "Serial Number": wt.serialNumber,
-                        "Make / Model": wt.makeModel || "Motorola",
-                        "Lobby Name": viewingLobby.lobbyName,
-                        "Division": viewingLobby.division
-                      }));
-                      const worksheet = XLSX.utils.json_to_sheet(data);
-                      const workbook = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(workbook, worksheet, "Walkie Talkies");
-                      XLSX.writeFile(workbook, `${viewingLobby.lobbyName}_WalkieTalkie_Serials.xlsx`);
-                      showToast("Exported walkie-talkies list successfully.");
-                    } catch (err) {
-                      showToast("Failed to export Excel file.");
-                    }
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    background: "#10b981",
-                    color: "#fff",
-                    border: "none",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontSize: "13px"
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Export Excel
-                </button>
-              )}
               <button 
-                className="export-button" 
-                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); }} 
-                style={{ background: "none", borderColor: "#cbd5e1", color: "var(--navy)", marginLeft: "auto" }}
+                onClick={() => { setIsViewSerialsModalOpen(false); setViewingLobby(null); setEditingWTIndex(null); setWtSearchTerm(""); }} 
+                style={{ background: "none", border: "none", color: "#76777d", cursor: "pointer", borderRadius: "9999px", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f3f4f6"; e.currentTarget.style.color = "#111827"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#76777d"; }}
               >
-                Close
+                <X size={20} />
               </button>
-            </div>
+            </header>
+
+            {/* Main Content (Scrollable Table) */}
+            <main style={{ flex: 1, overflowY: "auto", padding: "16px 32px 8px 32px", display: "flex", flexDirection: "column" }} className="custom-scrollbar">
+              
+              {/* Search & Actions Bar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <div style={{ position: "relative", width: "288px" }}>
+                  <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#76777d", pointerEvents: "none" }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search inventory..." 
+                    value={wtSearchTerm}
+                    onChange={(e) => setWtSearchTerm(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    style={{ 
+                      width: "100%", 
+                      padding: "8px 16px 8px 40px", 
+                      backgroundColor: isSearchFocused ? "#ffffff" : "#f3f4f6", 
+                      border: isSearchFocused ? "1px solid #111827" : "1px solid transparent", 
+                      borderRadius: "8px", 
+                      fontSize: "14px", 
+                      outline: "none", 
+                      transition: "all 0.2s" 
+                    }} 
+                  />
+                </div>
+                {viewingLobby.walkieTalkies && viewingLobby.walkieTalkies.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const XLSX = await import("xlsx");
+                        const data = viewingLobby.walkieTalkies.map((wt: any, idx: number) => ({
+                          "S.No.": idx + 1,
+                          "Serial Number": wt.serialNumber,
+                          "Make / Model": wt.makeModel || "Motorola",
+                          "Lobby Name": viewingLobby.lobbyName,
+                          "Division": viewingLobby.division
+                        }));
+                        const worksheet = XLSX.utils.json_to_sheet(data);
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, "Walkie Talkies");
+                        XLSX.writeFile(workbook, `${viewingLobby.lobbyName}_WalkieTalkie_Serials.xlsx`);
+                        showToast("Exported walkie-talkies list successfully.");
+                      } catch (err) {
+                        showToast("Failed to export Excel file.");
+                      }
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 16px",
+                      border: "1px solid #c6c6cd",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      background: "#ffffff",
+                      color: "#111827",
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f3f4f6"}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#ffffff"}
+                  >
+                    <Download size={18} style={{ color: "#16a34a" }} />
+                    Export Excel
+                  </button>
+                )}
+              </div>
+
+              {/* Table Container */}
+              <div style={{ background: "#ffffff", borderRadius: "8px", border: "1px solid #edeef0", overflowY: "auto", maxHeight: "35vh" }} className="custom-scrollbar">
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ background: "#f8f9fb", position: "sticky", top: 0, zIndex: 10, boxShadow: "inset 0 -1px 0 #edeef0" }}>
+                      <th style={{ padding: "12px 24px", fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", width: isViewer ? "50%" : "40%", background: "#f8f9fb" }}>Serial Number</th>
+                      <th style={{ padding: "12px 24px", fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", width: isViewer ? "50%" : "40%", background: "#f8f9fb" }}>Make / Model</th>
+                      {!isViewer && <th style={{ padding: "12px 24px", fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", width: "20%", textAlign: "right", background: "#f8f9fb" }}>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody style={{ background: "#ffffff" }}>
+                    {filteredWalkieTalkies.length === 0 ? (
+                      <tr>
+                        <td colSpan={isViewer ? 2 : 3} style={{ textAlign: "center", padding: "30px", color: "#76777d", fontSize: "14px" }}>
+                          {wtSearchTerm ? "No matching walkie-talkies found." : "No walkie-talkies recorded for this lobby."}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredWalkieTalkies.map((wt: any, index: number) => {
+                        const actualIndex = viewingLobby.walkieTalkies.findIndex((item: any) => item.serialNumber === wt.serialNumber && item.makeModel === wt.makeModel);
+                        const isEditing = editingWTIndex === actualIndex;
+
+                        return (
+                          <tr key={index} style={{ borderBottom: "1px solid #edeef0", transition: "background-color 0.2s" }} className="wt-table-row-hover">
+                            {isEditing ? (
+                              <>
+                                <td style={{ padding: "10px 24px", width: "40%" }}>
+                                  <input 
+                                    type="text" 
+                                    value={editingWTSerial} 
+                                    disabled={isMutating}
+                                    onChange={(e) => setEditingWTSerial(e.target.value)} 
+                                    style={{ width: "100%", padding: "6px 12px", fontSize: "13px", border: "1px solid #c6c6cd", borderRadius: "6px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }} 
+                                  />
+                                </td>
+                                <td style={{ padding: "10px 24px", width: "40%" }}>
+                                  <input 
+                                    type="text" 
+                                    value={editingWTMakeModel} 
+                                    disabled={isMutating}
+                                    onChange={(e) => setEditingWTMakeModel(e.target.value)} 
+                                    style={{ width: "100%", padding: "6px 12px", fontSize: "13px", border: "1px solid #c6c6cd", borderRadius: "6px", outline: "none", opacity: isMutating ? 0.7 : 1 }} 
+                                  />
+                                </td>
+                                <td style={{ padding: "10px 24px", width: "20%", textAlign: "right" }}>
+                                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                                    <button 
+                                      onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, actualIndex)} 
+                                      disabled={isMutating}
+                                      style={{ background: "#22c55e", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer" }}
+                                    >
+                                      {isMutating ? "Saving..." : "Save"}
+                                    </button>
+                                    <button 
+                                      onClick={() => setEditingWTIndex(null)} 
+                                      disabled={isMutating}
+                                      style={{ background: "#cbd5e1", color: "#334155", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: isMutating ? "not-allowed" : "pointer" }}
+                                    >Cancel</button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ padding: "12px 24px", fontSize: "14px", fontWeight: 500, color: "#111827", fontFamily: "monospace" }}>{wt.serialNumber}</td>
+                                <td style={{ padding: "12px 24px", fontSize: "14px", color: "#45464c" }}>{wt.makeModel || "Motorola"}</td>
+                                {!isViewer && (
+                                  <td style={{ padding: "12px 24px", fontSize: "14px", textAlign: "right" }}>
+                                    <button 
+                                      onClick={() => {
+                                        setEditingWTIndex(actualIndex);
+                                        setEditingWTSerial(wt.serialNumber);
+                                        setEditingWTMakeModel(wt.makeModel || "Motorola");
+                                      }}
+                                      disabled={isMutating}
+                                      style={{ background: "none", border: "none", color: "#2563eb", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: 600, marginRight: "16px", padding: 0 }}
+                                      className="wt-action-btn"
+                                    >Edit</button>
+                                    <button 
+                                      onClick={() => handleDeleteSingleWalkieTalkie(viewingLobby, actualIndex)} 
+                                      disabled={isMutating}
+                                      style={{ background: "none", border: "none", color: "#ef4444", cursor: isMutating ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: 600, padding: 0 }}
+                                      className="wt-action-btn"
+                                    >Delete</button>
+                                  </td>
+                                )}
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </main>
+
+            {/* Footer / Add Section */}
+            <footer style={{ background: "#f3f4f6", padding: "16px 32px", borderTop: "1px solid #edeef0" }}>
+              {!isViewer && (
+                <div>
+                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <PlusCircle size={18} style={{ color: "#2563eb" }} />
+                    Add Walkie-Talkie Manually
+                  </h3>
+                  <div className="wt-add-grid">
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", paddingLeft: "4px" }}>Serial Number</label>
+                      <input
+                        type="text"
+                        placeholder="Serial Number..."
+                        value={newWTSerial}
+                        disabled={isMutating}
+                        onChange={(e) => setNewWTSerial(e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #c6c6cd", borderRadius: "8px", fontSize: "14px", outline: "none", background: "#ffffff", fontFamily: "monospace" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", paddingLeft: "4px" }}>Make / Model</label>
+                      <input
+                        type="text"
+                        placeholder="Make / Model..."
+                        value={newWTMakeModel}
+                        disabled={isMutating}
+                        onChange={(e) => setNewWTMakeModel(e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #c6c6cd", borderRadius: "8px", fontSize: "14px", outline: "none", background: "#ffffff" }}
+                      />
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => handleAddSingleWalkieTalkie(viewingLobby)}
+                        disabled={isMutating}
+                        style={{ 
+                          width: "100%", 
+                          padding: "8px 16px", 
+                          background: "#2563eb", 
+                          color: "#ffffff", 
+                          fontWeight: 600, 
+                          border: "none", 
+                          borderRadius: "8px", 
+                          fontSize: "14px", 
+                          cursor: isMutating ? "not-allowed" : "pointer", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center",
+                          height: "38px",
+                          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+                          transition: "all 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#1d4ed8"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#2563eb"}
+                      >
+                        {isMutating ? "Adding..." : "Add Set"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </footer>
+
           </div>
         </div>
       )}
