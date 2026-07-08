@@ -1409,10 +1409,7 @@ function EditProfileModal({
     e.preventDefault();
     setLoading(true);
     try {
-      const body: any = { name };
-      if (user?.role !== "SUPER_ADMIN" && user?.role !== "DIVISIONAL_ADMIN") {
-        body.designation = designation;
-      }
+      const body: any = { name, designation };
       if (password) {
         body.password = password;
       }
@@ -1428,7 +1425,7 @@ function EditProfileModal({
     }
   };
 
-  const showDesignationField = user?.role !== "SUPER_ADMIN" && user?.role !== "DIVISIONAL_ADMIN";
+  const showDesignationField = true;
 
   return (
     <div
@@ -1706,17 +1703,19 @@ function DesktopHeader({ onEditProfile }: { onEditProfile: () => void }) {
         justifyContent: "center",
         alignItems: "center"
       }}>
-        <span style={{
-          marginLeft: "140px",
-          fontSize: "18px",
-          fontWeight: 800,
-          color: "#0d3b6f",
-          textTransform: "uppercase",
-          letterSpacing: "1.5px",
-          display: "inline-block"
-        }}>
-          {normalizeDivision(user.division) || "HQ"} DIVISION
-        </span>
+        {user.role !== "SUPER_ADMIN" && (
+          <span style={{
+            marginLeft: "140px",
+            fontSize: "18px",
+            fontWeight: 800,
+            color: "#0d3b6f",
+            textTransform: "uppercase",
+            letterSpacing: "1.5px",
+            display: "inline-block"
+          }}>
+            {normalizeDivision(user.division) || "HQ"} DIVISION
+          </span>
+        )}
       </div>
 
       <div className="header-right">
@@ -7493,6 +7492,7 @@ function ModuleView({
   const [expandedStationCode, setExpandedStationCode] = useState<string | null>(null);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null); // "stationCode::CATEGORY"
   const [currentPage, setCurrentPage] = useState(1);
+  const [multiStationModalOpen, setMultiStationModalOpen] = useState(false);
 
   // Click outside handler for station dropdown
   useEffect(() => {
@@ -8407,7 +8407,7 @@ function ModuleView({
                         <td>{u.mobile ? u.mobile : u.username}</td>
                         <td><span className="pill info">{u.role}</span></td>
                         <td>{u.designation || "-"}</td>
-                        <td>{normalizeDivision(u.division) || "HQ"}</td>
+                        <td>{normalizeDivision(u.division) || "null"}</td>
                         <td>{new Date(u.createdAt).toLocaleDateString()}</td>
                         <td style={{ textAlign: "right" }}>
                           {canManage ? (
@@ -8613,6 +8613,36 @@ function ModuleView({
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
 
+              {activeNav === "Master List" && (
+                <button
+                  type="button"
+                  className="filter-toggle-btn"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "var(--blue-soft)",
+                    color: "var(--blue)",
+                    border: "1px solid rgba(11, 109, 255, 0.15)",
+                    borderRadius: "6px",
+                    padding: "0 12px",
+                    height: "38px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    transition: "all 0.2s"
+                  }}
+                  onClick={() => setMultiStationModalOpen(true)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </svg>
+                  <span>Summary</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
@@ -8722,7 +8752,591 @@ function ModuleView({
         </div>
       )}
       {renderContent()}
+      {multiStationModalOpen && (
+        <MultiStationSummaryModal
+          close={() => setMultiStationModalOpen(false)}
+          queries={queries}
+        />
+      )}
     </article>
+  );
+}
+
+// Multi-Station Summary Modal
+function MultiStationSummaryModal({ close, queries }: { close: () => void; queries: any }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const stations = queries.stationsQuery.data?.data || [];
+  const assets = queries.assetsQuery.data?.data || [];
+
+  const suggestions = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return stations.filter((s: any) =>
+      !selectedCodes.includes(s.code) &&
+      (s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
+    ).slice(0, 10);
+  }, [searchQuery, selectedCodes, stations]);
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [suggestions]);
+
+  const selectedStations = useMemo(() => {
+    return stations.filter((s: any) => selectedCodes.includes(s.code));
+  }, [selectedCodes, stations]);
+
+  const columns = [
+    { key: "hasIpis", label: "IPIS" },
+    { key: "hasPaSystem", label: "PA System" },
+    { key: "hasCctv", label: "CCTV" },
+    { key: "hasUts", label: "UTS" },
+    { key: "hasPrs", label: "PRS" },
+    { key: "hasWifi", label: "Wi-Fi" },
+    { key: "hasExchange", label: "Exchange" },
+    { key: "hasTalkback", label: "Talkback" },
+    { key: "hasAtvm", label: "ATVM" }
+  ];
+
+  const addStation = (code: string) => {
+    if (!selectedCodes.includes(code)) {
+      setSelectedCodes(prev => [...prev, code]);
+    }
+    setSearchQuery("");
+  };
+
+  const removeStation = (code: string) => {
+    setSelectedCodes(prev => prev.filter(c => c !== code));
+  };
+
+  const getAssetDetails = (stationCode: string, assetLabel: string, hasChecklistFlag: boolean) => {
+    const matched = assets.filter((a: any) => a.stationCode === stationCode && isTelecomAssetMatch(getTelecomAssetName(a), assetLabel));
+    const count = matched.length;
+    if (count > 0) {
+      return { exists: true, count, detail: matched.map((m: any) => `${m.make || 'Unknown'} (${m.status || 'OK'})`).join(", ") };
+    }
+    return { exists: hasChecklistFlag, count: 0, detail: "" };
+  };
+
+  const handleExportCSV = () => {
+    if (selectedStations.length === 0) return;
+    let csvContent = "data:text/csv;charset=utf-8,";
+    
+    // Headers
+    const headers = ["Station Name", "Station Code", "Division", "State", "Category", "Assets"];
+    csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
+    
+    // Rows
+    selectedStations.forEach((s: any) => {
+      const activeAssetsText = columns
+        .map(col => {
+          const dObj = getAssetDetails(s.code, col.label, !!s[col.key]);
+          if (dObj.exists) {
+            const countText = dObj.count > 0 ? ` (${dObj.count})` : "";
+            return `${col.label}${countText}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(", ");
+
+      const row = [
+        s.name,
+        s.code,
+        normalizeDivision(s.division),
+        s.state || "",
+        s.category,
+        activeAssetsText || "None"
+      ];
+      csvContent += row.map(val => `"${val}"`).join(",") + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Assets_Summary_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    
+    const tableRows = selectedStations.map((s: any, idx: number) => {
+      const activeAssetsText = columns
+        .map(col => {
+          const dObj = getAssetDetails(s.code, col.label, !!s[col.key]);
+          if (dObj.exists) {
+            const countText = dObj.count > 0 ? ` (${dObj.count})` : "";
+            return `<strong>${col.label}</strong>${countText}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(" &bull; ");
+
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.code}</td>
+          <td>${normalizeDivision(s.division)}</td>
+          <td>${s.state || "-"}</td>
+          <td>${s.category}</td>
+          <td>${activeAssetsText || "None"}</td>
+        </tr>
+      `;
+    }).join("");
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Assets Summary</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #1e293b; }
+            h1 { font-size: 24px; margin-bottom: 8px; color: #0f172a; }
+            p { font-size: 14px; margin-bottom: 24px; color: #64748b; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+            th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+            th { background: #f8fafc; font-weight: 700; color: #475569; }
+            tr:nth-child(even) { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h1>Assets Summary</h1>
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Station Name</th>
+                <th>Code</th>
+                <th>Division</th>
+                <th>State</th>
+                <th>Category</th>
+                <th>Assets</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "rgba(10, 20, 42, 0.45)",
+        backdropFilter: "blur(6px)",
+      }}
+      onClick={close}
+    >
+      <div
+        style={{
+          width: selectedStations.length === 0 ? "min(400px, calc(100vw - 32px))" : "min(850px, calc(100vw - 32px))",
+          background: "#ffffff",
+          borderRadius: "12px",
+          boxShadow: "0 20px 50px rgba(10, 20, 42, 0.18)",
+          border: "1px solid var(--line)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: selectedStations.length === 0 ? "visible" : "hidden",
+          animation: "zoomIn 200ms cubic-bezier(0.16, 1, 0.3, 1)",
+          maxHeight: "82vh",
+          transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        {selectedStations.length > 0 && (
+          <div style={{ padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--line)", background: "linear-gradient(135deg, var(--navy) 0%, #1e3a8a 100%)", color: "#fff" }}>
+            <div>
+              <h3 style={{ margin: "0", fontSize: 17, fontWeight: 800, color: "#fff" }}>
+                Assets Summary
+              </h3>
+            </div>
+            <button
+              onClick={close}
+              style={{
+                background: "rgba(255,255,255,0.1)",
+                border: 0,
+                color: "#fff",
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+                transition: "background 0.2s"
+              }}
+              aria-label="Close"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+
+        {/* Modal Scrollable Body */}
+        <div style={{
+          padding: selectedStations.length === 0 ? "12px 14px" : "16px 20px",
+          overflowY: selectedStations.length === 0 ? "visible" : "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          flex: 1,
+          minHeight: "auto"
+        }}>
+          {/* Station Selection Search Section */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", position: "relative" }}>
+            <label style={{ fontSize: "11px", fontWeight: "800", color: "var(--navy)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Search and Add Stations
+            </label>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ flex: 1, position: "relative" }}>
+                <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", display: "flex", alignItems: "center" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Type station name or code (e.g. Raipur or R)..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveIndex(prev => (prev + 1 < suggestions.length ? prev + 1 : prev));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveIndex(prev => (prev - 1 >= 0 ? prev - 1 : prev));
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (activeIndex >= 0 && activeIndex < suggestions.length) {
+                        addStation(suggestions[activeIndex].code);
+                        setShowDropdown(false);
+                      } else if (suggestions.length > 0) {
+                        addStation(suggestions[0].code);
+                        setShowDropdown(false);
+                      }
+                    } else if (e.key === "Escape") {
+                      setShowDropdown(false);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    height: "36px",
+                    padding: "0 12px 0 34px",
+                    borderRadius: "6px",
+                    border: "1.5px solid #cbd5e1",
+                    fontSize: "13px",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  }}
+                />
+                
+                {/* Autocomplete Dropdown */}
+                {showDropdown && suggestions.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 4px)",
+                      left: 0,
+                      right: 0,
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      boxShadow: "0 8px 12px -3px rgba(0, 0, 0, 0.1)",
+                      zIndex: 10,
+                      maxHeight: "180px",
+                      overflowY: "auto",
+                      padding: "2px 0"
+                    }}
+                  >
+                    {suggestions.map((s: any, idx: number) => {
+                      const isHighlighted = idx === activeIndex;
+                      return (
+                        <button
+                          key={s.code}
+                          type="button"
+                          onClick={() => {
+                            addStation(s.code);
+                            setShowDropdown(false);
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            fontSize: "12.5px",
+                            fontWeight: isHighlighted ? "700" : "600",
+                            color: "var(--navy)",
+                            background: isHighlighted ? "#f1f5f9" : "transparent",
+                            border: "none",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                          onMouseEnter={() => setActiveIndex(idx)}
+                          onMouseLeave={() => setActiveIndex(-1)}
+                        >
+                          <span>{s.name}</span>
+                          <span style={{ fontSize: "10px", background: "var(--blue-soft)", color: "var(--blue)", padding: "1px 5px", borderRadius: "3px", fontWeight: "700" }}>{s.code}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {selectedCodes.length > 0 && (
+                <button
+                  onClick={() => setSelectedCodes([])}
+                  style={{
+                    height: "36px",
+                    padding: "0 12px",
+                    borderRadius: "6px",
+                    background: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    color: "#475569",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            {/* Selected Station Tags */}
+            {selectedStations.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "2px" }}>
+                {selectedStations.map((s: any) => (
+                  <span
+                    key={s.code}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      background: "var(--blue-soft)",
+                      color: "var(--blue)",
+                      padding: "4px 10px",
+                      borderRadius: "14px",
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      border: "1px solid rgba(11, 109, 255, 0.12)"
+                    }}
+                  >
+                    {s.name} ({s.code})
+                    <button
+                      onClick={() => removeStation(s.code)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "var(--blue)",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        fontSize: "12px",
+                        lineHeight: 1,
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tabular Preview Section */}
+          {selectedStations.length > 0 && (
+            <div style={{ border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#f8fafc" }}>
+              <div style={{ padding: "8px 14px", background: "#ffffff", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <strong style={{ fontSize: "13px", color: "var(--navy)" }}>
+                  Selected Stations Preview ({selectedStations.length})
+                </strong>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button
+                    onClick={handleExportCSV}
+                    style={{
+                      padding: "4px 10px",
+                      background: "var(--green-soft)",
+                      border: "1px solid rgba(13, 183, 107, 0.12)",
+                      borderRadius: "4px",
+                      color: "var(--green)",
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg> Export CSV
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    style={{
+                      padding: "4px 10px",
+                      background: "var(--blue-soft)",
+                      border: "1px solid rgba(11, 109, 255, 0.12)",
+                      borderRadius: "4px",
+                      color: "var(--blue)",
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    <Printer size={12} /> Print Report
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ overflowX: "auto", maxHeight: "300px" }}>
+                <table className="data-table" style={{ margin: 0, width: "100%", background: "#fff" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <th style={{ width: "40px", textAlign: "center", padding: "8px 10px", fontSize: "11px" }}>#</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>Station Name</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>Code</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>Division</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>State</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>Category</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px" }}>Assets</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedStations.map((s: any, idx: number) => {
+                      const activeAssetsList = columns
+                        .map(col => {
+                          const dObj = getAssetDetails(s.code, col.label, !!s[col.key]);
+                          if (dObj.exists) {
+                            const countText = dObj.count > 0 ? ` (${dObj.count})` : "";
+                            return { label: col.label, countText };
+                          }
+                          return null;
+                        })
+                        .filter(Boolean) as { label: string; countText: string }[];
+
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ textAlign: "center", fontWeight: "700", padding: "8px 10px", fontSize: "12.5px" }}>{idx + 1}</td>
+                          <td style={{ padding: "8px 10px", fontSize: "12.5px" }}><strong>{s.name}</strong></td>
+                          <td style={{ fontWeight: "700", color: "var(--blue)", padding: "8px 10px", fontSize: "12.5px" }}>{s.code}</td>
+                          <td style={{ padding: "8px 10px", fontSize: "12.5px" }}>{normalizeDivision(s.division)}</td>
+                          <td style={{ padding: "8px 10px", fontSize: "12.5px" }}>{s.state || "-"}</td>
+                          <td style={{ padding: "8px 10px", fontSize: "12.5px" }}><span className="pill" style={{ background: "#f1f5f9", color: "#475569", fontWeight: "700", padding: "1px 5px", fontSize: "11px" }}>{s.category}</span></td>
+                          <td style={{ padding: "8px 10px", fontSize: "12.5px" }}>
+                            {activeAssetsList.length === 0 ? (
+                              <span style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "12px" }}>No assets registered</span>
+                            ) : (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 6px", alignItems: "center" }}>
+                                {activeAssetsList.map((item, aIdx) => {
+                                  const hasCount = !!item.countText;
+                                  return (
+                                    <span key={item.label} style={{ fontSize: "12px", display: "inline-flex", alignItems: "center" }}>
+                                      <span style={{
+                                        color: hasCount ? "var(--blue)" : "#475569",
+                                        fontWeight: hasCount ? "700" : "500"
+                                      }}>
+                                        {item.label}{item.countText}
+                                      </span>
+                                      {aIdx < activeAssetsList.length - 1 && <span style={{ color: "#94a3b8", marginLeft: "6px" }}>•</span>}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {selectedStations.length > 0 && (
+          <div style={{ padding: "10px 16px", borderTop: "1px solid var(--line)", display: "flex", justifyContent: "flex-end", gap: "10px", background: "#f8fafc" }}>
+            <button
+              onClick={close}
+              style={{
+                padding: "6px 16px",
+                borderRadius: "6px",
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#475569",
+                fontSize: "12.5px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={close}
+              style={{
+                padding: "6px 16px",
+                borderRadius: "6px",
+                background: "var(--navy)",
+                border: "none",
+                color: "#ffffff",
+                fontSize: "12.5px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+            >
+              Confirm Selection
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -9076,12 +9690,10 @@ function UserDetailsModal({ itemId, close, queries }: { itemId: string; close: (
                 <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>System Role</small>
                 <span className="pill info" style={{ display: "inline-block", marginTop: 4, fontSize: 12 }}>{userObj.role}</span>
               </div>
-              {userObj.role !== "SUPER_ADMIN" && userObj.role !== "ALL_DIVISION_VIEWER" && (
-                <div>
-                  <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Division</small>
-                  <strong style={{ display: "block", fontSize: 14, color: "var(--navy)", marginTop: 4 }}>{normalizeDivision(userObj.division) || "HQ"}</strong>
-                </div>
-              )}
+              <div>
+                <small style={{ display: "block", fontSize: 10, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Division</small>
+                <strong style={{ display: "block", fontSize: 14, color: "var(--navy)", marginTop: 4 }}>{normalizeDivision(userObj.division) || "null"}</strong>
+              </div>
             </div>
 
             {/* Designation */}
@@ -9746,7 +10358,7 @@ function ActionPanel({
         if (userObj) {
           setNewRole(userObj.role);
           setNewDesignation(userObj.designation || "");
-          setStationDivision(userObj.division || "Raipur");
+          setStationDivision(userObj.division || "");
           setEditName(userObj.name || "");
           setEditPassword("");
           setEditAccessAssets(userObj.accessAssets !== false);
@@ -9906,11 +10518,10 @@ function ActionPanel({
       });
 
     } else if (title === "Change User Role" || title === "Manage User") {
-      const isSuperOrAllDiv = newRole === "SUPER_ADMIN" || newRole === "ALL_DIVISION_VIEWER";
       const updatePayload: any = {
         role: newRole,
-        designation: (newRole === "SUPER_ADMIN" || newRole === "DIVISIONAL_ADMIN" || newRole === "ALL_DIVISION_VIEWER") ? null : (newDesignation || null),
-        division: isSuperOrAllDiv ? null : stationDivision,
+        designation: newDesignation || null,
+        division: stationDivision || null,
         name: editName,
         accessAssets: editAccessAssets,
         accessDailyPosition: editAccessDailyPosition
@@ -10130,24 +10741,22 @@ function ActionPanel({
               <input placeholder="e.g. SSE/Tele/Raipur" value={addDesignation} onChange={e => setAddDesignation(e.target.value)} />
             </label>
           )}
-          {addRole !== "SUPER_ADMIN" && addRole !== "ALL_DIVISION_VIEWER" && (
-            currentRole === "SUPER_ADMIN" ? (
-              <label>
-                Division
-                <ClearableSelect value={addDivision} onChange={setAddDivision}>
-                  <option value="">Select Division</option>
-                  {uniqueDivisions.length > 0
-                    ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
-                    : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
-                  }
-                </ClearableSelect>
-              </label>
-            ) : (
-              <label>
-                Division (Locked)
-                <input readOnly value={userDiv} />
-              </label>
-            )
+          {currentRole === "SUPER_ADMIN" ? (
+            <label>
+              Division
+              <ClearableSelect value={addDivision} onChange={setAddDivision}>
+                <option value="">null</option>
+                {uniqueDivisions.length > 0
+                  ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
+                  : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
+                }
+              </ClearableSelect>
+            </label>
+          ) : (
+            <label>
+              Division (Locked)
+              <input readOnly value={userDiv || "null"} />
+            </label>
           )}
           <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>Module Access Privileges</span>
@@ -10958,16 +11567,21 @@ function ActionPanel({
             Designation
             <input placeholder="e.g. Sr. DSTE/Raipur" value={newDesignation} onChange={e => setNewDesignation(e.target.value)} />
           </label>
-          {currentRole === "SUPER_ADMIN" && newRole !== "SUPER_ADMIN" && newRole !== "ALL_DIVISION_VIEWER" && (
+          {currentRole === "SUPER_ADMIN" ? (
             <label>
               Division
               <ClearableSelect value={stationDivision} onChange={setStationDivision}>
-                <option value="">Select Division</option>
+                <option value="">null</option>
                 {uniqueDivisions.length > 0
                   ? uniqueDivisions.map((d: string) => <option key={d} value={d}>{d}</option>)
                   : ["Raipur", "Bilaspur", "Nagpur"].map((d: string) => <option key={d} value={d}>{d}</option>)
                 }
               </ClearableSelect>
+            </label>
+          ) : (
+            <label>
+              Division (Locked)
+              <input readOnly value={stationDivision || "null"} />
             </label>
           )}
           <div style={{ margin: "12px 0 15px", display: "grid", gap: 10 }}>
