@@ -2996,9 +2996,23 @@ function CategoryFaultsPageView({
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a: any, b: any) => {
-      const timeA = a.failureTime ? new Date(a.failureTime).getTime() : 0;
-      const timeB = b.failureTime ? new Date(b.failureTime).getTime() : 0;
-      return timeA - timeB;
+      const getTimestamp = (r: any) => {
+        if (r.failureTime) {
+          const t = new Date(r.failureTime).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        if (r.date) {
+          const t = new Date(r.date).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        if (r.createdAt) {
+          const t = new Date(r.createdAt).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        return Date.now(); // If no timestamp is found, treat as brand new (bottom)
+      };
+
+      return getTimestamp(a) - getTimestamp(b);
     });
   }, [records]);
 
@@ -3967,6 +3981,44 @@ function DailyPositionDashboardView({
     return String(filtered.length);
   }, [activeFaultsQuery.data, data.kpis, userDivision]);
 
+  const activeFaultsByDivisionClient = useMemo(() => {
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      return !isWifi && !isAllOk && matchesDiv;
+    });
+
+    const counts: Record<string, number> = {
+      Raipur: 0,
+      Bilaspur: 0,
+      Nagpur: 0
+    };
+
+    filtered.forEach((r: any) => {
+      const divName = normalizeDivName(r.division);
+      if (divName in counts) {
+        counts[divName]++;
+      } else {
+        if (!counts["Others"]) counts["Others"] = 0;
+        counts["Others"]++;
+      }
+    });
+
+    const result = [
+      { division: "Raipur", count: counts.Raipur },
+      { division: "Bilaspur", count: counts.Bilaspur },
+      { division: "Nagpur", count: counts.Nagpur }
+    ];
+    if (counts.Others > 0) {
+      result.push({ division: "Others", count: counts.Others });
+    }
+    return result;
+  }, [activeFaultsQuery.data, userDivision]);
+
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
@@ -4082,7 +4134,7 @@ function DailyPositionDashboardView({
         {userDivision ? (
           <LatestUpdatesWidget showToast={showToast} />
         ) : (
-          <ActiveFaultsDivisionPanel metrics={data.activeFaultsByDivision || []} />
+          <ActiveFaultsDivisionPanel metrics={activeFaultsByDivisionClient} />
         )}
         <DailyPositionCategoryPanel categoryData={categoryData} onCategoryClick={onCategoryClick} />
         <DailyPositionTrendsPanel
