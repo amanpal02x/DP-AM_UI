@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef, useMemo, lazy, Suspense } from "react";
 import type { ReactNode } from "react";
-import { useQuery, useMutation, useQueryClient, useIsMutating } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
 import bgSketch from "./assets/bg-sketch.png";
 import irLogo from "./assets/ir-logo.png";
@@ -509,8 +509,6 @@ type AppState = {
   setDpSelectedFormName: (formName: string) => void;
   setDpOpenCategory: (category: string) => void;
   setDpCircuitSearch: (search: string) => void;
-  globalLoading: boolean;
-  setGlobalLoading: (loading: boolean) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -554,8 +552,6 @@ export const useAppStore = create<AppState>((set) => ({
   setDpSelectedFormName: (dpSelectedFormName) => set({ dpSelectedFormName }),
   setDpOpenCategory: (dpOpenCategory) => set({ dpOpenCategory }),
   setDpCircuitSearch: (dpCircuitSearch) => set({ dpCircuitSearch }),
-  globalLoading: false,
-  setGlobalLoading: (globalLoading) => set({ globalLoading })
 }));
 
 const toneIcons = {
@@ -1057,9 +1053,7 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
 }
 
 function App() {
-  const { token, setToken, setUser, setDivision, logout, role, division, activeNav, sidebarOpen, setSidebarOpen, user, globalLoading } = useAppStore();
-  const activeMutations = useIsMutating();
-  const showLoader = globalLoading || activeMutations > 0;
+  const { token, setToken, setUser, setDivision, logout, role, division, activeNav, sidebarOpen, setSidebarOpen, user } = useAppStore();
   const [panel, setPanel] = useState<string | null>(null);
   const [panelItemId, setPanelItemId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -1394,14 +1388,6 @@ function App() {
           showToast={showToast}
         />
       )}
-      {showLoader && (
-        <div className="global-loader-overlay">
-          <div className="global-loader-content">
-            <div className="global-loader-spinner" />
-            <p className="global-loader-text">Saving changes, please wait...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1413,7 +1399,7 @@ function EditProfileModal({
   close: () => void;
   showToast: (msg: string) => void;
 }) {
-  const { user, setUser, setGlobalLoading } = useAppStore();
+  const { user, setUser } = useAppStore();
   const [name, setName] = useState(user?.name || "");
   const [designation, setDesignation] = useState(user?.designation || "");
   const [password, setPassword] = useState("");
@@ -1422,7 +1408,6 @@ function EditProfileModal({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setGlobalLoading(true);
     try {
       const body: any = { name };
       if (user?.role !== "SUPER_ADMIN" && user?.role !== "DIVISIONAL_ADMIN") {
@@ -1440,7 +1425,6 @@ function EditProfileModal({
       showToast(err.message || "Failed to update profile.");
     } finally {
       setLoading(false);
-      setGlobalLoading(false);
     }
   };
 
@@ -10178,7 +10162,10 @@ function ActionPanel({
               </label>
             </div>
           </div>
-          <button type="submit" className="export-button">Add User</button>
+          <button type="submit" className="export-button" disabled={createUser.isPending}>
+            {createUser.isPending && <span className="dp-btn-loader" />}
+            {createUser.isPending ? "Adding..." : "Add User"}
+          </button>
         </form>
       );
     }
@@ -10374,7 +10361,10 @@ function ActionPanel({
             </button>
           </div>
 
-          <button type="submit" className="export-button">Save Asset</button>
+          <button type="submit" className="export-button" disabled={createAsset.isPending}>
+            {createAsset.isPending && <span className="dp-btn-loader" />}
+            {createAsset.isPending ? "Saving..." : "Save Asset"}
+          </button>
         </form>
       );
     }
@@ -10483,7 +10473,10 @@ function ActionPanel({
               )}
             </div>
           </div>
-          <button type="submit" className="export-button">Register Station</button>
+          <button type="submit" className="export-button" disabled={createStation.isPending}>
+            {createStation.isPending && <span className="dp-btn-loader" />}
+            {createStation.isPending ? "Registering..." : "Register Station"}
+          </button>
         </form>
       );
     }
@@ -10592,7 +10585,12 @@ function ActionPanel({
               </div>
             </div>
           </fieldset>
-          {canEditStations && <button type="submit" className="export-button">Save Changes</button>}
+          {canEditStations && (
+            <button type="submit" className="export-button" disabled={updateStation.isPending}>
+              {updateStation.isPending && <span className="dp-btn-loader" />}
+              {updateStation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          )}
         </form>
       );
     }
@@ -10786,7 +10784,12 @@ function ActionPanel({
             </div>
           </fieldset>
 
-          {canEditAssets && <button type="submit" className="export-button">Save Changes</button>}
+          {canEditAssets && (
+            <button type="submit" className="export-button" disabled={updateAsset.isPending}>
+              {updateAsset.isPending && <span className="dp-btn-loader" />}
+              {updateAsset.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          )}
         </form>
       );
     }
@@ -10831,7 +10834,10 @@ function ActionPanel({
               {stations.map((s: any) => <option key={s.id} value={s.code}>{s.name} ({s.code})</option>)}
             </ClearableSelect>
           </label>
-          <button type="submit" className="export-button">Register LC Gate</button>
+          <button type="submit" className="export-button" disabled={createLcGate.isPending}>
+            {createLcGate.isPending && <span className="dp-btn-loader" />}
+            {createLcGate.isPending ? "Registering..." : "Register LC Gate"}
+          </button>
         </form>
       );
     }
@@ -10874,7 +10880,12 @@ function ActionPanel({
               <input readOnly value={gateStation || "No Linking Station"} />
             </label>
           </fieldset>
-          {canEditGates && <button type="submit" className="export-button">Save Changes</button>}
+          {canEditGates && (
+            <button type="submit" className="export-button" disabled={updateLcGate.isPending}>
+              {updateLcGate.isPending && <span className="dp-btn-loader" />}
+              {updateLcGate.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          )}
         </form>
       );
     }
@@ -10973,7 +10984,10 @@ function ActionPanel({
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-            <button type="submit" className="export-button" style={{ flex: 1, margin: 0 }}>Save Changes</button>
+            <button type="submit" className="export-button" disabled={changeUserRole.isPending} style={{ flex: 1, margin: 0 }}>
+              {changeUserRole.isPending && <span className="dp-btn-loader" />}
+              {changeUserRole.isPending ? "Saving..." : "Save Changes"}
+            </button>
             {itemId && itemId !== useAppStore.getState().user?.id && (
               <button
                 type="button"
