@@ -117,7 +117,8 @@ export default function AnnouncementsManager({ showToast }: { showToast: (messag
   };
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ padding: "20px 24px 20px 30px", display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Page Header */}
       <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
@@ -217,6 +218,7 @@ export default function AnnouncementsManager({ showToast }: { showToast: (messag
             })}
           </div>
         )}
+      </div>
       </div>
 
       {/* Add / Edit Modal */}

@@ -346,29 +346,53 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
   );
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ padding: "20px 24px 20px 30px", display: "flex", flexDirection: "column", gap: "20px" }}>
       <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <input 
             type="text" 
             placeholder="Search lobby..." 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
             style={{
-              padding: "8px 14px",
+              padding: "0 14px",
               borderRadius: "8px",
               border: "1px solid var(--line)",
               fontSize: "14px",
               outline: "none",
               width: "220px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+              boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+              height: "38px",
+              boxSizing: "border-box"
             }} 
           />
           {!isViewer && (
-            <button className="export-button" onClick={handleOpenAddModal} style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
+            <button 
+              onClick={handleOpenAddModal} 
+              style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "6px", 
+                padding: "0 14px", 
+                borderRadius: "8px", 
+                background: "#2563eb", 
+                color: "#ffffff", 
+                border: "none", 
+                fontSize: "14px", 
+                fontWeight: 600, 
+                cursor: "pointer", 
+                height: "38px", 
+                boxSizing: "border-box",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                transition: "all 0.15s ease"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#2563eb"; }}
+            >
               <Plus size={16} /> Add New Lobby
             </button>
           )}
@@ -384,7 +408,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
           </div>
         ) : (
-          <div className="table-scroll-container" style={{ overflow: "auto" }}>
+          <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "420px", paddingRight: "6px" }}>
             <style>{`
               .wt-lobby-table {
                 border-collapse: separate;
@@ -401,11 +425,11 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                 box-shadow: 0 4px 10px rgba(13, 59, 111, 0.08) !important;
               }
               .wt-lobby-cell {
-                padding: 14px 16px;
+                padding: 10px 16px;
                 background: #ffffff;
                 border-top: 1px solid #e2e8f0;
                 border-bottom: 1px solid #e2e8f0;
-                font-size: 14px;
+                font-size: 13.5px;
                 color: #334155;
                 font-family: 'Outfit', 'Inter', sans-serif;
               }
@@ -431,17 +455,30 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                 border-right-color: #82C43C;
                 border-right-width: 1.5px;
               }
+              .wt-lobby-th {
+                position: sticky;
+                top: 0;
+                background: #f8f9fb !important;
+                z-index: 10;
+                border: none;
+                color: var(--muted);
+                font-weight: 700;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                padding: 10px 16px;
+              }
             `}</style>
             <table className="wt-lobby-table">
               <thead>
                 <tr style={{ background: "transparent", boxShadow: "none" }}>
-                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "left" }}>Lobby Name</th>
-                  {isNonDivisional && <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "left" }}>Division</th>}
-                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Total Walkie-Talkies</th>
-                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Tested Count</th>
-                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>To Be Tested</th>
-                  <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "center" }}>Serial Numbers</th>
-                  {!isViewer && <th style={{ border: "none", background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "13px", padding: "10px 16px", textAlign: "right" }}>Actions</th>}
+                  <th className="wt-lobby-th" style={{ textAlign: "left" }}>Lobby Name</th>
+                  {isNonDivisional && <th className="wt-lobby-th" style={{ textAlign: "left" }}>Division</th>}
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Count</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>To Be Tested</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Serial Numbers</th>
+                  {!isViewer && <th className="wt-lobby-th" style={{ textAlign: "right" }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -454,23 +491,23 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   return (
                     <tr key={l.id} className={`wt-lobby-row ${isCompleted ? "completed" : ""}`} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                       <td className="wt-lobby-cell">
-                        <strong style={{ fontSize: "15px", color: "var(--navy)", fontWeight: 600 }}>{l.lobbyName}</strong>
+                        <strong style={{ fontSize: "14px", color: "var(--navy)", fontWeight: 600 }}>{l.lobbyName}</strong>
                       </td>
                       {isNonDivisional && (
                         <td className="wt-lobby-cell">
-                           <span className="pill info" style={{ fontWeight: 650, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
+                           <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "6px" }}>
                              {l.division}
                            </span>
                         </td>
                       )}
                       <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className="pill info" style={{ fontWeight: 650, background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" }}>{totalWTs}</span>
+                        <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1", borderRadius: "6px" }}>{totalWTs}</span>
                       </td>
                       <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className="pill success" style={{ fontWeight: 650, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>{l.testedCount}</span>
+                        <span className="pill success" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "6px" }}>{l.testedCount}</span>
                       </td>
                       <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 650, background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}` }}>
+                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}`, borderRadius: "6px" }}>
                           {toBeTested}
                         </span>
                       </td>
@@ -485,15 +522,18 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "6px",
-                            padding: "6px 12px",
+                            padding: "5px 10px",
                             borderRadius: "6px",
                             background: "#eff6ff",
                             color: "#2563eb",
                             border: "1px solid #bfdbfe",
-                            fontWeight: 650,
+                            fontWeight: 600,
                             cursor: "pointer",
-                            fontSize: "13px"
+                            fontSize: "12px",
+                            transition: "all 0.15s ease"
                           }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#dbeafe"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#eff6ff"; }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h2"/></svg>
                           Excel Sheet
@@ -501,7 +541,25 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                       </td>
                       {!isViewer && (
                         <td className="wt-lobby-cell" style={{ textAlign: "right", paddingRight: "20px" }}>
-                          <button className="action-btn text-red" onClick={() => handleDeleteLobby(l.id)} style={{ fontWeight: 600 }}>Delete</button>
+                          <button 
+                            className="action-btn text-red" 
+                            onClick={() => handleDeleteLobby(l.id)} 
+                            style={{ 
+                              padding: "5px 10px",
+                              borderRadius: "6px",
+                              background: "#fef2f2",
+                              color: "#ef4444",
+                              border: "1px solid #fee2e2",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              transition: "all 0.15s ease"
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#fee2e2"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fef2f2"; }}
+                          >
+                            Delete
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -511,6 +569,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             </table>
           </div>
         )}
+      </div>
       </div>
 
       {/* Add / Edit Lobby Modal */}
