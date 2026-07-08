@@ -7509,6 +7509,20 @@ function ModuleView({
     };
   }, [expandedStationCode]);
 
+  // Click outside handler for filter popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (filterPopoverOpen && !target.closest('.filter-popover') && !target.closest('.filter-toggle-btn')) {
+        setFilterPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [filterPopoverOpen]);
+
   // Clear filters when switching activeNav
   useEffect(() => {
     setFilterDivision("");
