@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef, useMemo, lazy, Suspense } from "react";
 import type { ReactNode } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { create } from "zustand";
 import bgSketch from "./assets/bg-sketch.png";
 import irLogo from "./assets/ir-logo.png";
@@ -509,6 +509,8 @@ type AppState = {
   setDpSelectedFormName: (formName: string) => void;
   setDpOpenCategory: (category: string) => void;
   setDpCircuitSearch: (search: string) => void;
+  globalLoading: boolean;
+  setGlobalLoading: (loading: boolean) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -552,6 +554,8 @@ export const useAppStore = create<AppState>((set) => ({
   setDpSelectedFormName: (dpSelectedFormName) => set({ dpSelectedFormName }),
   setDpOpenCategory: (dpOpenCategory) => set({ dpOpenCategory }),
   setDpCircuitSearch: (dpCircuitSearch) => set({ dpCircuitSearch }),
+  globalLoading: false,
+  setGlobalLoading: (globalLoading) => set({ globalLoading })
 }));
 
 const toneIcons = {
@@ -1053,7 +1057,9 @@ function ImportDrawerForm({ page, showToast, close }: { page: string; showToast:
 }
 
 function App() {
-  const { token, setToken, setUser, setDivision, logout, role, division, activeNav, sidebarOpen, setSidebarOpen, user } = useAppStore();
+  const { token, setToken, setUser, setDivision, logout, role, division, activeNav, sidebarOpen, setSidebarOpen, user, globalLoading } = useAppStore();
+  const activeMutations = useIsMutating();
+  const showLoader = globalLoading || activeMutations > 0;
   const [panel, setPanel] = useState<string | null>(null);
   const [panelItemId, setPanelItemId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -1388,6 +1394,14 @@ function App() {
           showToast={showToast}
         />
       )}
+      {showLoader && (
+        <div className="global-loader-overlay">
+          <div className="global-loader-content">
+            <div className="global-loader-spinner" />
+            <p className="global-loader-text">Saving changes, please wait...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1399,7 +1413,7 @@ function EditProfileModal({
   close: () => void;
   showToast: (msg: string) => void;
 }) {
-  const { user, setUser } = useAppStore();
+  const { user, setUser, setGlobalLoading } = useAppStore();
   const [name, setName] = useState(user?.name || "");
   const [designation, setDesignation] = useState(user?.designation || "");
   const [password, setPassword] = useState("");
@@ -1408,6 +1422,7 @@ function EditProfileModal({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setGlobalLoading(true);
     try {
       const body: any = { name };
       if (user?.role !== "SUPER_ADMIN" && user?.role !== "DIVISIONAL_ADMIN") {
@@ -1425,6 +1440,7 @@ function EditProfileModal({
       showToast(err.message || "Failed to update profile.");
     } finally {
       setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
