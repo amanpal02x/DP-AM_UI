@@ -212,5 +212,12 @@ export const api = {
   settings: {
     auditLogs: () => request<ApiResponse<any[]>>("GET", "/api/reports/audit-logs"),
   },
+  screener: {
+    getSavedQueries: () => request<ApiResponse<any[]>>("GET", "/api/screener/saved"),
+    saveQuery: (body: any) => request<ApiResponse<any>>("POST", "/api/screener/saved", body),
+    deleteQuery: (id: string) => request<ApiResponse<any>>("DELETE", `/api/screener/saved/${id}`),
+    execute: (body: any) => request<ApiResponse<{ results: any[]; totalCount: number; summaryStats: any }>>("POST", "/api/screener/execute", body)
+  }
 };
+
 

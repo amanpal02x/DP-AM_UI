@@ -400,6 +400,8 @@ const DailyPositionView = lazy(() => import("./components/DailyPosition/DailyPos
 const AnnouncementsManager = lazy(() => import("./components/Announcements/AnnouncementsManager"));
 const DailyPositionPrintView = lazy(() => import("./components/DailyPosition/DailyPositionPrintView"));
 const MISReportView = lazy(() => import("./components/DailyPosition/MISReportView"));
+const ScreenerView = lazy(() => import("./components/Screener/ScreenerView"));
+
 import type {
   ActivityItem,
   AlertItem,
@@ -432,7 +434,8 @@ type NavKey =
   | "Latest Updates"
   | "Walkie-Talkie"
   | "Walkie Talkie Inventory"
-  | "Walkie Talkie Testing";
+  | "Walkie Talkie Testing"
+  | "Screener";
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
@@ -453,7 +456,8 @@ const navToHash: Record<NavKey, string> = {
   "Latest Updates": "#/latest-updates",
   "Walkie-Talkie": "#/walkie-talkie",
   "Walkie Talkie Inventory": "#/walkie-talkie-inventory",
-  "Walkie Talkie Testing": "#/walkie-talkie-testing"
+  "Walkie Talkie Testing": "#/walkie-talkie-testing",
+  "Screener": "#/screener"
 };
 
 const IndianStates = []; // placeholder, not needed
@@ -477,8 +481,10 @@ const hashToNav: Record<string, NavKey> = {
   "#/latest-updates": "Latest Updates",
   "#/walkie-talkie": "Walkie-Talkie",
   "#/walkie-talkie-inventory": "Walkie Talkie Inventory",
-  "#/walkie-talkie-testing": "Walkie Talkie Testing"
+  "#/walkie-talkie-testing": "Walkie Talkie Testing",
+  "#/screener": "Screener"
 };
+
 
 type AppState = {
   activeNav: NavKey;
@@ -591,7 +597,9 @@ const navItems: Array<{
     { label: "Analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
     { label: "Users & Roles", icon: Users, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM"] },
     { label: "Audit Logs", icon: FileClock, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN"] },
+    { label: "Screener", icon: SlidersHorizontal, roles: ["SUPER_ADMIN", "ALL_DIVISION_VIEWER"] },
     { label: "MIS", icon: Printer, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "TESTROOM", "STAFF", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"] },
+
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN", "STAFF"] },
     { label: "Latest Updates", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
     { label: "Walkie-Talkie", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"], expandable: true },
@@ -1346,6 +1354,8 @@ function App() {
             <DailyPositionView role={role} division={division} user={user} mode="form" showToast={showToast} />
           ) : activeNav === "Latest Updates" ? (
             <AnnouncementsManager showToast={showToast} />
+          ) : activeNav === "Screener" ? (
+            <ScreenerView showToast={showToast} />
           ) : (
             <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} showToast={showToast} />
           )}
