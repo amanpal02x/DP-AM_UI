@@ -46,6 +46,10 @@ const calcDurationText = (failureTime?: string | null, rectificationTime?: strin
 };
 
 const statusFromForm = (form: DailyPositionFormDefinition, values: Record<string, any>) => {
+  if (form.name === "Walkie-Talkie Testing") {
+    if (values.reportType === "Healthy") return "All Ok";
+    if (values.reportType === "Fault") return "FAULTY";
+  }
   if (form.statusMode === "log") {
     if (!values.rectificationTime) return "FAULTY";
     return "All Ok";
@@ -2673,145 +2677,16 @@ function DailyPositionFieldInput({
         {field.required && <span>*</span>}
       </label>
       {isSerialDropdown ? (
-        (!values.reportType || values.reportType === "Healthy") ? (
-          <div className="multi-dropdown" style={{ position: "relative" }} ref={dropdownRef}>
-            <button
-              type="button"
-              className="multi-dropdown-trigger"
-              disabled={readOnly || !values.makeModel}
-              onClick={() => {
-                if (readOnly || !values.makeModel) return;
-                if (!isOpen) setSearchTerm("");
-                setIsOpen(!isOpen);
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                minHeight: "42px",
-                padding: "10px 14px",
-                border: "1px solid #cbd5e1",
-                borderRadius: "8px",
-                background: readOnly || !values.makeModel ? "#f8fafc" : "#ffffff",
-                color: value ? "#1e293b" : "#94a3b8",
-                fontSize: "14px",
-                textAlign: "left",
-                cursor: readOnly || !values.makeModel ? "not-allowed" : "pointer"
-              }}
-            >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {value || field.placeholder || "Select Serial Numbers"}
-              </span>
-              <ChevronDown size={16} style={{ color: "#64748b", marginLeft: "8px" }} />
-            </button>
-
-            {isOpen && !readOnly && (
-              <div
-                className="multi-dropdown-menu"
-                style={{
-                  position: "absolute",
-                  zIndex: 100,
-                  top: "100%",
-                  left: 0,
-                  right: 0,
-                  marginTop: "4px",
-                  maxHeight: "300px",
-                  display: "flex",
-                  flexDirection: "column",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "8px",
-                  background: "#ffffff",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                  padding: "8px"
-                }}
-              >
-                <div style={{ padding: "4px 4px 8px 4px" }}>
-                  <input
-                    type="text"
-                    placeholder="Search serial number..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    style={{
-                      width: "100%",
-                      minHeight: "36px",
-                      padding: "6px 10px",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      background: "#f8fafc"
-                    }}
-                  />
-                </div>
-                <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
-                  {serialOptions.filter((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? (
-                    serialOptions
-                      .filter((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map((opt: string) => {
-                        const checked = (value || "").split(/,\s*/).map((s: string) => s.trim()).includes(opt);
-                        return (
-                          <div
-                            key={opt}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              padding: "8px 10px",
-                              borderRadius: "6px",
-                              cursor: "pointer",
-                              fontSize: "13px",
-                              fontWeight: 500,
-                              color: "#1e293b",
-                              transition: "background 0.15s"
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
-                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const selected = (value || "").split(/,\s*/).map((s: string) => s.trim()).filter(Boolean);
-                              let nextVal: string[];
-                              if (selected.includes(opt)) {
-                                nextVal = selected.filter((s: string) => s !== opt);
-                              } else {
-                                nextVal = [...selected, opt];
-                              }
-                              setValue(field.name, nextVal.join(", "));
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              className="dp-checkbox"
-                              checked={checked}
-                              onChange={() => {}}
-                              style={{ cursor: "pointer" }}
-                            />
-                            <span>{opt}</span>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    <div style={{ padding: "12px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
-                      No serial numbers found
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <SearchableDropdown
-            options={serialOptions}
-            value={value}
-            onChange={(val) => setValue(field.name, val)}
-            placeholder={values.makeModel ? "Select Serial Number" : "Select Make / Model first"}
-            required={field.required}
-            readOnly={readOnly || field.readonly || !values.makeModel}
-            clearable={true}
-            searchable={true}
-          />
-        )
+        <SearchableDropdown
+          options={serialOptions}
+          value={value}
+          onChange={(val) => setValue(field.name, val)}
+          placeholder={values.makeModel ? "Select Serial Number" : "Select Make / Model first"}
+          required={field.required}
+          readOnly={readOnly || field.readonly || !values.makeModel}
+          clearable={true}
+          searchable={true}
+        />
       ) : field.type === "select" ? (
         <SearchableDropdown
           options={options}
@@ -2819,9 +2694,6 @@ function DailyPositionFieldInput({
           onChange={(val) => {
             setValue(field.name, val);
             if (field.name === "makeModel" && formName === "Walkie-Talkie Testing") {
-              setValue("serialNo", "");
-            }
-            if (field.name === "reportType" && formName === "Walkie-Talkie Testing") {
               setValue("serialNo", "");
             }
           }}
@@ -3006,18 +2878,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       // Handle Walkie-Talkie Testing mode dynamic fields filtering
       if (selectedForm?.name === "Walkie-Talkie Testing") {
         if (walkieTalkieMode === "testing") {
-          // Show only newTestedCount and testDate in testing mode
-          if (field.name !== "newTestedCount" && field.name !== "testDate") {
-            // Dynamically inject newTestedCount field definition so it doesn't conflict with testedCount database status
-            if (field.name === "testedCount") {
-              list.push({
-                name: "newTestedCount",
-                label: "Total walkie-talkies tested",
-                type: "number",
-                required: true,
-                placeholder: "Total count tested"
-              });
-            }
+          // Show only testDate in testing mode (newTestedCount is removed)
+          if (field.name !== "testDate") {
             continue;
           }
         } else if (walkieTalkieMode === "fault") {
@@ -3026,16 +2888,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           if (field.name === "antennaStatus" && isHealthy) {
             continue;
           }
-          // Show technical fields, testDate, failureTime, and remarks in fault mode. Exclude testedCount but inject newTestedCount.
+          // Exclude testedCount but inject reportType selection field
           if (field.name === "testedCount") {
-            list.push({
-              name: "newTestedCount",
-              label: "Total walkie-talkies tested",
-              type: "number",
-              required: true,
-              placeholder: "Total count tested"
-            });
-            // Inject reportType selection field right after newTestedCount
             list.push({
               name: "reportType",
               label: "Report Type",
@@ -3045,20 +2899,6 @@ export default function DailyPositionView({ role, division, user, mode, showToas
               placeholder: "Select Report"
             });
             continue;
-          }
-          // Inject a Date & Time of Fault field right after testDate (only if not Healthy Report)
-          if (field.name === "testDate") {
-            list.push(field); // push testDate first
-            if (!isHealthy) {
-              list.push({
-                name: "failureTime",
-                label: "Date & Time of Fault",
-                type: "datetime-local",
-                required: true,
-                placeholder: "Select date and time when fault occurred"
-              });
-            }
-            continue; // skip default push below, already pushed
           }
         }
       }
@@ -3475,7 +3315,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const buildPayload = (actionType: "OK" | "FAULT" | "DRAFT" = "FAULT") => {
     const station = metadata?.stations?.find((item: any) => item.code === values.stationCode);
-    const isOk = actionType === "OK";
+    const isOk = actionType === "OK" || (selectedForm?.name === "Walkie-Talkie Testing" && values.reportType === "Healthy");
     const isDraft = actionType === "DRAFT";
     const editingRecord = editingRecordId ? records.find((r: any) => r.id === editingRecordId) : null;
 
@@ -4199,9 +4039,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
             ) : (
               <>
                 {filteredHistoryRecords.map((record: any) => {
-                  const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                  const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK") || (record.formType === "Walkie-Talkie Testing" && record.formData?.reportType === "Healthy");
                   const isClosed = record.status === "RECTIFIED" || record.status === "All Ok" || isAllOk;
-                  const canEdit = (role === "SUPER_ADMIN") || (canFill && (isTodayRecord(record) || !isClosed) && (!user?.id || record.createdById === user.id));
+                  const canEdit = !isAllOk && (
+                    (role === "SUPER_ADMIN") ||
+                    (user?.id && record.createdById === user.id) ||
+                    (user?.username && record.createdByUsername === user.username)
+                  );
                   return (
                     <tr key={record.id}>
                       <td>{record.division}</td>
@@ -4846,7 +4690,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                 const isRectificationCell = field.name === "rectificationTime";
                                 const isSubmitted = record.status !== "DRAFT";
                                 const isStandardUser = role !== "SUPER_ADMIN";
-                                const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                const isAllOk = record.reason === "All OK" || (record.formData && record.formData.actionType === "OK") || (record.formType === "Walkie-Talkie Testing" && record.formData?.reportType === "Healthy");
                                 const isAlreadyRectified = !!record.rectificationTime;
                                 
                                 const handleCellClick = (e: React.MouseEvent) => {
@@ -4889,7 +4733,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                                     textTransform: "uppercase"
                                   }}>Draft</span>
                                 ) : (() => {
-                                  const isOk = record.status === "All Ok" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK");
+                                  const isOk = record.status === "All Ok" || record.status === "RECTIFIED" || record.reason === "All OK" || (record.formData && record.formData.actionType === "OK") || (record.formType === "Walkie-Talkie Testing" && record.formData?.reportType === "Healthy");
                                   return (
                                     <span style={{
                                       background: isOk ? "#ecfdf5" : "#fef2f2",
@@ -5070,7 +4914,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         const isAllOk =
           (detailsRecord.reason || "").toLowerCase() === "all ok" ||
           (detailsRecord.status || "").toLowerCase() === "all ok" ||
-          (detailsRecord.formData && detailsRecord.formData.actionType === "OK");
+          (detailsRecord.formData && detailsRecord.formData.actionType === "OK") ||
+          (detailsRecord.formType === "Walkie-Talkie Testing" && detailsRecord.formData?.reportType === "Healthy");
 
         return (
           <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
