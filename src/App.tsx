@@ -5947,7 +5947,8 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
   const [lobbies, setLobbies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { role } = useAppStore();
+  const { role, user, division } = useAppStore();
+  const userDivision = user?.division || division || "Raipur";
   const isNonDivisional = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
   const isViewer = role === "VIEWER" || role === "DIVISIONAL_VIEWER" || role === "ALL_DIVISION_VIEWER";
 
@@ -5955,7 +5956,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
   const [isLobbyModalOpen, setIsLobbyModalOpen] = useState(false);
   const [lobbyName, setLobbyName] = useState("");
   const [totalWalkieTalkies, setTotalWalkieTalkies] = useState<number | "">("");
-  const [lobbyDivision, setLobbyDivision] = useState("Raipur");
+  const [lobbyDivision, setLobbyDivision] = useState(userDivision);
   const [editingLobbyId, setEditingLobbyId] = useState<string | null>(null);
   const [walkieTalkies, setWalkieTalkies] = useState<{ serialNumber: string; makeModel: string }[]>([]);
   const [hasJustImported, setHasJustImported] = useState(false);
@@ -5991,7 +5992,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
   const handleOpenAddModal = () => {
     setLobbyName("");
     setTotalWalkieTalkies("");
-    setLobbyDivision("Raipur");
+    setLobbyDivision(userDivision);
     setEditingLobbyId(null);
     setWalkieTalkies([]);
     setHasJustImported(false);
