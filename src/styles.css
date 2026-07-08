@@ -4317,6 +4317,7 @@ path:focus {
   border-left: none !important;
   border-right: none !important;
   border-radius: 0 !important;
+  width: 100%;
 }
 
 .secr-position-page .dp-page-header {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar } from "lucide-react";
+import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar, Fullscreen } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDate24, formatDateTime24, formatTime24, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
@@ -4398,7 +4398,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       </section>
 
       {(canFill || (role === "SUPER_ADMIN" && editingRecordId)) && viewMode === "form" && (
-        <section className="dp-workspace" style={{ display: "block" }}>
+        <section className="dp-workspace" style={{ display: "block",}}>
           <main className="dp-form-shell secr-form-shell">
             <form onSubmit={handleSubmit}>
               <div className="dp-form-scrollable-container">

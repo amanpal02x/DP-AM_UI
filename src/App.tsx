@@ -1631,20 +1631,6 @@ function SidebarDailyPositionAccordion() {
             </button>
             {isOpen && (
               <div className="dp-circuit-list" style={{ padding: "6px", display: "grid", gap: "4px", background: "#f8fafc", borderTop: "1px solid var(--line)" }}>
-                <input
-                  value={dpCircuitSearch}
-                  onChange={event => setDpCircuitSearch(event.target.value)}
-                  placeholder="Search circuit..."
-                  style={{
-                    width: "100%",
-                    padding: "6px 8px",
-                    fontSize: "11px",
-                    border: "1px solid var(--line)",
-                    borderRadius: "4px",
-                    marginBottom: "4px",
-                    outline: "none"
-                  }}
-                />
                 {visibleForms.map(form => {
                   const isActive = form.name === dpSelectedFormName || (!dpSelectedFormName && form.name === forms[0].name);
                   const isCompleted = completedForms.includes(form.name);
