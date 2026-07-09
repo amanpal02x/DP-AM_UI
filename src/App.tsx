@@ -48,11 +48,7 @@ import {
   Printer,
   Phone,
   Briefcase,
-  ArrowRight,
-  ArrowLeft,
-  MoreVertical,
-  Clock,
-  Check
+  ArrowRight
 } from "lucide-react";
 import {
   Cell,
@@ -4368,25 +4364,20 @@ function DailyPositionDetailsModal({
 
   return (
     <div className="modal-backdrop dp-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
-      <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "680px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
-        
-        {/* Header Bar */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid #edeef0", background: "#ffffff", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}>
-              <ArrowLeft size={20} />
-            </button>
-            <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0f172a" }}>
-              {detailsTitle || detailsRecord[0]?.formType || "Record Details"}
-            </h2>
-          </div>
-          <button style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}>
-            <MoreVertical size={20} />
-          </button>
+      <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ color: "initial", maxWidth: "600px", width: "90%", maxHeight: "85vh", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
+        <button className="modal-close" type="button" onClick={onClose} aria-label="Close">
+          <X size={16} />
+        </button>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+          <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>
+            {detailsTitle || detailsRecord[0]?.formType || "Daily Position"}
+          </h2>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="no-scrollbar" style={{ overflowY: "auto", flex: 1, background: "#f8fafc" }}>
+        {/* Content list */}
+        <div className="no-scrollbar" style={{ overflowY: "auto", padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, background: "#fff" }}>
           {(() => {
             const activeEntries = detailsRecord.filter((e: any) => e.status !== "DRAFT");
             const faultyEntries = activeEntries.filter((e: any) => {
@@ -4401,328 +4392,196 @@ function DailyPositionDetailsModal({
               const effectiveStatus = entry.positionStatus || entry.status;
               const isFault = effectiveStatus !== "All Ok" && effectiveStatus !== "RECTIFIED" && !isAllOk;
               const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
+              const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
+              const locationItems = Object.entries(entry.formData || {})
+                .filter(([key]) => locationKeys.includes(key))
+                .map(([key, value]) => {
+                  let displayVal = value;
+                  if (value === "Other" || value === "Others") {
+                    displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
+                  }
+                  return {
+                    key,
+                    label: summaryHumanizeFieldName(key),
+                    value: summaryDisplayValue(displayVal, isAllOk)
+                  };
+                });
+
+              const howKeys = [
+                "natureOfFault",
+                "nameOfFault",
+                "videoClarity",
+                "audioClarity",
+                "cableCutByWhom",
+                "cableType",
+                "systemType",
+                "balanceTemporaryJoints",
+                "temporaryJointsCount",
+                "balanceInsulationFaults",
+                "totalInsulationFaults",
+                "faultyGuidanceBoards",
+                "faultyBoards",
+                "pendingRepair",
+                "openingDefective",
+                "totalNotWorkingCctvLoc"
+              ];
+              const howItems = Object.entries(entry.formData || {})
+                .filter(([key]) => howKeys.includes(key))
+                .map(([key, value]) => {
+                  let displayVal = value;
+                  if (value === "Other" || value === "Others") {
+                    displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
+                  }
+                  return {
+                    key,
+                    label: summaryHumanizeFieldName(key),
+                    value: summaryDisplayValue(displayVal, isAllOk)
+                  };
+                });
 
               return (
-                <Fragment key={entry.id || index}>
-                  {displayEntries.length > 1 && (
-                    <div style={{ padding: "10px 20px 0 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#3b82f6", background: "#eff6ff", padding: "3px 10px", borderRadius: "12px" }}>
-                        Entry #{index + 1}
-                      </span>
+                <Fragment key={entry.id}>
+                  <div style={{
+                    background: "#fff",
+                    position: "relative",
+                    padding: "12px 0",
+                  }}>
+                    {/* Subtitle / Header inside card */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", gap: "10px" }}>
+                      <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 750, color: "var(--navy)", flex: 1, minWidth: 0 }}>
+                        {isSuperAdmin
+                          ? `${entry.division} / ${entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-")}`
+                          : (entry.stationCode || entry.stationName || entry.section || (isAllOk ? "" : "-"))
+                        }
+                      </h4>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        {displayEntries.length > 1 && (
+                          <span style={{
+                            fontSize: "10px", fontWeight: 700, color: "var(--blue)",
+                            background: "var(--blue-soft)", padding: "2px 8px", borderRadius: "12px"
+                          }}>
+                            Entry #{index + 1}
+                          </span>
+                        )}
+                        <span style={{
+                          display: "inline-flex", alignItems: "center",
+                          padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                          color: "#fff",
+                          background: isFault ? "var(--red)" : "var(--green)"
+                        }}>
+                          {isFault ? effectiveStatus : (effectiveStatus === "RECTIFIED" ? "RECTIFIED" : "All Ok")}
+                        </span>
+                      </div>
                     </div>
-                  )}
 
-                  {isAllOk ? (
+                    {/* Location Details (Priority 1) */}
+                    {locationItems.length > 0 && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.failureTime || howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          {locationItems.map(item => (
+                            <div key={item.key}>
+                              <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Main Information: Fault Timing (Priority 2) */}
+                    {entry.failureTime && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (howItems.length > 0 || entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", color: "#e15241", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Failure Time</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.failureTime)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ display: "block", fontSize: "11px", color: "#2aa667", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Rectification Time</span>
+                            <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{formatDateTime24(entry.rectificationTime)}</strong>
+                          </div>
+                          {entry.durationText && (
+                            <div>
+                              <span style={{ display: "block", fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Duration of Failure</span>
+                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{entry.durationText}</strong>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Nature of Fault (Priority 3) */}
+                    {howItems.length > 0 && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          {howItems.map(item => (
+                            <div key={item.key}>
+                              <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                              <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remarks & Reason block (Priority 4 - Shifted to Bottom) */}
+                    {isFault ? (
+                      <div style={{ marginBottom: "14px" }}>
+                        <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                          Reason / Remarks
+                        </span>
+                        <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                          <strong style={{ fontWeight: 700 }}>
+                            {entry.reason || entry.remarks || "No reason specified"}
+                            {showRemarks && ` · ${entry.remarks}`}
+                          </strong>
+                        </div>
+                      </div>
+                    ) : (
+                      (entry.remarks || entry.reason) && (
+                        <div style={{ marginBottom: "14px" }}>
+                          <span style={{ display: "block", fontSize: "11px", color: "#002d62", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px", marginBottom: "4px" }}>
+                            Remarks
+                          </span>
+                          <div style={{ fontSize: "12px", color: "#002d62", lineHeight: "1.5" }}>
+                            <strong style={{ fontWeight: 700 }}>{entry.remarks || entry.reason}</strong>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {/* Footer Metadata */}
                     <div style={{
+                      borderTop: "1px solid #f1f5f9",
+                      paddingTop: "10px",
+                      marginTop: "12px",
                       display: "flex",
                       flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "36px 24px 42px 24px",
-                      textAlign: "center"
+                      gap: "6px",
+                      fontSize: "11px",
+                      color: "var(--muted)"
                     }}>
-                      <div style={{
-                        background: "rgba(34, 197, 94, 0.1)",
-                        color: "#16a34a",
-                        width: "64px",
-                        height: "64px",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: "16px",
-                        boxShadow: "0 0 20px rgba(34, 197, 94, 0.15)"
-                      }}>
-                        <CheckCircle2 size={32} />
-                      </div>
-
-                      <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>System Operational</h3>
-                      <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b" }}>All services in this category are working normally.</p>
-                      
-                      <div style={{
-                        fontSize: "14px",
-                        color: "#475569",
-                        fontWeight: 500,
-                        lineHeight: "1.5",
-                        background: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "8px",
-                        padding: "10px 20px",
-                        display: "inline-block",
-                        maxWidth: "100%",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
-                      }}>
-                        Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{entry.createdBy?.name || entry.createdByUsername || "System User"} ({entry.createdBy?.designation || "N/A"})</strong> at <strong style={{ color: "#0f172a", fontWeight: 700 }}>{entry.createdAt ? formatDateTime24(entry.createdAt) : (entry.date ? formatDate24(entry.date) : "-")}</strong>
-                      </div>
+                      <span>
+                        Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong>
+                        {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
+                      </span>
                     </div>
-                  ) : (
-                    <>
-                      <div style={{ padding: "16px 20px 20px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                        
-                        {/* Card 1: Status & Duration */}
-                        <div style={{
-                          background: "#ffffff",
-                          border: "1px solid #edeef0",
-                          borderRadius: "12px",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                          overflow: "hidden"
-                        }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "18px 20px", gap: "16px" }}>
-                            <div>
-                              <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Status</span>
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: entry.rectificationTime ? "#10b981" : "#ef4444" }} />
-                                <strong style={{ fontSize: "17px", fontWeight: 750, color: "#1e293b" }}>
-                                  {entry.rectificationTime ? "Rectified" : "Active"}
-                                </strong>
-                              </div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Total Duration</span>
-                              <strong style={{ fontSize: "17px", fontWeight: 750, color: "#1e293b" }}>
-                                {entry.durationText || (entry.failureTime && entry.rectificationTime ? calcDurationText(entry.failureTime, entry.rectificationTime) : "-") || "-"}
-                              </strong>
-                            </div>
-                          </div>
-                          
-                          <div style={{
-                            background: "#eff6ff",
-                            padding: "12px 20px",
-                            borderTop: "1px solid #e2e8f0",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            fontSize: "13.5px",
-                            color: "#1e3a8a",
-                            fontWeight: 650
-                          }}>
-                            <MapPin size={15} style={{ color: "#3b82f6", flexShrink: 0 }} />
-                            <span>
-                              {entry.division} / {entry.stationCode || entry.stationName || entry.section || "-"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Card 2: Metadata */}
-                        <div style={{
-                          background: "#ffffff",
-                          border: "1px solid #edeef0",
-                          borderRadius: "12px",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                          padding: "20px"
-                        }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 12px", marginBottom: "16px" }}>
-                            <div>
-                              <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Category</span>
-                              <strong style={{ fontSize: "14.5px", fontWeight: 700, color: "#1e293b" }}>{entry.category}</strong>
-                            </div>
-                            <div>
-                              <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Action</span>
-                              <strong style={{ fontSize: "14.5px", fontWeight: 700, color: "#1e293b" }}>
-                                {entry.formData?.actionType || "Draft"}
-                              </strong>
-                            </div>
-                          </div>
-                          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "14px" }}>
-                            <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Submitted On</span>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", color: "#334155", fontWeight: 650 }}>
-                              <Calendar size={15} style={{ color: "#64748b" }} />
-                              <span>
-                                {entry.createdAt ? formatDateTime24(entry.createdAt) : (entry.date ? formatDate24(entry.date) : "-")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card 3: Restoration Timeline */}
-                        {(entry.failureTime || entry.rectificationTime) && (
-                          <div style={{
-                            background: "#ffffff",
-                            border: "1px solid #edeef0",
-                            borderRadius: "12px",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                            overflow: "hidden"
-                          }}>
-                            <div style={{
-                              background: "#dbeafe",
-                              padding: "10px 20px",
-                              borderBottom: "1px solid #cbd5e1",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              color: "#1e3a8a",
-                              letterSpacing: "0.05em",
-                              textTransform: "uppercase"
-                            }}>
-                              Restoration Timeline
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", padding: "18px 20px", gap: "18px" }}>
-                              <div style={{
-                                background: "#fee2e2",
-                                width: "40px",
-                                height: "40px",
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "#ef4444",
-                                flexShrink: 0
-                              }}>
-                                <Clock size={20} />
-                              </div>
-                              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}>
-                                <div>
-                                  <span style={{ display: "block", fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: "2px" }}>Failure Time</span>
-                                  <strong style={{ fontSize: "13.5px", color: "#1e293b", fontWeight: 700 }}>
-                                    {entry.failureTime ? formatDateTime24(entry.failureTime) : "-"}
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span style={{ display: "block", fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: "2px" }}>Rectification Time</span>
-                                  <strong style={{ fontSize: "13.5px", color: "#1e293b", fontWeight: 700 }}>
-                                    {entry.rectificationTime ? formatDateTime24(entry.rectificationTime) : "Active"}
-                                  </strong>
-                                </div>
-                              </div>
-                              <div style={{
-                                background: entry.rectificationTime ? "#dcfce7" : "#fee2e2",
-                                width: "30px",
-                                height: "30px",
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: entry.rectificationTime ? "#22c55e" : "#ef4444",
-                                flexShrink: 0
-                              }}>
-                                <Check size={18} />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Card 4: Incident Report */}
-                        {(entry.remarks || entry.reason) && (
-                          <div style={{
-                            background: "#ffffff",
-                            border: "1px solid #edeef0",
-                            borderRadius: "12px",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                            padding: "20px",
-                            position: "relative"
-                          }}>
-                            <span style={{
-                              position: "absolute",
-                              left: "8px",
-                              top: "2px",
-                              fontSize: "56px",
-                              fontWeight: 900,
-                              fontFamily: "Georgia, serif",
-                              color: "#e2e8f0",
-                              lineHeight: "1",
-                              userSelect: "none",
-                              pointerEvents: "none"
-                            }}>
-                              “
-                            </span>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", position: "relative", zIndex: 1 }}>
-                              <FileText size={15} style={{ color: "#64748b" }} />
-                              <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Incident Report</span>
-                            </div>
-                            <div style={{
-                              borderLeft: "3px solid #0f172a",
-                              paddingLeft: "14px",
-                              fontSize: "13.5px",
-                              fontStyle: "normal",
-                              color: "#1e293b",
-                              lineHeight: "1.65",
-                              position: "relative",
-                              zIndex: 1,
-                              fontWeight: 600
-                            }}>
-                              "{entry.remarks || entry.reason}"
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Card 5: Technical Data Table */}
-                        {(() => {
-                          const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName", "kmNo", "sectionYard", "faultyAccessPointLocation"];
-                          const formFieldItems = Object.entries(entry.formData || {})
-                            .filter(([key]) => {
-                              if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
-                              if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                              if (key.endsWith("Other") || key.endsWith("Others")) return false;
-                              if (locationKeys.includes(key)) return false;
-                              return true;
-                            })
-                            .map(([key, value]) => {
-                              let displayVal = value;
-                              if (value === "Other" || value === "Others") {
-                                displayVal = entry.formData?.[`${key}Other`] || entry.formData?.[`${key}Others`] || value;
-                              }
-                              return {
-                                key,
-                                label: summaryHumanizeFieldName(key),
-                                value: summaryDisplayValue(displayVal, isAllOk)
-                              };
-                            });
-
-                          if (formFieldItems.length === 0) return null;
-                          return (
-                            <div style={{
-                              background: "#ffffff",
-                              border: "1px solid #edeef0",
-                              borderRadius: "12px",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                              overflow: "hidden"
-                            }}>
-                              <div style={{
-                                background: "#dbeafe",
-                                padding: "10px 20px",
-                                borderBottom: "1px solid #cbd5e1",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                color: "#1e3a8a",
-                                letterSpacing: "0.05em",
-                                textTransform: "uppercase"
-                              }}>
-                                Technical Data
-                              </div>
-                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13.5px" }}>
-                                <tbody>
-                                  {formFieldItems.map((item, idx) => (
-                                    <tr key={item.key} style={{ background: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                                      <td style={{ padding: "12px 20px", borderBottom: "1px solid #f1f5f9", fontWeight: 600, color: "#64748b", width: "40%" }}>{item.label}</td>
-                                      <td style={{ padding: "12px 20px", borderBottom: "1px solid #f1f5f9", fontWeight: 700, color: "#1e293b" }}>{item.value}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Submitter Info */}
-                      <div style={{
-                        borderTop: "1px solid #e2e8f0",
-                        padding: "16px 20px",
-                        background: "#ffffff",
-                        fontSize: "12px",
-                        color: "#64748b",
-                        lineHeight: "1.6"
-                      }}>
-                        <div>
-                          Submitted by: <strong style={{ color: "#1e293b" }}>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong>
-                          {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""} at <strong style={{ color: "#1e293b" }}>{entry.createdAt ? formatDateTime24(entry.createdAt) : (entry.date ? formatDate24(entry.date) : "-")}</strong>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
+                  </div>
                   {index < displayEntries.length - 1 && (
                     <div style={{ margin: "20px 0 28px", display: "flex", justifyContent: "center" }}>
-                      <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "90%", height: "4px", display: "block" }}>
+                      <svg viewBox="0 0 1000 8" preserveAspectRatio="none" style={{ width: "100%", height: "4px", display: "block" }}>
                         <defs>
                           <linearGradient id={`taperedGrad-${entry.id || index}`} x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" stopColor="#334155" stopOpacity={0} />
@@ -4738,7 +4597,7 @@ function DailyPositionDetailsModal({
                   )}
                 </Fragment>
               );
-            });
+            })
           })()}
         </div>
       </div>
