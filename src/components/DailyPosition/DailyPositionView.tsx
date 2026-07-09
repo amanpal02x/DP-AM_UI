@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar, Fullscreen } from "lucide-react";
+import { Ban, CheckCircle2, Edit, Eye, Plus, Send, Trash2, ChevronDown, X, Paperclip, Filter, Calendar, Fullscreen, AlertTriangle, AlertCircle, Clock } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDate24, formatDateTime24, formatTime24, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "../../utils/dateTime";
 import type { UserRole } from "../../types";
@@ -4919,24 +4919,67 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
         return (
           <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDetailsRecord(null)}>
-            <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={isAllOk ? { width: "min(540px, calc(100vw - 28px))" } : undefined}>
-              <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)} aria-label="Close">
+            <div className="modal-card dp-details-modal" onClick={event => event.stopPropagation()} style={{ width: isAllOk ? "min(540px, calc(100vw - 28px))" : "min(680px, calc(100vw - 28px))" }}>
+              <button className="modal-close" type="button" onClick={() => setDetailsRecord(null)} aria-label="Close" style={!isAllOk ? { top: "18px", right: "20px" } : undefined}>
                 <X size={16} />
               </button>
-              <div className="dp-details-header">
+              <div 
+                className="dp-details-header"
+                style={!isAllOk ? {
+                  background: "linear-gradient(180deg, #fff5f5 0%, #ffffff 100%)",
+                  borderBottom: "1px solid #fee2e2",
+                  padding: "24px 28px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                } : undefined}
+              >
                 <div>
-                  <span>Daily Position Record</span>
-                  <h2>{detailsRecord.formType}</h2>
+                  <span style={!isAllOk ? { fontSize: "10px", fontWeight: 900, textTransform: "uppercase", color: "#b91c1c", letterSpacing: "1px" } : undefined}>
+                    Daily Position Record
+                  </span>
+                  <h2 style={!isAllOk ? { margin: "4px 0", fontSize: "22px", fontWeight: 800, color: "#1e293b" } : undefined}>
+                    {detailsRecord.formType}
+                  </h2>
                   {(() => {
                     const loc = detailsRecord.stationCode || detailsRecord.stationName || detailsRecord.section || "";
                     return (
-                      <p>{detailsRecord.division}{loc && loc !== "-" ? ` / ${loc}` : ""}</p>
+                      <p style={!isAllOk ? { margin: 0, fontSize: "13px", color: "#64748b", fontWeight: 500 } : undefined}>
+                        {detailsRecord.division}{loc && loc !== "-" ? ` / ${loc}` : ""}
+                      </p>
                     );
                   })()}
                 </div>
-                <em className={`status-chip status-${isAllOk ? "All Ok" : String(detailsRecord.status || "").toLowerCase()}`}>
-                  {isAllOk ? "All Ok" : detailsRecord.status}
-                </em>
+                {!isAllOk ? (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "#fef2f2",
+                    border: "1px solid #fee2e2",
+                    padding: "6px 14px",
+                    borderRadius: "999px",
+                    color: "#dc2626",
+                    fontSize: "12px",
+                    fontWeight: 750,
+                    textTransform: "uppercase",
+                    boxShadow: "0 2px 4px rgba(220, 38, 38, 0.03)"
+                  }}>
+                    <span style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "#dc2626",
+                      display: "inline-block",
+                      animation: "pulsingDot 1.5s infinite"
+                    }} />
+                    {detailsRecord.status || "FAULTY"}
+                  </div>
+                ) : (
+                  <em className={`status-chip status-${isAllOk ? "All Ok" : String(detailsRecord.status || "").toLowerCase()}`}>
+                    {isAllOk ? "All Ok" : detailsRecord.status}
+                  </em>
+                )}
               </div>
 
               {isAllOk ? (
@@ -4985,146 +5028,216 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 </div>
               ) : (
                 <>
-                  <div className="dp-details-summary">
-                    {[
-                      ["Category", detailsRecord.category],
-                      ["Action", detailsRecord.formData?.actionType || (isAllOk || detailsRecord.status === "All Ok" ? "OK" : "FAULT")],
-                      ["Submitted", detailsRecord.date ? formatDate24(detailsRecord.date) : (isAllOk ? "" : "-")],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <span>{label}</span>
-                        <strong>{value}</strong>
-                      </div>
-                    ))}
-                  </div>
+                  {/* Animation Styles */}
+                  <style>{`
+                    @keyframes pulsingDot {
+                      0% { transform: scale(0.9); opacity: 0.6; }
+                      50% { transform: scale(1.25); opacity: 1; }
+                      100% { transform: scale(0.9); opacity: 0.6; }
+                    }
+                    .dp-faulty-card {
+                      border: 1px solid #edeef0;
+                      background: #ffffff;
+                      border-left: 3px solid #64748b;
+                      border-radius: 8px;
+                      padding: 12px 14px;
+                      transition: all 0.2s ease;
+                      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+                      display: flex;
+                      flex-direction: column;
+                      gap: 2px;
+                    }
+                    .dp-faulty-card:hover {
+                      transform: translateY(-1px);
+                      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+                      border-color: #cbd5e1;
+                    }
+                    .dp-faulty-card span {
+                      color: #64748b;
+                      font-size: 10px;
+                      font-weight: 700;
+                      text-transform: uppercase;
+                      letter-spacing: 0.05em;
+                    }
+                    .dp-faulty-card strong {
+                      color: #1e293b;
+                      font-size: 13.5px;
+                      font-weight: 700;
+                    }
+                    .detail-field-card {
+                      background: #ffffff;
+                      border: 1px solid #edeef0;
+                      border-radius: 8px;
+                      padding: 12px 14px;
+                      transition: all 0.15s ease;
+                      display: flex;
+                      flex-direction: column;
+                      gap: 4px;
+                      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+                    }
+                    .detail-field-card:hover {
+                      border-color: #cbd5e1;
+                      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+                      transform: translateY(-1px);
+                    }
+                    .detail-field-card span {
+                      color: #64748b;
+                      font-size: 10px;
+                      font-weight: 700;
+                      text-transform: uppercase;
+                      letter-spacing: 0.05em;
+                    }
+                    .detail-field-card strong {
+                      color: #1e293b;
+                      font-size: 13.5px;
+                      font-weight: 600;
+                    }
+                  `}</style>
 
-                  {/* Location Details (Priority 1) */}
-                  {(() => {
-                    const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-                    const locationItems = Object.entries(detailsRecord.formData || {})
-                      .filter(([key]) => locationKeys.includes(key))
-                      .map(([key, value]) => {
-                        let displayVal = value;
-                        if (value === "Other" || value === "Others") {
-                          displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
-                        }
-                        return {
-                          key,
-                          label: humanizeFieldName(key, detailsRecord.formType),
-                          value: displayValue(displayVal, isAllOk)
-                        };
-                      });
+                  <div style={{ padding: "20px 28px 24px" }}>
 
-                    if (locationItems.length === 0) return null;
-                    return (
-                      <section className="dp-details-section" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", marginTop: "12px" }}>
-                        <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Location Details</h3>
-                        <div className="dp-details-grid">
-                          {locationItems.map(item => (
-                            <div key={item.key}>
-                              <span>{item.label}</span>
-                              <strong style={{ fontWeight: 650 }}>{item.value}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  })()}
+                    {/* Location Details (Priority 1) */}
+                    {(() => {
+                      const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                      const locationItems = Object.entries(detailsRecord.formData || {})
+                        .filter(([key]) => locationKeys.includes(key))
+                        .map(([key, value]) => {
+                          let displayVal = value;
+                          if (value === "Other" || value === "Others") {
+                            displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                          }
+                          return {
+                            key,
+                            label: humanizeFieldName(key, detailsRecord.formType),
+                            value: displayValue(displayVal, isAllOk)
+                          };
+                        });
 
-                  {/* Reason & Remarks Section (Priority 2) */}
-                  <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                    <h3 style={{ margin: "0 0 6px 0", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)" }}>Reason / Failures details</h3>
-                    <div style={{ fontSize: "12px", color: "var(--navy)", lineHeight: "1.5", background: isAllOk ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)", padding: "10px 12px", borderRadius: "6px", border: isAllOk ? "1px solid rgba(34, 197, 94, 0.08)" : "1px solid rgba(239, 68, 68, 0.08)" }}>
-                      <strong style={{ fontWeight: 500 }}>
-                        {isAllOk ? (detailsRecord.remarks || detailsRecord.reason || "System All Ok") : (
-                          <>
-                            {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
-                            {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && ` · ${detailsRecord.remarks}`}
-                          </>
-                        )}
-                      </strong>
-                    </div>
-                  </section>
-
-                  {/* Fault Timing (Priority 3) */}
-                  {!isAllOk && (detailsRecord.failureTime || detailsRecord.rectificationTime) && (
-                    <section className="dp-details-section" style={{ marginTop: "12px" }}>
-                      <h3>Fault Timing</h3>
-                      <div className="dp-details-grid">
-                        {[
-                          ["Failure Time", detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : "-"],
-                          ["Rectification Time", detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : "-"],
-                          ["Duration of Failure", detailsRecord.durationText || "-"],
-                        ].map(([label, value]) => (
-                          <div key={label}>
-                            <span>{label}</span>
-                            <strong>{value}</strong>
+                      if (locationItems.length === 0) return null;
+                      return (
+                        <section style={{ marginBottom: "16px" }}>
+                          <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b" }}>Location Details</h3>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px" }}>
+                            {locationItems.map(item => (
+                              <div key={item.key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                <span style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.02em" }}>{item.label}</span>
+                                <strong style={{ fontSize: "13px", color: "#1e293b", fontWeight: 600 }}>{item.value}</strong>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                        </section>
+                      );
+                    })()}
 
-                  {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
-                  {(() => {
-                    const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
-                    const formFieldItems = Object.entries(detailsRecord.formData || {})
-                      .filter(([key]) => {
-                        if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
-                        if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
-                        if (key.endsWith("Other") || key.endsWith("Others")) return false;
-                        if (locationKeys.includes(key)) return false;
-                        return true;
-                      })
-                      .map(([key, value]) => {
-                        let displayVal = value;
-                        if (value === "Other" || value === "Others") {
-                          displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
-                        }
-                        return {
-                          key,
-                          label: humanizeFieldName(key, detailsRecord.formType),
-                          value: displayValue(displayVal, isAllOk)
-                        };
-                      });
-
-                    return (
-                      <section className="dp-details-section" style={{ marginTop: "12px", paddingBottom: "16px" }}>
-                        <h3>Submitted Form Fields</h3>
-                        <div className="dp-details-grid">
-                          {formFieldItems.map(item => (
-                            <div key={item.key}>
-                              <span>{item.label}</span>
-                              <strong>{item.value}</strong>
-                            </div>
-                          ))}
-                          {formFieldItems.length === 0 && (
-                            <div>
-                              <span>Form Data</span>
-                              <strong>No additional fields submitted.</strong>
-                            </div>
+                    {/* Reason & Remarks Section (Priority 2) */}
+                    <section style={{ marginBottom: "16px" }}>
+                      <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b" }}>Reason / Failures details</h3>
+                      <div style={{
+                        background: "#fff5f5",
+                        borderLeft: "4px solid #ef4444",
+                        borderRadius: "8px",
+                        padding: "14px 16px",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "12px",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.02)"
+                      }}>
+                        <div style={{ color: "#ef4444", marginTop: "2px", display: "flex" }}>
+                          <AlertTriangle size={18} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ fontSize: "14px", color: "#991b1b", fontWeight: 700, display: "block", lineHeight: "1.4" }}>
+                            {detailsRecord.reason || detailsRecord.remarks || "No reason specified"}
+                          </strong>
+                          {detailsRecord.remarks && detailsRecord.remarks.trim() !== (detailsRecord.reason || "").trim() && (
+                            <p style={{ margin: "6px 0 0 0", fontSize: "13px", color: "#b91c1c", opacity: 0.9, lineHeight: "1.4" }}>
+                              {detailsRecord.remarks}
+                            </p>
                           )}
                         </div>
-                      </section>
-                    );
-                  })()}
+                      </div>
+                    </section>
 
-                  {/* Footer Metadata */}
-                  <div style={{
-                    borderTop: "1px solid #e2e8f0",
-                    padding: "12px 24px",
-                    margin: "12px -24px -24px -24px",
-                    background: "#f8fafc",
-                    display: "flex",
-                    justifyContent: "flex-start",
-                    fontSize: "11.5px",
-                    color: "#64748b",
-                    borderRadius: "0 0 12px 12px"
-                  }}>
-                    <span>
-                      Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                      {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
-                    </span>
+                    {/* Fault Timing (Priority 3) */}
+                    {(detailsRecord.failureTime || detailsRecord.rectificationTime) && (
+                      <section style={{ marginBottom: "16px" }}>
+                        <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b" }}>Fault Timing</h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
+                          <div className="detail-field-card" style={{ borderLeft: "3px solid #64748b" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Calendar size={10} /> Failure Time</span>
+                            <strong>{detailsRecord.failureTime ? formatDateTime24(detailsRecord.failureTime) : "-"}</strong>
+                          </div>
+                          <div className="detail-field-card" style={{ borderLeft: "3px solid #dc2626" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Clock size={10} /> Rectification Time</span>
+                            <strong>{detailsRecord.rectificationTime ? formatDateTime24(detailsRecord.rectificationTime) : "-"}</strong>
+                          </div>
+                          <div className="detail-field-card" style={{ borderLeft: "3px solid #f97316" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Clock size={10} /> Duration of Failure</span>
+                            <strong>{detailsRecord.rectificationTime ? (detailsRecord.durationText || "-") : "-"}</strong>
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* Submitted Form Fields (Priority 4 - excluding locationKeys) */}
+                    {(() => {
+                      const locationKeys = ["majorSection", "section", "stationCode", "stationCodeOther", "exchangeName", "videoPhoneLocation", "pfNo", "lineNo", "unitNo", "location", "siteName"];
+                      const formFieldItems = Object.entries(detailsRecord.formData || {})
+                        .filter(([key]) => {
+                          if (key === "actionType" || key === "checkedAt" || key === "maintenanceType") return false;
+                          if (key === "failureTime" || key === "rectificationTime" || key === "reason" || key === "remarks") return false;
+                          if (key === "assetId" || key === "telecomAsset" || key === "linkAsset") return false;
+                          if (key.endsWith("Other") || key.endsWith("Others")) return false;
+                          if (locationKeys.includes(key)) return false;
+                          return true;
+                        })
+                        .map(([key, value]) => {
+                          let displayVal = value;
+                          if (value === "Other" || value === "Others") {
+                            displayVal = detailsRecord.formData?.[`${key}Other`] || detailsRecord.formData?.[`${key}Others`] || value;
+                          }
+                          return {
+                            key,
+                            label: humanizeFieldName(key, detailsRecord.formType),
+                            value: displayValue(displayVal, isAllOk)
+                          };
+                        });
+
+                      return (
+                        <section style={{ marginBottom: "20px" }}>
+                          <h3 style={{ margin: "0 0 8px 0", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b" }}>Submitted Form Fields</h3>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px" }}>
+                            {formFieldItems.map(item => (
+                              <div key={item.key} className="detail-field-card">
+                                <span>{item.label}</span>
+                                <strong>{item.value}</strong>
+                              </div>
+                            ))}
+                            {formFieldItems.length === 0 && (
+                              <div className="detail-field-card" style={{ gridColumn: "span 2", textAlign: "center", padding: "16px", color: "#64748b" }}>
+                                <strong>No additional fields submitted.</strong>
+                              </div>
+                            )}
+                          </div>
+                        </section>
+                      );
+                    })()}
+
+                    {/* Footer Metadata */}
+                    <div style={{
+                      borderTop: "1px solid #e2e8f0",
+                      padding: "16px 20px 0 20px",
+                      margin: "16px -28px 0 -28px",
+                      display: "flex",
+                      justifyContent: "flex-start",
+                      fontSize: "11.5px",
+                      color: "#64748b"
+                    }}>
+                      <span>
+                        Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
+                        {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                      </span>
+                    </div>
                   </div>
                 </>
               )}
