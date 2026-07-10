@@ -748,7 +748,7 @@ function WalkieTalkieSerialSelect({
     .map((r: any) => r.formData.serialNo);
 
   // De-duplicate serial numbers
-  const uniqueSerials = Array.from(new Set(serials));
+  const uniqueSerials = Array.from(new Set(serials)) as string[];
 
   const isLoading = faultsQuery.isLoading;
 
