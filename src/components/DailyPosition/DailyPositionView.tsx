@@ -902,6 +902,7 @@ function DailyPositionFieldInput({
   selectedDivision,
   readOnly,
   formName,
+  records,
 }: {
   field: DailyPositionField;
   value: any;
@@ -911,6 +912,7 @@ function DailyPositionFieldInput({
   selectedDivision: string;
   readOnly: boolean;
   formName: string;
+  records?: any[];
 }) {
   const majorSections = metadata?.majorSections || [];
   const selectedMajor = majorSections.find((section: any) => section.name === values.majorSection);
@@ -2629,7 +2631,15 @@ function DailyPositionFieldInput({
     } else if (field.name === "serialNo") {
       isSerialDropdown = true;
       const matchingWTs = registeredWTs.filter((wt: any) => wt.makeModel === values.makeModel);
-      serialOptions = matchingWTs.map((wt: any) => wt.serialNumber).filter(Boolean) as string[];
+      const allSerials = matchingWTs.map((wt: any) => wt.serialNumber).filter(Boolean) as string[];
+      
+      // Filter out serial numbers already present in drafts or records for Walkie-Talkie Testing today
+      const usedSerials = new Set(
+        (records || [])
+          .filter((r: any) => r.formType === "Walkie-Talkie Testing" && r.formData?.serialNo)
+          .map((r: any) => String(r.formData.serialNo).trim())
+      );
+      serialOptions = allSerials.filter((sn) => !usedSerials.has(sn.trim()));
     }
   }
 
@@ -3108,7 +3118,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         actionMsg = (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Status Updated Successfully</div>
-            <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+            {selectedForm?.name !== "Walkie-Talkie Testing" && <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>}
           </div>
         );
       } else {
@@ -3124,7 +3134,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           if (mode === "history") {
             setLocalViewMode("history");
           }
-          if (isAllOk) {
+          if (isAllOk && selectedForm?.name !== "Walkie-Talkie Testing") {
             moveToNextForm();
           }
         }
@@ -3191,6 +3201,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const isCompletedToday = false;
 
   const isFormEmpty = () => {
+    if (selectedForm?.name === "Walkie-Talkie Testing") {
+      return !values.serialNo;
+    }
     return !visibleActiveFields.some(field => {
       if (
         field.name === "maintenanceType" ||
@@ -3357,14 +3370,15 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
   };
 
-  const buildPayload = (actionType: "OK" | "FAULT" | "DRAFT" = "FAULT") => {
-    const station = metadata?.stations?.find((item: any) => item.code === values.stationCode);
-    const isOk = actionType === "OK" || (selectedForm?.name === "Walkie-Talkie Testing" && values.reportType === "Healthy");
+  const buildPayload = (actionType: "OK" | "FAULT" | "DRAFT" = "FAULT", customValues?: any) => {
+    const valSource = customValues || values;
+    const station = metadata?.stations?.find((item: any) => item.code === valSource.stationCode);
+    const isOk = actionType === "OK" || (selectedForm?.name === "Walkie-Talkie Testing" && valSource.reportType === "Healthy");
     const isDraft = actionType === "DRAFT";
     const editingRecord = editingRecordId ? records.find((r: any) => r.id === editingRecordId) : null;
 
     // Convert datetime-local fields to UTC ISO
-    const processedValues = { ...values };
+    const processedValues = { ...valSource };
     activeFields.forEach((field) => {
       if (field.type === "datetime-local" && processedValues[field.name]) {
         processedValues[field.name] = toUTCFromISTString(processedValues[field.name]);
@@ -3374,7 +3388,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     if (selectedForm.name === "Walkie-Talkie Testing") {
       // Map the input count to testedCount before sending to the backend controller
       processedValues.testedCount = Number(processedValues.newTestedCount || 0);
-      const isHealthy = !values.reportType || values.reportType === "Healthy";
+      const isHealthy = !valSource.reportType || valSource.reportType === "Healthy";
       if (isHealthy) {
         processedValues.antennaStatus = "OK";
         processedValues.failureTime = null;
@@ -3386,18 +3400,18 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       category: selectedForm.category,
       formType: selectedForm.name,
       systemCode: selectedForm.systemCode,
-      majorSection: values.majorSection || null,
-      section: values.section || null,
-      stationCode: selectedForm.name === "Walkie-Talkie Testing" ? (values.stationLobby || null) : (values.stationCode || null),
-      stationName: values.stationCode === "Others" ? (values.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline" || selectedForm.name === "Walkie-Talkie Testing") ? (values.stationCode || values.stationLobby || null) : (station?.name || null)),
-      assetId: values.assetId || null,
+      majorSection: valSource.majorSection || null,
+      section: valSource.section || null,
+      stationCode: selectedForm.name === "Walkie-Talkie Testing" ? (valSource.stationLobby || null) : (valSource.stationCode || null),
+      stationName: valSource.stationCode === "Others" ? (valSource.stationCodeOther || "Others") : ((selectedForm.name === "CFTM Conference" || selectedForm.name === "Video Conferencing with Divisions" || selectedForm.name === "Hotline" || selectedForm.name === "Walkie-Talkie Testing") ? (valSource.stationCode || valSource.stationLobby || null) : (station?.name || null)),
+      assetId: valSource.assetId || null,
       telecomAsset: selectedForm.name,
       status: isDraft ? "DRAFT" : (isOk ? "All Ok" : statusFromForm(selectedForm, processedValues)),
       failureTime: isOk ? null : (processedValues.failureTime || null),
       rectificationTime: isOk ? null : (processedValues.rectificationTime || null),
       durationText: isOk ? null : calcDurationText(processedValues.failureTime, processedValues.rectificationTime),
-      reason: isOk ? "All OK" : (values.reason || null),
-      remarks: values.remarks || null,
+      reason: isOk ? "All OK" : (valSource.reason || null),
+      remarks: valSource.remarks || null,
       date: editingRecord ? (editingRecord.date || selectedDate) : selectedDate,
       formData: {
         ...processedValues,
@@ -3558,14 +3572,18 @@ export default function DailyPositionView({ role, division, user, mode, showToas
           message: (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
-              <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+              {selectedForm.name !== "Walkie-Talkie Testing" && (
+                <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+              )}
             </div>
           ),
           onOk: () => {
             setSuccessModal(null);
             resetForm();
             setEditingRecordId(null);
-            moveToNextForm();
+            if (selectedForm.name !== "Walkie-Talkie Testing") {
+              moveToNextForm();
+            }
           }
         });
       } catch (err: any) {
@@ -3711,14 +3729,18 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         message: (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>
-            <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+            {selectedForm.name !== "Walkie-Talkie Testing" && (
+              <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>
+            )}
           </div>
         ),
         onOk: () => {
           setSuccessModal(null);
           resetForm();
           setEditingRecordId(null);
-          moveToNextForm();
+          if (selectedForm.name !== "Walkie-Talkie Testing") {
+            moveToNextForm();
+          }
         }
       });
     } finally {
@@ -3784,12 +3806,19 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       setValues({ maintenanceType: "Divisional Maintenance" });
       setMaintenanceType("Divisional");
     } else if (selectedForm?.name === "Walkie-Talkie Testing") {
-      // Preserve the selected stationLobby so the user can see updated values
+      // Preserve the selected stationLobby and makeModel/testDate so the user can add multiple walkie-talkies easily, but clear specific test readings
       const currentLobby = values.stationLobby;
       const currentTotal = values.toBeTestedCount;
+      const currentTested = values.testedCount;
+      const currentMakeModel = values.makeModel;
+      const currentTestDate = values.testDate;
+      
       setValues({
         stationLobby: currentLobby,
-        toBeTestedCount: currentTotal
+        toBeTestedCount: currentTotal,
+        testedCount: currentTested,
+        makeModel: currentMakeModel,
+        testDate: currentTestDate,
       });
     } else {
       setValues({});
@@ -3855,14 +3884,37 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
     setIsAddingRecord(true);
     try {
-      const payload = {
-        id: `local_${Date.now()}_${Math.random()}`,
-        ...buildPayload("DRAFT"),
-        createdAt: new Date().toISOString()
-      };
-      setLocalDrafts(prev => [...prev, payload]);
-      showToast("Draft record added successfully.");
-      resetForm();
+      if (selectedForm.name === "Walkie-Talkie Testing") {
+        const serials = (values.serialNo || "").split(/,\s*/).map((s: string) => s.trim()).filter(Boolean);
+        if (serials.length > 0) {
+          const payloads = serials.map((sn: string, idx: number) => {
+            const singleValues = {
+              ...values,
+              serialNo: sn,
+              newTestedCount: 1
+            };
+            return {
+              id: `local_${Date.now()}_${Math.random()}_${idx}`,
+              ...buildPayload("DRAFT", singleValues),
+              createdAt: new Date().toISOString()
+            };
+          });
+          setLocalDrafts(prev => [...prev, ...payloads]);
+          showToast(`Successfully added ${serials.length} records.`);
+          resetForm();
+        } else {
+          showToast("Please enter at least one Walkie Talkie serial number.");
+        }
+      } else {
+        const payload = {
+          id: `local_${Date.now()}_${Math.random()}`,
+          ...buildPayload("DRAFT"),
+          createdAt: new Date().toISOString()
+        };
+        setLocalDrafts(prev => [...prev, payload]);
+        showToast("Draft record added successfully.");
+        resetForm();
+      }
     } catch (err: any) {
       showToast(err.message || "Failed to add record.");
     } finally {
@@ -4379,6 +4431,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         selectedDivision={selectedDivision}
                         readOnly={!canFill || (isCompletedToday && !editingRecordId)}
                         formName={selectedForm.name}
+                        records={records}
                       />
                     </div>
 
@@ -4481,6 +4534,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       selectedDivision={selectedDivision}
                       readOnly={!canFill || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
                       formName={selectedForm.name}
+                      records={records}
                     />
                   ))}
                 </div>
