@@ -3758,9 +3758,11 @@ function DailyPositionTrendsPanel({
 
 function WalkieTalkieDivisionPanel({
   summary,
+  activeCounts = {},
   onCategoryClick
 }: {
   summary?: any;
+  activeCounts?: Record<string, number>;
   onCategoryClick?: (categoryName: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
@@ -3774,6 +3776,11 @@ function WalkieTalkieDivisionPanel({
     return "Others";
   };
 
+  const getActiveFaultsCount = (divName: string) => {
+    const norm = normalizeDiv(divName);
+    return activeCounts[norm] || 0;
+  };
+
   const isMultiDivViewer = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
   const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
   const allDivisions = summary?.walkieTalkieDivisions || [];
@@ -3782,7 +3789,7 @@ function WalkieTalkieDivisionPanel({
     ? allDivisions
     : allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv);
 
-  const totalDefective = divisions.reduce((sum: number, d: any) => sum + (d.repairing?.pending ?? 0), 0);
+  const totalDefective = divisions.reduce((sum: number, d: any) => sum + getActiveFaultsCount(d.division), 0);
 
   const divColors: Record<string, string> = {
     Raipur: "#f97316",   // Orange
@@ -3795,7 +3802,7 @@ function WalkieTalkieDivisionPanel({
     const tested = div.testing?.tested ?? 0;
     const total = div.testing?.total ?? 0;
     const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
-    const pendingRepair = div.repairing?.pending ?? 0;
+    const pendingRepair = getActiveFaultsCount(div.division);
     const color = divColors[div.division] || "#94a3b8";
 
     return (
@@ -3848,7 +3855,7 @@ function WalkieTalkieDivisionPanel({
             <div style={{ flex: 1, background: pendingRepair > 0 ? "#fff5f5" : "#f0fdf4", border: pendingRepair > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Active Faults</div>
               <strong style={{ fontSize: 22, fontWeight: 800, color: pendingRepair > 0 ? "#b91c1c" : "#14532d" }}>{pendingRepair}</strong>
-              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Faulty Sets Found" : "All Sets Healthy"}</div>
+              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Faulty Logs Found" : "All Healthy"}</div>
               <div style={{ height: 4, background: pendingRepair > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
                 <div style={{ width: pendingRepair > 0 ? "100%" : "0%", height: "100%", background: pendingRepair > 0 ? "#ef4444" : "#10b981" }} />
               </div>
@@ -3892,7 +3899,7 @@ function WalkieTalkieDivisionPanel({
           const tested = div.testing?.tested ?? 0;
           const total = div.testing?.total ?? 0;
           const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
-          const pendingRepair = div.repairing?.pending ?? 0;
+          const pendingRepair = getActiveFaultsCount(div.division);
 
           return (
             <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -4029,6 +4036,36 @@ function DailyPositionDashboardView({
     return result;
   }, [activeFaultsQuery.data, userDivision]);
 
+  const walkieTalkieActiveCountsClient = useMemo(() => {
+    const rawRecords = activeFaultsQuery.data?.data || [];
+    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
+    const filtered = rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      return isWalkieTalkie && !isAllOk && matchesDiv;
+    });
+
+    const counts: Record<string, number> = {
+      Raipur: 0,
+      Bilaspur: 0,
+      Nagpur: 0
+    };
+
+    filtered.forEach((r: any) => {
+      const divName = normalizeDivName(r.division);
+      if (divName in counts) {
+        counts[divName]++;
+      } else {
+        if (!counts["Others"]) counts["Others"] = 0;
+        counts["Others"]++;
+      }
+    });
+
+    return counts;
+  }, [activeFaultsQuery.data, userDivision]);
+
   const handleBottomStatClick = (label: string) => {
     const { setActiveNav } = useAppStore.getState();
     if (label === "Active Faults" || label === "Reported Today" || label === "Rectified Today") {
@@ -4155,7 +4192,7 @@ function DailyPositionDashboardView({
 
       {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0 }}>
-        <WalkieTalkieDivisionPanel summary={data} onCategoryClick={onCategoryClick} />
+        <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
