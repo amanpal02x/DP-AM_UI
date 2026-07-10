@@ -392,6 +392,34 @@ const normalizeDivision = (div: any): string => {
   return String(div);
 };
 
+const isRecordAllOk = (r: any): boolean => {
+  if (!r) return true;
+  const status = (r.status || "").toUpperCase();
+  const reason = (r.reason || "").toUpperCase();
+  const actionType = (r.formData?.actionType || "").toUpperCase();
+  const reportType = (r.formData?.reportType || "").toUpperCase();
+  const formType = (r.formType || r.name || "").toUpperCase();
+
+  if (status === "ALL OK" || status === "RECTIFIED" || status === "OPERATIONAL") return true;
+  if (reason === "ALL OK") return true;
+  if (actionType === "OK") return true;
+  if (formType === "WALKIE-TALKIE TESTING" && reportType === "HEALTHY") return true;
+  
+  return false;
+};
+
+const parseSafeDate = (dateStr?: string | Date | null): Date | null => {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  const s = String(dateStr).trim();
+  if (!s) return null;
+  const hasOffset = s.includes("Z") || /\+\d{2}:?\d{2}$/.test(s) || /-\d{2}:?\d{2}$/.test(s);
+  const formatted = s.includes(" ") && !s.includes("T") ? s.replace(" ", "T") : s;
+  const resolvedStr = hasOffset ? formatted : `${formatted}+05:30`;
+  const d = new Date(resolvedStr);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
 import { formatDate24, formatDateTime24, formatTime24, shiftDateText, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "./utils/dateTime";
@@ -2532,9 +2560,8 @@ function DailyPositionHighPriorityFaultsPanel({
     const rawRecords = activeFaultsQuery.data?.data || [];
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return !isAllOk && !isWifi;
+      return !isRecordAllOk(r) && !isWifi;
     });
 
     // Sort by priority weight first (High=1, Median=2, Low=3), then by failureTime ascending (oldest first)
@@ -2868,13 +2895,16 @@ function CategoryFaultsPageView({
   queries?: any;
   showToast?: (msg: string) => void;
 }) {
-  const isTodayQuery = categoryName.toLowerCase().includes("today") || categoryName.toLowerCase().includes("resolved");
-
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
     queryFn: () => {
       const params: any = { limit: 500 };
-      if (!isTodayQuery) {
+      const lowerCat = categoryName.toLowerCase();
+      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+        params.isResolved = "true";
+      } else if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+        params.date = todayStr;
+      } else {
         params.isFaulty = "true";
       }
       return api.dailyPosition.list(params);
@@ -2967,34 +2997,37 @@ function CategoryFaultsPageView({
 
   const records = (faultsQuery.data?.data || []).filter((r: any) => {
     if (r.status === "DRAFT") return false;
-    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
-    if (isAllOk) return false;
 
     const lowerCat = categoryName.toLowerCase();
 
     // 1. Active Faults
     if (lowerCat === "active faults") {
+      if (isRecordAllOk(r)) return false;
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       return !isWifi && !r.rectificationTime; // Must be active
     }
 
     // 2. Wi-Fi Faults
     if (lowerCat === "wi-fi") {
+      if (isRecordAllOk(r)) return false;
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       return isWifi && !r.rectificationTime; // Must be active
     }
 
     // 3. Faults Reported Today
     if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
-      const isTodayVal = r.failureTime && toDateValue(new Date(r.failureTime)) === todayStr;
-      return isTodayVal;
+      const parsed = parseSafeDate(r.failureTime);
+      return parsed ? toDateValue(parsed) === todayStr : false;
     }
 
     // 4. Faults Resolved Today
     if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
-      const isResolvedToday = r.rectificationTime && toDateValue(new Date(r.rectificationTime)) === todayStr;
-      return isResolvedToday;
+      const parsed = parseSafeDate(r.rectificationTime);
+      return parsed ? toDateValue(parsed) === todayStr : false;
     }
+
+    // For other categories, they represent active faults of that category, so we exclude all OK ones.
+    if (isRecordAllOk(r)) return false;
 
     // 5. Walkie-Talkie Records
     if (lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie") {
@@ -3972,10 +4005,9 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return isWifi && !isAllOk && matchesDiv;
+      return isWifi && !isRecordAllOk(r) && matchesDiv;
     });
     return filtered.length;
   }, [activeFaultsQuery.data, userDivision]);
@@ -3985,10 +4017,9 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isAllOk && matchesDiv;
+      return !isWifi && !isRecordAllOk(r) && matchesDiv;
     });
 
     if (!activeFaultsQuery.data) {
@@ -4003,10 +4034,9 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isAllOk && matchesDiv;
+      return !isWifi && !isRecordAllOk(r) && matchesDiv;
     });
 
     const counts: Record<string, number> = {
@@ -4041,10 +4071,9 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
-      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return isWalkieTalkie && !isAllOk && matchesDiv;
+      return isWalkieTalkie && !isRecordAllOk(r) && matchesDiv;
     });
 
     const counts: Record<string, number> = {
@@ -4418,14 +4447,13 @@ function DailyPositionDetailsModal({
           {(() => {
             const activeEntries = detailsRecord.filter((e: any) => e.status !== "DRAFT");
             const faultyEntries = activeEntries.filter((e: any) => {
-              const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
               const effStatus = e.positionStatus || e.status;
-              return effStatus !== "All Ok" && effStatus !== "RECTIFIED" && !isAllOk;
+              return effStatus !== "All Ok" && effStatus !== "RECTIFIED" && !isRecordAllOk(e);
             });
             const displayEntries = faultyEntries.length > 0 ? faultyEntries : activeEntries;
 
             return displayEntries.map((entry: any, index: number) => {
-              const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
+              const isAllOk = isRecordAllOk(entry);
               const effectiveStatus = entry.positionStatus || entry.status;
               const isFault = effectiveStatus !== "All Ok" && effectiveStatus !== "RECTIFIED" && !isAllOk;
               const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
@@ -4475,6 +4503,22 @@ function DailyPositionDetailsModal({
                     value: summaryDisplayValue(displayVal, isAllOk)
                   };
                 });
+
+              const isWT = (entry.formType || entry.name || "").toLowerCase().includes("walkie-talkie");
+              const wtItems = isWT ? [
+                { label: "Station / Lobby", value: entry.formData?.stationLobby },
+                { label: "Make / Model", value: entry.formData?.makeModel },
+                { label: "Serial No.", value: entry.formData?.serialNo },
+                { label: "Report Type", value: entry.formData?.reportType || "Fault" },
+                { label: "Tested W/T Sets", value: entry.formData?.testedCount },
+                { label: "Total W/T Sets", value: entry.formData?.toBeTestedCount },
+                { label: "Balance W/T Sets", value: entry.formData?.balanceWalkieTalkies },
+                { label: "Output TX Power", value: entry.formData?.powerOutput },
+                { label: "Battery Voltage", value: entry.formData?.batteryVoltage },
+                { label: "Battery Current", value: entry.formData?.batteryCurrent },
+                { label: "Antenna Status", value: entry.formData?.antennaStatus },
+                { label: "Date of Testing", value: entry.formData?.testDate ? formatDate24(entry.formData.testDate) : "" }
+              ].filter(item => item.value !== undefined && item.value !== null && item.value !== "") : [];
 
               return (
                 <Fragment key={entry.id}>
@@ -4559,14 +4603,32 @@ function DailyPositionDetailsModal({
                     {howItems.length > 0 && (
                       <div style={{
                         marginBottom: "14px",
-                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                        borderBottom: (isWT || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (isWT || entry.remarks || entry.reason) ? "14px" : "0"
                       }}>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
                           {howItems.map(item => (
                             <div key={item.key}>
                               <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
                               <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Walkie-Talkie Testing Details */}
+                    {isWT && wtItems.length > 0 && (
+                      <div style={{
+                        marginBottom: "14px",
+                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
+                      }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
+                          {wtItems.map((item, idx) => (
+                            <div key={idx}>
+                              <span style={{ display: "block", fontSize: "11px", color: "var(--navy)", opacity: 0.7, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
+                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
                             </div>
                           ))}
                         </div>
@@ -4785,13 +4847,11 @@ function DailyPositionSummaryTable({
     if (activeEntries.length === 0) return null;
     const hasFault = activeEntries.some((e: any) => {
       const s = (e.positionStatus || e.status || "").toUpperCase();
-      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-      return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+      return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
     });
     if (hasFault) return "FAULT";
     const hasRectified = activeEntries.some((e: any) => {
-      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-      return !isAllOk && (e.positionStatus || e.status || "").toUpperCase() === "RECTIFIED";
+      return !isRecordAllOk(e) && (e.positionStatus || e.status || "").toUpperCase() === "RECTIFIED";
     });
     return hasRectified ? "RECTIFIED" : "NORMAL";
   };
@@ -4853,8 +4913,7 @@ function DailyPositionSummaryTable({
 
     for (const entry of activeEntries) {
       const status = (entry.positionStatus || entry.status || "").toUpperCase();
-      const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
-      if (status !== "All Ok" && status !== "RECTIFIED" && !isAllOk) {
+      if (status !== "All Ok" && status !== "RECTIFIED" && !isRecordAllOk(entry)) {
         hasFaultyState = true;
         totalFaults += 1;
       }
@@ -4874,8 +4933,7 @@ function DailyPositionSummaryTable({
       const faultRemarks = activeEntries
         .filter((e: any) => {
           const s = (e.positionStatus || e.status || "").toUpperCase();
-          const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-          return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+          return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
         })
         .map((entry: any) => {
           const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
@@ -5385,8 +5443,7 @@ function DailyPositionSummaryTableSuperAdmin({
                         faultDetails = activeEntries
                           .filter((e: any) => {
                             const s = (e.positionStatus || e.status || "").toUpperCase();
-                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                            return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
                           })
                           .map((entry: any) => {
                             const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";

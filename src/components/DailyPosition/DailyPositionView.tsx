@@ -758,35 +758,22 @@ function WalkieTalkieSerialSelect({
         {field.label}
         {field.required && <span>*</span>}
       </label>
-      <select
+      <SearchableDropdown
+        options={uniqueSerials}
         value={value || ""}
-        onChange={e => setValue(field.name, e.target.value)}
-        disabled={readOnly || isLoading || !selectedLobby}
+        onChange={(val) => setValue(field.name, val)}
+        placeholder={!selectedLobby 
+          ? "Please select Station / Lobby first" 
+          : isLoading 
+            ? "Loading serial numbers..." 
+            : uniqueSerials.length === 0 
+              ? "No faulty serial numbers found" 
+              : (field.placeholder || "Select Serial Number")}
         required={field.required}
-        style={{
-          width: "100%",
-          padding: "10px 14px",
-          borderRadius: "8px",
-          border: "1px solid #cbd5e1",
-          fontSize: "14px",
-          background: readOnly || !selectedLobby ? "#f8fafc" : "#fff",
-          color: value ? "#1e293b" : "#94a3b8",
-          cursor: readOnly || !selectedLobby ? "not-allowed" : "pointer",
-        }}
-      >
-        <option value="" disabled>
-          {!selectedLobby 
-            ? "Please select Station / Lobby first" 
-            : isLoading 
-              ? "Loading serial numbers..." 
-              : uniqueSerials.length === 0 
-                ? "No faulty serial numbers found" 
-                : (field.placeholder || "Select Serial Number")}
-        </option>
-        {uniqueSerials.map((s: any) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
+        readOnly={readOnly || isLoading || !selectedLobby}
+        clearable={true}
+        searchable={true}
+      />
     </div>
   );
 }
@@ -840,6 +827,15 @@ function WalkieTalkieLobbySelect({
       } else if (field.name === "stationCode") {
         setValue("openingDefective", getFaultCount(lobbyName));
       }
+    } else {
+      if (field.name === "stationLobby") {
+        setValue("toBeTestedCount", "");
+        setValue("testedCount", "");
+        setValue("makeModel", "");
+        setValue("serialNo", "");
+      } else if (field.name === "stationCode") {
+        setValue("openingDefective", "");
+      }
     }
   };
 
@@ -861,47 +857,38 @@ function WalkieTalkieLobbySelect({
     }
   }, [lobbies, activeFaults, value, field.name, setValue]);
 
+  const dropdownOptions = useMemo(() => {
+    return lobbies.map((l: any) => {
+      const faultCount = getFaultCount(l.lobbyName);
+      const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
+        ? l.walkieTalkies.length 
+        : l.totalWalkieTalkies;
+      const label = field.name === "stationCode"
+        ? `${l.lobbyName} (${faultCount} fault${faultCount !== 1 ? "s" : ""})`
+        : `${l.lobbyName} (${totalWTs} sets)`;
+      return {
+        value: l.lobbyName,
+        label: label
+      };
+    });
+  }, [lobbies, activeFaults, field.name]);
+
   return (
     <div className="dp-field">
       <label>
         {field.label}
         {field.required && <span>*</span>}
       </label>
-      <select
+      <SearchableDropdown
+        options={dropdownOptions}
         value={value || ""}
-        onChange={e => handleChange(e.target.value)}
-        disabled={readOnly || isLoadingLobbies}
+        onChange={handleChange}
+        placeholder={isLoadingLobbies ? "Loading lobbies..." : (field.placeholder || "Select Station / Lobby")}
         required={field.required}
-        style={{
-          width: "100%",
-          padding: "10px 14px",
-          borderRadius: "8px",
-          border: "1px solid #cbd5e1",
-          fontSize: "14px",
-          background: readOnly ? "#f8fafc" : "#fff",
-          color: value ? "#0f172a" : "#64748b",
-          fontWeight: 500,
-          cursor: readOnly ? "not-allowed" : "pointer",
-        }}
-      >
-        <option value="" disabled style={{ color: "#94a3b8" }}>
-          {isLoadingLobbies ? "Loading lobbies..." : (field.placeholder || "Select Station / Lobby")}
-        </option>
-        {lobbies.map((l: any) => {
-          const faultCount = getFaultCount(l.lobbyName);
-          const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
-            ? l.walkieTalkies.length 
-            : l.totalWalkieTalkies;
-          const displayText = field.name === "stationCode"
-            ? `${l.lobbyName} (${faultCount} fault${faultCount !== 1 ? "s" : ""})`
-            : `${l.lobbyName} (${totalWTs} sets)`;
-          return (
-            <option key={l.id} value={l.lobbyName} style={{ color: "#0f172a", fontWeight: 500 }}>
-              {displayText}
-            </option>
-          );
-        })}
-      </select>
+        readOnly={readOnly || isLoadingLobbies}
+        clearable={true}
+        searchable={true}
+      />
     </div>
   );
 }
@@ -2704,9 +2691,39 @@ function DailyPositionFieldInput({
           searchable={field.name !== "reportType"}
         />
       ) : field.type === "textarea" ? (
-        <textarea {...commonProps} />
+        <div style={{ position: "relative", width: "100%" }}>
+          <textarea
+            {...commonProps}
+            style={{
+              width: "100%",
+              paddingRight: value && !(readOnly || field.readonly) ? "30px" : "14px"
+            }}
+          />
+          {value && !(readOnly || field.readonly) && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => setValue(field.name, "")}
+              style={{
+                position: "absolute",
+                right: "12px",
+                top: "12px",
+                cursor: "pointer",
+                color: "#94a3b8",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 5
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+            >
+              <X size={14} />
+            </span>
+          )}
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div style={{ position: "relative", width: "100%" }}>
           <input
             type={field.type}
             {...maxProps}
@@ -2724,9 +2741,36 @@ function DailyPositionFieldInput({
               }
             }}
             style={{
-              cursor: (field.type === "date" || field.type === "datetime-local") ? "pointer" : "text"
+              width: "100%",
+              cursor: (field.type === "date" || field.type === "datetime-local") ? "pointer" : "text",
+              paddingRight: value && !(readOnly || field.readonly) 
+                ? ((field.type === "date" || field.type === "datetime-local") ? "54px" : "30px") 
+                : "14px"
             }}
           />
+          {value && !(readOnly || field.readonly) && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => setValue(field.name, "")}
+              style={{
+                position: "absolute",
+                right: (field.type === "date" || field.type === "datetime-local") ? "32px" : "12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                cursor: "pointer",
+                color: "#94a3b8",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 5
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+            >
+              <X size={14} />
+            </span>
+          )}
         </div>
       )}
     </div>
