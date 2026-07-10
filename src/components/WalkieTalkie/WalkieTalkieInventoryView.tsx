@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, X, Search, Download, PlusCircle } from "lucide-react";
+import { Plus, X, Search, Download, PlusCircle, Upload } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/apiClient";
 import { useAppStore } from "../../App";
@@ -49,6 +49,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     : [];
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lobbyFileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLobbies = async () => {
     try {
@@ -339,6 +340,147 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
       }
     } catch (err) {
       showToast("Failed to load Excel parser library.");
+    }
+  };
+
+  const handleLobbyWTImport = async (e: React.ChangeEvent<HTMLInputElement>, lobby: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "xlsx", "xls"].includes(ext || "")) {
+      showToast("Please upload a valid .xlsx, .xls, or .csv file.");
+      return;
+    }
+
+    try {
+      setIsMutating(true);
+      const XLSX = await import("xlsx");
+      const reader = new FileReader();
+
+      reader.onload = async (loadEvent) => {
+        try {
+          let rows: any[] = [];
+          if (ext === "xlsx" || ext === "xls") {
+            const workbook = XLSX.read(loadEvent.target?.result, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          } else {
+            const csvText = loadEvent.target?.result as string;
+            const lines = csvText.split(/\r?\n/);
+            if (lines.length === 0) return;
+            const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
+            for (let i = 1; i < lines.length; i++) {
+              if (!lines[i].trim()) continue;
+              const values = lines[i].split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
+              const row: Record<string, string> = {};
+              headers.forEach((h, idx) => {
+                row[h] = values[idx] || "";
+              });
+              rows.push(row);
+            }
+          }
+
+          if (rows.length === 0) {
+            showToast("No data found in the uploaded file.");
+            setIsMutating(false);
+            return;
+          }
+
+          const keys = Object.keys(rows[0]);
+          const serialKey = keys.find(k => {
+            const lk = k.toLowerCase().replace(/[\s_-]/g, "");
+            return lk.includes("serial") || lk === "sn" || lk === "wtsn" || lk.includes("wtno") || lk === "serialnumber";
+          }) || keys[0];
+
+          const makeModelKey = keys.find(k => {
+            const lk = k.toLowerCase().replace(/[\s_-]/g, "");
+            return lk.includes("make") || lk.includes("model") || lk.includes("brand");
+          });
+
+          const imported = rows
+            .map(row => {
+              const sn = String(row[serialKey] || "").trim();
+              const mm = makeModelKey ? String(row[makeModelKey] || "").trim() : "";
+              return { serialNumber: sn, makeModel: mm || "Motorola" };
+            })
+            .filter(item => item.serialNumber);
+
+          if (imported.length === 0) {
+            showToast("No serial numbers could be extracted from the file.");
+            setIsMutating(false);
+            return;
+          }
+
+          // Merge logic
+          const currentList = Array.isArray(lobby.walkieTalkies) ? [...lobby.walkieTalkies] : [];
+          
+          let addedCount = 0;
+          let updatedCount = 0;
+          const updatedList = [...currentList];
+
+          for (const item of imported) {
+            const existingIdx = updatedList.findIndex(
+              wt => wt.serialNumber.toLowerCase() === item.serialNumber.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+              if (updatedList[existingIdx].makeModel !== item.makeModel) {
+                updatedList[existingIdx] = {
+                  ...updatedList[existingIdx],
+                  makeModel: item.makeModel
+                };
+                updatedCount++;
+              }
+            } else {
+              updatedList.push(item);
+              addedCount++;
+            }
+          }
+
+          if (addedCount === 0 && updatedCount === 0) {
+            showToast("All imported walkie-talkies already exist and are up to date.");
+            setIsMutating(false);
+            return;
+          }
+
+          const confirmMsg = `Found ${imported.length} rows. This will add ${addedCount} new sets and update ${updatedCount} existing sets. Do you want to proceed?`;
+          if (!window.confirm(confirmMsg)) {
+            setIsMutating(false);
+            return;
+          }
+
+          const res = await api.walkieTalkie.upsertLobby({
+            lobbyName: lobby.lobbyName,
+            totalWalkieTalkies: updatedList.length,
+            division: lobby.division,
+            walkieTalkies: updatedList,
+          });
+
+          if (res.success) {
+            showToast(`Successfully added ${addedCount} and updated ${updatedCount} walkie-talkies.`);
+            const refreshedLobby = { ...lobby, walkieTalkies: updatedList };
+            setViewingLobby(refreshedLobby);
+            const updatedLobbies = lobbies.map(l => l.id === lobby.id ? refreshedLobby : l);
+            setLobbies(updatedLobbies);
+            queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+            queryClient.invalidateQueries({ queryKey: ["walkie-talkie-lobbies-select"] });
+          }
+        } catch (err) {
+          showToast("Error parsing file structure.");
+        } finally {
+          setIsMutating(false);
+        }
+      };
+
+      if (ext === "xlsx" || ext === "xls") {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    } catch (err) {
+      showToast("Failed to load Excel parser library.");
+      setIsMutating(false);
     }
   };
 
@@ -906,10 +1048,44 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             <footer style={{ background: "#f3f4f6", padding: "16px 32px", borderTop: "1px solid #edeef0" }}>
               {!isViewer && (
                 <div>
-                  <h3 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <PlusCircle size={18} style={{ color: "#2563eb" }} />
-                    Add Walkie-Talkie Manually
-                  </h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px 0" }}>
+                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <PlusCircle size={18} style={{ color: "#2563eb" }} />
+                      Add Walkie-Talkie Manually
+                    </h3>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input 
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        ref={lobbyFileInputRef}
+                        style={{ display: "none" }}
+                        onChange={(e) => handleLobbyWTImport(e, viewingLobby)}
+                      />
+                      <button
+                        onClick={() => lobbyFileInputRef.current?.click()}
+                        disabled={isMutating}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "6px 12px",
+                          border: "1px solid #2563eb",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          background: "#ffffff",
+                          color: "#2563eb",
+                          cursor: isMutating ? "not-allowed" : "pointer",
+                          transition: "all 0.2s"
+                        }}
+                        onMouseEnter={(e) => { if (!isMutating) e.currentTarget.style.backgroundColor = "#eff6ff"; }}
+                        onMouseLeave={(e) => { if (!isMutating) e.currentTarget.style.backgroundColor = "#ffffff"; }}
+                      >
+                        <Upload size={14} />
+                        Import Excel
+                      </button>
+                    </div>
+                  </div>
                   <div className="wt-add-grid">
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <label style={{ fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", paddingLeft: "4px" }}>Serial Number</label>
