@@ -6441,70 +6441,70 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
   return (
     <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto" }}>
       <div style={{ padding: "20px 24px 20px 30px", display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Page Header */}
-      <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
-        </div>
-         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <input
-            type="text"
-            placeholder="Search lobby..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              padding: "0 14px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              fontSize: "14px",
-              outline: "none",
-              width: "220px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-              height: "38px",
-              boxSizing: "border-box"
-            }}
-          />
-          {!isViewer && (
-            <button
-              onClick={handleOpenAddModal}
+        {/* Page Header */}
+        <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <input
+              type="text"
+              placeholder="Search lobby..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
                 padding: "0 14px",
                 borderRadius: "8px",
-                background: "#2563eb",
-                color: "#ffffff",
-                border: "none",
+                border: "1px solid var(--line)",
                 fontSize: "14px",
-                fontWeight: 600,
-                cursor: "pointer",
+                outline: "none",
+                width: "220px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
                 height: "38px",
-                boxSizing: "border-box",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                transition: "all 0.15s ease"
+                boxSizing: "border-box"
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#2563eb"; }}
-            >
-              <Plus size={16} /> Add New Lobby
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Inventory Table */}
-      <div className="panel" style={{ padding: "20px", background: "transparent", border: "none", boxShadow: "none" }}>
-        <h3 style={{ margin: "0 0 15px", fontSize: "16px", color: "var(--navy)", fontWeight: 600 }}>Lobby Inventory Status</h3>
-        {isLoading && lobbies.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>Loading lobbies data...</div>
-        ) : lobbies.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>
-            No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
+            />
+            {!isViewer && (
+              <button
+                onClick={handleOpenAddModal}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "0 14px",
+                  borderRadius: "8px",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  height: "38px",
+                  boxSizing: "border-box",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  transition: "all 0.15s ease"
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#2563eb"; }}
+              >
+                <Plus size={16} /> Add New Lobby
+              </button>
+            )}
           </div>
-        ) : (
-          <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "420px", paddingRight: "6px" }}>
-            <style>{`
+        </div>
+
+        {/* Inventory Table */}
+        <div className="panel" style={{ padding: "20px", background: "transparent", border: "none", boxShadow: "none" }}>
+          <h3 style={{ margin: "0 0 15px", fontSize: "16px", color: "var(--navy)", fontWeight: 600 }}>Lobby Inventory Status</h3>
+          {isLoading && lobbies.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>Loading lobbies data...</div>
+          ) : lobbies.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>
+              No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
+            </div>
+          ) : (
+            <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "420px", paddingRight: "6px" }}>
+              <style>{`
               .wt-lobby-table {
                 border-collapse: separate;
                 border-spacing: 0 12px;
@@ -6564,127 +6564,127 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                 padding: 10px 16px;
               }
             `}</style>
-            <table className="wt-lobby-table">
-              <thead>
-                <tr style={{ background: "transparent", boxShadow: "none" }}>
-                  <th className="wt-lobby-th" style={{ textAlign: "left" }}>Lobby Name</th>
-                  {isNonDivisional && <th className="wt-lobby-th" style={{ textAlign: "left" }}>Division</th>}
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Count</th>
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>To Be Tested</th>
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Serial Numbers</th>
-                  {!isViewer && <th className="wt-lobby-th" style={{ textAlign: "right" }}>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLobbies.map((l, idx) => {
-                  const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
-                    ? l.walkieTalkies.length
-                    : l.totalWalkieTalkies;
-                  const toBeTested = totalWTs - l.testedCount;
-                  const isCompleted = toBeTested === 0 && totalWTs > 0;
-                  return (
-                    <tr key={l.id} className={`wt-lobby-row ${isCompleted ? "completed" : ""}`} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                      <td className="wt-lobby-cell">
-                        <strong style={{ fontSize: "14px", color: "var(--navy)", fontWeight: 600 }}>{l.lobbyName}</strong>
-                      </td>
-                      {isNonDivisional && (
+              <table className="wt-lobby-table">
+                <thead>
+                  <tr style={{ background: "transparent", boxShadow: "none" }}>
+                    <th className="wt-lobby-th" style={{ textAlign: "left" }}>Lobby Name</th>
+                    {isNonDivisional && <th className="wt-lobby-th" style={{ textAlign: "left" }}>Division</th>}
+                    <th className="wt-lobby-th" style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
+                    <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Count</th>
+                    <th className="wt-lobby-th" style={{ textAlign: "center" }}>To Be Tested</th>
+                    <th className="wt-lobby-th" style={{ textAlign: "center" }}>Serial Numbers</th>
+                    {!isViewer && <th className="wt-lobby-th" style={{ textAlign: "right" }}>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLobbies.map((l, idx) => {
+                    const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
+                      ? l.walkieTalkies.length
+                      : l.totalWalkieTalkies;
+                    const toBeTested = totalWTs - l.testedCount;
+                    const isCompleted = toBeTested === 0 && totalWTs > 0;
+                    return (
+                      <tr key={l.id} className={`wt-lobby-row ${isCompleted ? "completed" : ""}`} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                         <td className="wt-lobby-cell">
-                          <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "6px" }}>
-                            {l.division}
+                          <strong style={{ fontSize: "14px", color: "var(--navy)", fontWeight: 600 }}>{l.lobbyName}</strong>
+                        </td>
+                        {isNonDivisional && (
+                          <td className="wt-lobby-cell">
+                            <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "6px" }}>
+                              {l.division}
+                            </span>
+                          </td>
+                        )}
+                        <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                          <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1", borderRadius: "6px" }}>{totalWTs}</span>
+                        </td>
+                        <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                          <span className="pill success" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "6px" }}>{l.testedCount}</span>
+                        </td>
+                        <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                          <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}`, borderRadius: "6px" }}>
+                            {toBeTested}
                           </span>
                         </td>
-                      )}
-                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1", borderRadius: "6px" }}>{totalWTs}</span>
-                      </td>
-                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className="pill success" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "6px" }}>{l.testedCount}</span>
-                      </td>
-                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}`, borderRadius: "6px" }}>
-                          {toBeTested}
-                        </span>
-                      </td>
-                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <button
-                          className="action-btn"
-                          onClick={() => {
-                            setViewingLobby(l);
-                            setIsViewSerialsModalOpen(true);
-                          }}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "5px 10px",
-                            borderRadius: "6px",
-                            background: "#eff6ff",
-                            color: "#2563eb",
-                            border: "1px solid #bfdbfe",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            transition: "all 0.15s ease"
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#dbeafe"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#eff6ff"; }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h8" /><path d="M8 17h8" /><path d="M10 9h2" /></svg>
-                          Excel Sheet
-                        </button>
-                      </td>
-                      {!isViewer && (
-                        <td className="wt-lobby-cell" style={{ textAlign: "right", paddingRight: "20px" }}>
-                          <button 
-                            className="action-btn text-blue" 
-                            onClick={() => handleOpenEditModal(l)} 
-                            style={{ 
-                              marginRight: 12, 
+                        <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                          <button
+                            className="action-btn"
+                            onClick={() => {
+                              setViewingLobby(l);
+                              setIsViewSerialsModalOpen(true);
+                            }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
                               padding: "5px 10px",
                               borderRadius: "6px",
-                              background: "#f0fdf4",
-                              color: "#16a34a",
-                              border: "1px solid #bbf7d0",
+                              background: "#eff6ff",
+                              color: "#2563eb",
+                              border: "1px solid #bfdbfe",
                               fontWeight: 600,
                               cursor: "pointer",
                               fontSize: "12px",
                               transition: "all 0.15s ease"
                             }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#bbf7d0"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#f0fdf4"; }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#dbeafe"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#eff6ff"; }}
                           >
-                            Edit
-                          </button>
-                          <button 
-                            className="action-btn text-red" 
-                            onClick={() => handleDeleteLobby(l.id)} 
-                            style={{ 
-                              padding: "5px 10px",
-                              borderRadius: "6px",
-                              background: "#fef2f2",
-                              color: "#ef4444",
-                              border: "1px solid #fee2e2",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              transition: "all 0.15s ease"
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#fee2e2"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fef2f2"; }}
-                          >
-                            Delete
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h8" /><path d="M8 17h8" /><path d="M10 9h2" /></svg>
+                            Excel Sheet
                           </button>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        {!isViewer && (
+                          <td className="wt-lobby-cell" style={{ textAlign: "right", paddingRight: "20px" }}>
+                            <button
+                              className="action-btn text-blue"
+                              onClick={() => handleOpenEditModal(l)}
+                              style={{
+                                marginRight: 12,
+                                padding: "5px 10px",
+                                borderRadius: "6px",
+                                background: "#f0fdf4",
+                                color: "#16a34a",
+                                border: "1px solid #bbf7d0",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#bbf7d0"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#f0fdf4"; }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="action-btn text-red"
+                              onClick={() => handleDeleteLobby(l.id)}
+                              style={{
+                                padding: "5px 10px",
+                                borderRadius: "6px",
+                                background: "#fef2f2",
+                                color: "#ef4444",
+                                border: "1px solid #fee2e2",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#fee2e2"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fef2f2"; }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add / Edit Lobby Modal */}
@@ -7642,13 +7642,26 @@ function ModuleView({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterState, setFilterState] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string[]>([]);
   const [filterAsset, setFilterAsset] = useState("");
+  const [summaryView, setSummaryView] = useState<"Category-wise" | "State-wise">("Category-wise");
+  const [showBalance, setShowBalance] = useState(false);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [expandedStationCode, setExpandedStationCode] = useState<string | null>(null);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null); // "stationCode::CATEGORY"
   const [currentPage, setCurrentPage] = useState(1);
   const [multiStationModalOpen, setMultiStationModalOpen] = useState(false);
+
+  const [selectedSummaryDivision, setSelectedSummaryDivision] = useState("");
+  const [selectedSummaryState, setSelectedSummaryState] = useState("");
+  const [selectedSummaryCategory, setSelectedSummaryCategory] = useState<string[]>([]);
+
+  // Reset summary clicks when global filters change
+  useEffect(() => {
+    setSelectedSummaryDivision("");
+    setSelectedSummaryState("");
+    setSelectedSummaryCategory([]);
+  }, [filterDivision, filterState, filterCategory, filterAsset]);
 
   // Click outside handler for station dropdown
   useEffect(() => {
@@ -7683,8 +7696,9 @@ function ModuleView({
   useEffect(() => {
     setFilterDivision("");
     setFilterState("");
-    setFilterCategory("");
+    setFilterCategory([]);
     setFilterAsset("");
+    setShowBalance(false);
     setFilterPopoverOpen(false);
     setCurrentPage(1);
   }, [activeNav]);
@@ -7721,8 +7735,8 @@ function ModuleView({
     if (filterState) {
       filtered = filtered.filter((s: any) => s.state === filterState);
     }
-    if (filterCategory) {
-      filtered = filtered.filter((s: any) => s.category === filterCategory);
+    if (filterCategory && filterCategory.length > 0) {
+      filtered = filtered.filter((s: any) => filterCategory.includes(s.category));
     }
     if (filterAsset) {
       const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
@@ -7749,8 +7763,8 @@ function ModuleView({
     if (filterDivision) {
       filtered = filtered.filter((s: any) => normalizeDivision(s.division) === filterDivision);
     }
-    if (filterCategory && filterCategory !== "Category-wise") {
-      filtered = filtered.filter((s: any) => s.category === filterCategory);
+    if (filterCategory && filterCategory.length > 0) {
+      filtered = filtered.filter((s: any) => filterCategory.includes(s.category));
     }
     if (filterAsset) {
       const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
@@ -7806,8 +7820,8 @@ function ModuleView({
     if (filterState && filterState !== "State-wise") {
       filteredStations = filteredStations.filter((s: any) => s.state === filterState);
     }
-    if (filterCategory && filterCategory !== "Category-wise") {
-      filteredStations = filteredStations.filter((s: any) => s.category === filterCategory);
+    if (filterCategory && filterCategory.length > 0) {
+      filteredStations = filteredStations.filter((s: any) => filterCategory.includes(s.category));
     }
 
     const stationCodes = new Set(filteredStations.map((s: any) => s.code));
@@ -7836,118 +7850,57 @@ function ModuleView({
 
   const renderSummaryCard = (filteredList: any[]) => {
     if (activeNav !== "Master List") return null;
-    const isFilterSelected = !!(filterDivision || filterState || filterCategory || filterAsset);
-    if (!isFilterSelected) return null;
 
     const headerTitle = filterDivision ? filterDivision : "Overall Divisions";
+    const hasActiveFilters = !!(filterDivision || filterState || filterCategory.length > 0 || filterAsset);
 
     const activeFiltersText = [
-      filterState && (filterState === "State-wise" ? "State-wise" : `State: ${filterState}`),
-      filterCategory && (filterCategory === "Category-wise" ? "Category-wise" : `Category: ${filterCategory}`),
+      filterState && `State: ${filterState}`,
+      filterCategory && filterCategory.length > 0 && `Category: ${filterCategory.join(", ")}`,
       filterAsset && `Telecom Asset: ${filterAsset}`,
+      selectedSummaryDivision && `Division Selection: ${selectedSummaryDivision}`,
+      selectedSummaryState && `State Selection: ${selectedSummaryState}`,
+      selectedSummaryCategory && selectedSummaryCategory.length > 0 && `Category Selection: ${selectedSummaryCategory.join(", ")}`
     ].filter(Boolean).join(" | ");
 
-    // If filterState is active, render State-wise matrix
-    if (filterState) {
-      const cols = Array.from(new Set(stations.map((s: any) => s.state).filter(Boolean))).sort() as string[];
-      const rows = ["Bilaspur", "Nagpur", "Raipur"];
+    const rows = ["Bilaspur", "Nagpur", "Raipur"];
 
-      const matrix: Record<string, Record<string, number>> = {};
+    if (summaryView === "State-wise") {
+      const cols = Array.from(new Set(stations.map((s: any) => s.state).filter(Boolean))).sort() as string[];
+
+      const overallMatrix: Record<string, Record<string, number>> = {};
+      const filteredMatrix: Record<string, Record<string, number>> = {};
       rows.forEach(r => {
-        matrix[r] = {};
+        overallMatrix[r] = {};
+        filteredMatrix[r] = {};
         cols.forEach(c => {
-          matrix[r][c] = 0;
+          overallMatrix[r][c] = 0;
+          filteredMatrix[r][c] = 0;
         });
       });
 
-      filteredList.forEach(item => {
+      stations.forEach((item: any) => {
         const div = normalizeDivision(item.division);
         const st = item.state;
         if (rows.includes(div) && cols.includes(st)) {
-          matrix[div][st] = (matrix[div][st] || 0) + 1;
+          overallMatrix[div][st] = (overallMatrix[div][st] || 0) + 1;
         }
       });
 
-      const colTotals = cols.reduce((acc, c) => {
-        acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
-        return acc;
-      }, {} as Record<string, number>);
-
-      const grandTotal = rows.reduce((sum, r) => {
-        return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
-      }, 0);
-
-      return (
-        <div className="filter-summary-card">
-          <div className="summary-card-header">
-            <h4>
-              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
-            </h4>
-            <span className="total-badge">Total Stations: {filteredList.length}</span>
-          </div>
-          <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
-            <table className="data-table text-center" style={{ margin: 0 }}>
-              <thead>
-                <tr style={{ background: "#114c8f" }}>
-                  <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
-                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
-                  <th style={{ fontWeight: 800 }}>TOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => {
-                  const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
-                  return (
-                    <tr key={r}>
-                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
-                      {cols.map(c => (
-                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
-                          {matrix[r][c] || "-"}
-                        </td>
-                      ))}
-                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
-                        {rowTotal || "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
-                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
-                  {cols.map(c => (
-                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
-                      {colTotals[c] || "-"}
-                    </td>
-                  ))}
-                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
-                    {grandTotal || "-"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
-    // If filterCategory is active, render Category-wise matrix
-    if (filterCategory) {
-      const cols = Array.from(new Set(stations.map((s: any) => s.category).filter(Boolean))).sort() as string[];
-      const rows = ["Bilaspur", "Nagpur", "Raipur"];
+      filteredList.forEach((item: any) => {
+        const div = normalizeDivision(item.division);
+        const st = item.state;
+        if (rows.includes(div) && cols.includes(st)) {
+          filteredMatrix[div][st] = (filteredMatrix[div][st] || 0) + 1;
+        }
+      });
 
       const matrix: Record<string, Record<string, number>> = {};
       rows.forEach(r => {
         matrix[r] = {};
         cols.forEach(c => {
-          matrix[r][c] = 0;
+          matrix[r][c] = showBalance ? (overallMatrix[r][c] - filteredMatrix[r][c]) : filteredMatrix[r][c];
         });
-      });
-
-      filteredList.forEach(item => {
-        const div = normalizeDivision(item.division);
-        const cat = item.category;
-        if (rows.includes(div) && cols.includes(cat)) {
-          matrix[div][cat] = (matrix[div][cat] || 0) + 1;
-        }
       });
 
       const colTotals = cols.reduce((acc, c) => {
@@ -7962,9 +7915,51 @@ function ModuleView({
       return (
         <div className="filter-summary-card">
           <div className="summary-card-header">
-            <h4>
-              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
-            </h4>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+              <div className="summary-toggle-group">
+                <button
+                  type="button"
+                  className="summary-toggle-btn"
+                  onClick={() => setSummaryView("Category-wise")}
+                >
+                  Category-wise
+                </button>
+                <button
+                  type="button"
+                  className="summary-toggle-btn active"
+                  onClick={() => setSummaryView("State-wise")}
+                >
+                  State-wise
+                </button>
+              </div>
+              {hasActiveFilters && (
+                <div className="summary-toggle-group">
+                  <button
+                    type="button"
+                    className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
+                    onClick={() => setShowBalance(false)}
+                    title="Present (Stations with Asset)"
+                    style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    P
+                  </button>
+                  <button
+                    type="button"
+                    className={`summary-toggle-btn ${showBalance ? "active" : ""}`}
+                    onClick={() => setShowBalance(true)}
+                    title="Balance (Stations missing Asset)"
+                    style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    Bal
+                  </button>
+                </div>
+              )}
+              {activeFiltersText && (
+                <span className="summary-active-filters-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+                  ({activeFiltersText})
+                </span>
+              )}
+            </div>
             <span className="total-badge">Total Stations: {filteredList.length}</span>
           </div>
           <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
@@ -7972,7 +7967,17 @@ function ModuleView({
               <thead>
                 <tr style={{ background: "#114c8f" }}>
                   <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
-                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                  {cols.map(c => (
+                    <th
+                      key={c}
+                      className="interactive-summary-cell"
+                      style={{ fontWeight: 800 }}
+                      onClick={() => setSelectedSummaryState(c)}
+                      title={`Filter by State: ${c}`}
+                    >
+                      {c}
+                    </th>
+                  ))}
                   <th style={{ fontWeight: 800 }}>TOTAL</th>
                 </tr>
               </thead>
@@ -7981,26 +7986,86 @@ function ModuleView({
                   const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
                   return (
                     <tr key={r}>
-                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
-                      {cols.map(c => (
-                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
-                          {matrix[r][c] || "-"}
-                        </td>
-                      ))}
-                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
+                      <td
+                        className="interactive-summary-cell"
+                        style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}
+                        onClick={() => setSelectedSummaryDivision(r)}
+                        title={`Filter by Division: ${r}`}
+                      >
+                        {r}
+                      </td>
+                      {cols.map(c => {
+                        const val = matrix[r][c] || 0;
+                        return (
+                          <td
+                            key={c}
+                            className={val > 0 ? "interactive-summary-cell" : ""}
+                            style={{ fontWeight: val > 0 ? "800" : "400", color: val > 0 ? "var(--navy)" : "#94a3b8" }}
+                            onClick={() => {
+                              if (val > 0) {
+                                setSelectedSummaryDivision(r);
+                                setSelectedSummaryState(c);
+                              }
+                            }}
+                            title={val > 0 ? `Filter by Division: ${r}, State: ${c}` : ""}
+                          >
+                            {val || "-"}
+                          </td>
+                        );
+                      })}
+                      <td
+                        className={rowTotal > 0 ? "interactive-summary-cell" : ""}
+                        style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}
+                        onClick={() => {
+                          if (rowTotal > 0) {
+                            setSelectedSummaryDivision(r);
+                          }
+                        }}
+                        title={rowTotal > 0 ? `Filter by Division: ${r}` : ""}
+                      >
                         {rowTotal || "-"}
                       </td>
                     </tr>
                   );
                 })}
                 <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
-                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
-                  {cols.map(c => (
-                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
-                      {colTotals[c] || "-"}
-                    </td>
-                  ))}
-                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
+                  <td
+                    className="interactive-summary-cell"
+                    style={{ fontWeight: 800, textAlign: "center" }}
+                    onClick={() => setSelectedSummaryDivision("")}
+                    title="Show All Divisions"
+                  >
+                    SECR
+                  </td>
+                  {cols.map(c => {
+                    const totalVal = colTotals[c] || 0;
+                    return (
+                      <td
+                        key={c}
+                        className={totalVal > 0 ? "interactive-summary-cell" : ""}
+                        style={{ fontWeight: "800", color: "var(--navy)" }}
+                        onClick={() => {
+                          if (totalVal > 0) {
+                            setSelectedSummaryState(c);
+                          }
+                        }}
+                        title={totalVal > 0 ? `Filter by State: ${c}` : ""}
+                      >
+                        {totalVal || "-"}
+                      </td>
+                    );
+                  })}
+                  <td
+                    className={grandTotal > 0 ? "interactive-summary-cell" : ""}
+                    style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}
+                    onClick={() => {
+                      if (grandTotal > 0) {
+                        setSelectedSummaryDivision("");
+                        setSelectedSummaryState("");
+                      }
+                    }}
+                    title={grandTotal > 0 ? "Reset Division and State Filters" : ""}
+                  >
                     {grandTotal || "-"}
                   </td>
                 </tr>
@@ -8011,31 +8076,215 @@ function ModuleView({
       );
     }
 
-    // Default: flat count list (for Division or Asset filters when category/state are not filtered)
-    const counts: Record<string, number> = {};
-    filteredList.forEach(item => {
-      const div = normalizeDivision(item.division) || "Unknown";
-      counts[div] = (counts[div] || 0) + 1;
+    // Render Category-wise table by default
+    let cols = Array.from(new Set(stations.map((s: any) => s.category).filter(Boolean))).sort() as string[];
+    if (filterCategory && filterCategory.length > 0) {
+      cols = cols.filter(c => filterCategory.includes(c));
+    }
+
+    const overallMatrix: Record<string, Record<string, number>> = {};
+    const filteredMatrix: Record<string, Record<string, number>> = {};
+    rows.forEach(r => {
+      overallMatrix[r] = {};
+      filteredMatrix[r] = {};
+      cols.forEach(c => {
+        overallMatrix[r][c] = 0;
+        filteredMatrix[r][c] = 0;
+      });
     });
 
-    const divisionKeys = Object.keys(counts).sort();
-    if (divisionKeys.length === 0) return null;
+    stations.forEach((item: any) => {
+      const div = normalizeDivision(item.division);
+      const cat = item.category;
+      if (rows.includes(div) && cols.includes(cat)) {
+        overallMatrix[div][cat] = (overallMatrix[div][cat] || 0) + 1;
+      }
+    });
+
+    filteredList.forEach((item: any) => {
+      const div = normalizeDivision(item.division);
+      const cat = item.category;
+      if (rows.includes(div) && cols.includes(cat)) {
+        filteredMatrix[div][cat] = (filteredMatrix[div][cat] || 0) + 1;
+      }
+    });
+
+    const matrix: Record<string, Record<string, number>> = {};
+    rows.forEach(r => {
+      matrix[r] = {};
+      cols.forEach(c => {
+        matrix[r][c] = showBalance ? (overallMatrix[r][c] - filteredMatrix[r][c]) : filteredMatrix[r][c];
+      });
+    });
+
+    const colTotals = cols.reduce((acc, c) => {
+      acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const grandTotal = rows.reduce((sum, r) => {
+      return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
+    }, 0);
 
     return (
       <div className="filter-summary-card">
         <div className="summary-card-header">
-          <h4>
-            {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
-          </h4>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+            <div className="summary-toggle-group">
+              <button
+                type="button"
+                className="summary-toggle-btn active"
+                onClick={() => setSummaryView("Category-wise")}
+              >
+                Category-wise
+              </button>
+              <button
+                type="button"
+                className="summary-toggle-btn"
+                onClick={() => setSummaryView("State-wise")}
+              >
+                State-wise
+              </button>
+            </div>
+            {hasActiveFilters && (
+              <div className="summary-toggle-group">
+                <button
+                  type="button"
+                  className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
+                  onClick={() => setShowBalance(false)}
+                  title="Present (Stations with Asset)"
+                  style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  P
+                </button>
+                <button
+                  type="button"
+                  className={`summary-toggle-btn ${showBalance ? "active" : ""}`}
+                  onClick={() => setShowBalance(true)}
+                  title="Balance (Stations missing Asset)"
+                  style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  B
+                </button>
+              </div>
+            )}
+            {activeFiltersText && (
+              <span className="summary-active-filters-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
+                ({activeFiltersText})
+              </span>
+            )}
+          </div>
           <span className="total-badge">Total Stations: {filteredList.length}</span>
         </div>
-        <div className="summary-card-grid">
-          {divisionKeys.map(div => (
-            <div key={div} className="summary-grid-item">
-              <span className="div-name">{div}</span>
-              <span className="div-count">{counts[div]}</span>
-            </div>
-          ))}
+        <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
+          <table className="data-table text-center" style={{ margin: 0 }}>
+            <thead>
+              <tr style={{ background: "#114c8f" }}>
+                <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
+                {cols.map(c => (
+                  <th
+                    key={c}
+                    className="interactive-summary-cell"
+                    style={{ fontWeight: 800 }}
+                    onClick={() => setSelectedSummaryCategory([c])}
+                    title={`Filter by Category: ${c}`}
+                  >
+                    {c}
+                  </th>
+                ))}
+                <th style={{ fontWeight: 800 }}>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => {
+                const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
+                return (
+                  <tr key={r}>
+                    <td
+                      className="interactive-summary-cell"
+                      style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}
+                      onClick={() => setSelectedSummaryDivision(r)}
+                      title={`Filter by Division: ${r}`}
+                    >
+                      {r}
+                    </td>
+                    {cols.map(c => {
+                      const val = matrix[r][c] || 0;
+                      return (
+                        <td
+                          key={c}
+                          className={val > 0 ? "interactive-summary-cell" : ""}
+                          style={{ fontWeight: val > 0 ? "800" : "400", color: val > 0 ? "var(--navy)" : "#94a3b8" }}
+                          onClick={() => {
+                            if (val > 0) {
+                              setSelectedSummaryDivision(r);
+                              setSelectedSummaryCategory([c]);
+                            }
+                          }}
+                          title={val > 0 ? `Filter by Division: ${r}, Category: ${c}` : ""}
+                        >
+                          {val || "-"}
+                        </td>
+                      );
+                    })}
+                    <td
+                      className={rowTotal > 0 ? "interactive-summary-cell" : ""}
+                      style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}
+                      onClick={() => {
+                        if (rowTotal > 0) {
+                          setSelectedSummaryDivision(r);
+                        }
+                      }}
+                      title={rowTotal > 0 ? `Filter by Division: ${r}` : ""}
+                    >
+                      {rowTotal || "-"}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
+                <td
+                  className="interactive-summary-cell"
+                  style={{ fontWeight: 800, textAlign: "center" }}
+                  onClick={() => setSelectedSummaryDivision("")}
+                  title="Show All Divisions"
+                >
+                  SECR
+                </td>
+                {cols.map(c => {
+                  const totalVal = colTotals[c] || 0;
+                  return (
+                    <td
+                      key={c}
+                      className={totalVal > 0 ? "interactive-summary-cell" : ""}
+                      style={{ fontWeight: "800", color: "var(--navy)" }}
+                      onClick={() => {
+                        if (totalVal > 0) {
+                          setSelectedSummaryCategory([c]);
+                        }
+                      }}
+                      title={totalVal > 0 ? `Filter by Category: ${c}` : ""}
+                    >
+                      {totalVal || "-"}
+                    </td>
+                  );
+                })}
+                <td
+                  className={grandTotal > 0 ? "interactive-summary-cell" : ""}
+                  style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}
+                  onClick={() => {
+                    if (grandTotal > 0) {
+                      setSelectedSummaryDivision("");
+                      setSelectedSummaryCategory([]);
+                    }
+                  }}
+                  title={grandTotal > 0 ? "Reset Division and Category Filters" : ""}
+                >
+                  {grandTotal || "-"}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -8125,7 +8374,7 @@ function ModuleView({
     switch (activeNav) {
       case "Master List": {
         const rawList = queries.stationsQuery.data?.data || [];
-        const list = rawList.filter((s: any) => {
+        const globalFilteredList = rawList.filter((s: any) => {
           const normDiv = normalizeDivision(s.division).toLowerCase();
           const matchesSearch =
             s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -8135,25 +8384,31 @@ function ModuleView({
             (s.state && s.state.toLowerCase().includes(searchTerm.toLowerCase()));
           const matchesDivision = !filterDivision || normalizeDivision(s.division) === filterDivision;
           const matchesState = !filterState || filterState === "State-wise" || s.state === filterState;
-          const matchesCategory = !filterCategory || filterCategory === "Category-wise" || s.category === filterCategory;
-          
+          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(s.category);
+
           let matchesAsset = true;
           if (filterAsset) {
             const stationAssets = (queries.assetsQuery.data?.data || []).filter((a: any) => a.stationCode === s.code);
             const hasDetailedAsset = stationAssets.some((a: any) => isTelecomAssetMatch(getTelecomAssetName(a), filterAsset));
-            
+
             const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
             const hasCheckedAsset = matchedCap ? !!s[matchedCap.key] : false;
-            
+
             matchesAsset = hasDetailedAsset || hasCheckedAsset;
           }
 
           return matchesSearch && matchesDivision && matchesState && matchesCategory && matchesAsset;
         });
-        const paginatedList = list.slice((currentPage - 1) * 50, currentPage * 50);
+        const finalFilteredList = globalFilteredList.filter((s: any) => {
+          const matchesSummaryDivision = !selectedSummaryDivision || normalizeDivision(s.division) === selectedSummaryDivision;
+          const matchesSummaryState = !selectedSummaryState || s.state === selectedSummaryState;
+          const matchesSummaryCategory = selectedSummaryCategory.length === 0 || selectedSummaryCategory.includes(s.category);
+          return matchesSummaryDivision && matchesSummaryState && matchesSummaryCategory;
+        });
+        const paginatedList = finalFilteredList.slice((currentPage - 1) * 50, currentPage * 50);
         return (
           <>
-            {renderSummaryCard(list)}
+            {renderSummaryCard(globalFilteredList)}
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
               <table className="data-table">
                 <thead>
@@ -8430,7 +8685,7 @@ function ModuleView({
                 </tbody>
               </table>
             </div>
-            {renderPagination(list.length)}
+            {renderPagination(finalFilteredList.length)}
           </>
         );
       }
@@ -8451,7 +8706,7 @@ function ModuleView({
           const linkedStation = stations.find((s: any) => s.code === a.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
-          const matchesCategory = !filterCategory || telecomAssetName === filterCategory;
+          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(telecomAssetName);
 
           return matchesSearch && matchesStatus && matchesDivision && matchesState && matchesCategory;
         });
@@ -8516,7 +8771,7 @@ function ModuleView({
           const linkedStation = stations.find((s: any) => s.code === g.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
-          const matchesCategory = !filterCategory || g.category === filterCategory;
+          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(g.category);
 
           return matchesSearch && matchesDivision && matchesState && matchesCategory;
         });
@@ -8855,12 +9110,12 @@ function ModuleView({
 
               <button
                 type="button"
-                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
+                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory.length > 0 || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
                 onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
               >
                 <SlidersHorizontal size={16} />
                 <span>Filters</span>
-                {(filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
+                {(filterDivision || filterState || filterCategory.length > 0 || filterAsset || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
               </button>
 
               {filterPopoverOpen && (
@@ -8883,7 +9138,6 @@ function ModuleView({
                     <label>State</label>
                     <ClearableSelect value={filterState} onChange={setFilterState}>
                       <option value="">All States</option>
-                      {activeNav === "Master List" && <option value="State-wise">State-wise</option>}
                       {dynamicStates.map((st) => (
                         <option key={st} value={st}>{st}</option>
                       ))}
@@ -8893,13 +9147,22 @@ function ModuleView({
                   {/* Category / Telecom Asset Filter */}
                   <div className="filter-group">
                     <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
-                    <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
-                      <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
-                      {activeNav === "Master List" && <option value="Category-wise">Category-wise</option>}
-                      {dynamicCategories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </ClearableSelect>
+                    {activeNav === "Assets" ? (
+                      <ClearableSelect value={filterCategory[0] || ""} onChange={(val) => setFilterCategory(val ? [val] : [])}>
+                        <option value="">All Telecom Assets</option>
+                        {dynamicCategories.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </ClearableSelect>
+                    ) : (
+                      <MultiSelectDropdown
+                        label={null}
+                        options={dynamicCategories}
+                        selected={filterCategory}
+                        onChange={setFilterCategory}
+                        placeholder="All Categories"
+                      />
+                    )}
                   </div>
 
                   {/* Telecom Asset Filter (Master List only) */}
@@ -8920,8 +9183,8 @@ function ModuleView({
                     <div className="filter-group">
                       <label>Status</label>
                       <ClearableSelect
-                          value={assetStatusFilter}
-                          onChange={setAssetStatusFilter}
+                        value={assetStatusFilter}
+                        onChange={setAssetStatusFilter}
                       >
                         <option value="">All Statuses</option>
                         <option value="All Ok">All Ok</option>
@@ -8939,8 +9202,9 @@ function ModuleView({
                       onClick={() => {
                         setFilterDivision("");
                         setFilterState("");
-                        setFilterCategory("");
+                        setFilterCategory([]);
                         setFilterAsset("");
+                        setShowBalance(false);
                         if (activeNav === "Assets") setAssetStatusFilter("");
                         setFilterPopoverOpen(false);
                       }}
@@ -9035,11 +9299,11 @@ function MultiStationSummaryModal({ close, queries }: { close: () => void; queri
   const handleExportCSV = () => {
     if (selectedStations.length === 0) return;
     let csvContent = "data:text/csv;charset=utf-8,";
-    
+
     // Headers
     const headers = ["Station Name", "Station Code", "Division", "State", "Category", "Assets"];
     csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
-    
+
     // Rows
     selectedStations.forEach((s: any) => {
       const activeAssetsText = columns
@@ -9077,7 +9341,7 @@ function MultiStationSummaryModal({ close, queries }: { close: () => void; queri
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    
+
     const tableRows = selectedStations.map((s: any, idx: number) => {
       const activeAssetsText = columns
         .map(col => {
@@ -9272,7 +9536,7 @@ function MultiStationSummaryModal({ close, queries }: { close: () => void; queri
                     transition: "border-color 0.2s",
                   }}
                 />
-                
+
                 {/* Autocomplete Dropdown */}
                 {showDropdown && suggestions.length > 0 && (
                   <div
