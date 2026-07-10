@@ -7774,6 +7774,15 @@ function ModuleView({
         }
       });
 
+      const colTotals = cols.reduce((acc, c) => {
+        acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const grandTotal = rows.reduce((sum, r) => {
+        return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
+      }, 0);
+
       return (
         <div className="filter-summary-card">
           <div className="summary-card-header">
@@ -7785,22 +7794,40 @@ function ModuleView({
           <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
             <table className="data-table text-center" style={{ margin: 0 }}>
               <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ fontWeight: 800, textAlign: "left", paddingLeft: "16px" }}>Division</th>
+                <tr style={{ background: "#114c8f" }}>
+                  <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
                   {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                  <th style={{ fontWeight: 800 }}>TOTAL</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
-                  <tr key={r}>
-                    <td style={{ fontWeight: 700, textAlign: "left", background: "#f8fafc", paddingLeft: "16px" }}>{r}</td>
-                    {cols.map(c => (
-                      <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
-                        {matrix[r][c] || "-"}
+                {rows.map(r => {
+                  const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
+                  return (
+                    <tr key={r}>
+                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
+                      {cols.map(c => (
+                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                          {matrix[r][c] || "-"}
+                        </td>
+                      ))}
+                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
+                        {rowTotal || "-"}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
+                <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
+                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
+                  {cols.map(c => (
+                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
+                      {colTotals[c] || "-"}
+                    </td>
+                  ))}
+                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
+                    {grandTotal || "-"}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -7829,6 +7856,15 @@ function ModuleView({
         }
       });
 
+      const colTotals = cols.reduce((acc, c) => {
+        acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const grandTotal = rows.reduce((sum, r) => {
+        return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
+      }, 0);
+
       return (
         <div className="filter-summary-card">
           <div className="summary-card-header">
@@ -7840,22 +7876,40 @@ function ModuleView({
           <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
             <table className="data-table text-center" style={{ margin: 0 }}>
               <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ fontWeight: 800, textAlign: "left", paddingLeft: "16px" }}>Division</th>
+                <tr style={{ background: "#114c8f" }}>
+                  <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
                   {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                  <th style={{ fontWeight: 800 }}>TOTAL</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
-                  <tr key={r}>
-                    <td style={{ fontWeight: 700, textAlign: "left", background: "#f8fafc", paddingLeft: "16px" }}>{r}</td>
-                    {cols.map(c => (
-                      <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
-                        {matrix[r][c] || "-"}
+                {rows.map(r => {
+                  const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
+                  return (
+                    <tr key={r}>
+                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
+                      {cols.map(c => (
+                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                          {matrix[r][c] || "-"}
+                        </td>
+                      ))}
+                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
+                        {rowTotal || "-"}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
+                <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
+                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
+                  {cols.map(c => (
+                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
+                      {colTotals[c] || "-"}
+                    </td>
+                  ))}
+                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
+                    {grandTotal || "-"}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -8009,15 +8063,15 @@ function ModuleView({
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
               <table className="data-table">
                 <thead>
-                  <tr>
-                    <th style={{ width: "60px" }}>#</th>
-                    <th>Division</th>
-                    <th>Station Name</th>
-                    <th>Code</th>
-                    <th>State</th>
-                    <th>Category</th>
-                    <th>Telecom Assets</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
+                  <tr style={{ background: "#114c8f" }}>
+                    <th style={{ width: "80px", textAlign: "center" }}>S.No.</th>
+                    <th style={{ textAlign: "center" }}>Division</th>
+                    <th style={{ textAlign: "center" }}>Station Name</th>
+                    <th style={{ textAlign: "center" }}>Code</th>
+                    <th style={{ textAlign: "center" }}>State</th>
+                    <th style={{ textAlign: "center" }}>Category</th>
+                    <th style={{ textAlign: "center" }}>Telecom Assets</th>
+                    <th style={{ textAlign: "center" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

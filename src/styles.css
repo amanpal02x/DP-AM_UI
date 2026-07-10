@@ -5330,3 +5330,121 @@ path:focus {
   vertical-align: middle;
   margin-right: 6px;
 }
+
+/* Filter Summary Card styling */
+.filter-summary-card {
+  padding: 12px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  margin-bottom: 0;
+}
+
+.summary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.summary-card-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--navy);
+  letter-spacing: -0.01em;
+}
+
+.summary-card-header .total-badge {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  color: var(--navy);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* Custom Table Polish */
+table.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+table.data-table th,
+table.data-table td {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  text-align: center !important; /* Center-align all headers and values */
+}
+
+table.data-table th:last-child,
+table.data-table td:last-child {
+  border-right: none;
+}
+
+table.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+table.data-table th {
+  background: #114c8f !important; /* Brand blue matching sidebar */
+  color: #ffffff !important;         /* White text */
+  font-weight: 750;
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important; /* Soft border between dark headers */
+}
+
+table.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.summary-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.summary-grid-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.summary-grid-item:hover {
+  border-color: var(--blue);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
+}
+
+.summary-grid-item .div-name {
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.summary-grid-item .div-count {
+  font-weight: 800;
+  color: var(--blue);
+  background: var(--blue-soft);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
