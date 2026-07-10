@@ -169,7 +169,7 @@ const TELECOM_ASSET_CHECKS = [
   { key: "hasTrainIndicationBoard", label: "Train Indication Board" },
   { key: "hasDigitalDisplayHeritage", label: "Heritage Digital Display" },
   { key: "hasAtAGlanceBoard", label: "At A Glance Board" },
-  { key: "hasCctvDe", label: "CCTV DE" }
+  { key: "hasCctvDe", label: "CCTV DNE" }
 ];
 
 const normalizeAssetText = (value: any) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -9936,7 +9936,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
     { key: "hasTrainIndicationBoard", label: "Train Indication Board" },
     { key: "hasDigitalDisplayHeritage", label: "Heritage Digital Display" },
     { key: "hasAtAGlanceBoard", label: "At A Glance Board" },
-    { key: "hasCctvDe", label: "CCTV DE" }
+    { key: "hasCctvDe", label: "CCTV D&E" }
   ];
 
   return (
