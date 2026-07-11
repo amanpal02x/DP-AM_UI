@@ -24,17 +24,20 @@ async function initSession() {
   if (session) {
     // Sync Supabase access token to localStorage so the apiClient.ts can read it
     localStorage.setItem("telecom_jwt_token", session.access_token);
+
+    // Fetch the full user object separately (we stripped it from cookie to save space)
+    const { data: { user } } = await supabase.auth.getUser();
     
     // Sync user metadata to localStorage for profile details
-      const meta = session.user.user_metadata || {};
-      const userObj = {
-        id: session.user.id,
-        username: session.user.email || session.user.phone,
-        name: meta.workerName || meta.fullName || session.user.email?.split('@')[0] || session.user.phone || 'User',
-        role: (meta.role || 'user').toUpperCase(),
-        division: meta.division || 'BSP-HQ'
-      };
-      localStorage.setItem("telecom_user", JSON.stringify(userObj));
+    const meta = (user?.user_metadata) || {};
+    const userObj = {
+      id: user?.id || '',
+      username: user?.email || user?.phone,
+      name: meta.workerName || meta.fullName || user?.email?.split('@')[0] || user?.phone || 'User',
+      role: (meta.role || 'user').toUpperCase(),
+      division: meta.division || 'BSP-HQ'
+    };
+    localStorage.setItem("telecom_user", JSON.stringify(userObj));
     
     // Render the React application
     renderApp();
