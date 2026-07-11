@@ -21,8 +21,16 @@ const customCookieStorage = {
     return null;
   },
   setItem(key: string, value: string): void {
+    let valueToStore = value;
+    if (key.endsWith('-auth-token')) {
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed.user) delete parsed.user;
+        valueToStore = JSON.stringify(parsed);
+      } catch (e) {}
+    }
     // Write session cookie to wildcard domain .secrtelecom.com
-    document.cookie = `${key}=${encodeURIComponent(value)};path=/;domain=.secrtelecom.com;SameSite=Lax;Secure`;
+    document.cookie = `${key}=${encodeURIComponent(valueToStore)};path=/;domain=.secrtelecom.com;SameSite=Lax;Secure`;
   },
   removeItem(key: string): void {
     // Expire/remove cookie
