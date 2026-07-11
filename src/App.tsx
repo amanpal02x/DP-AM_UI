@@ -1096,6 +1096,18 @@ function App() {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [viewCategoryFaults, setViewCategoryFaults] = useState<string | null>(null);
 
+  // Fetch maintenance status
+  const maintenanceQuery = useQuery({
+    queryKey: ["maintenance-status"],
+    queryFn: async () => {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://dp-am-backend.onrender.com";
+      const res = await fetch(`${baseUrl}/api/maintenance`);
+      if (!res.ok) throw new Error("Failed to fetch maintenance status");
+      return res.json();
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
+
   // Reset category faults page view when activeNav changes
   useEffect(() => {
     setViewCategoryFaults(null);
@@ -1281,6 +1293,113 @@ function App() {
         <AuthView showToast={showToast} />
         <Toast message={toast} />
       </>
+    );
+  }
+
+  if (token && maintenanceQuery.data?.maintenance) {
+    return (
+      <div className="maintenance-fullscreen-wrapper" style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 99999,
+        fontFamily: "'Inter', sans-serif",
+        padding: "20px",
+        textAlign: "center"
+      }}>
+        <style>{`
+          @keyframes maintenancePulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes maintenanceSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .animate-pulse-custom {
+            animation: maintenancePulse 2s infinite ease-in-out;
+          }
+          .animate-spin-custom {
+            animation: maintenanceSpin 8s infinite linear;
+          }
+        `}</style>
+        <div style={{
+          background: "rgba(255, 255, 255, 0.05)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: "24px",
+          padding: "50px 40px",
+          maxWidth: "550px",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center"
+        }}>
+          <div className="animate-pulse-custom" style={{
+            width: "80px",
+            height: "80px",
+            background: "rgba(245, 158, 11, 0.15)",
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            marginBottom: "28px",
+            boxShadow: "0 0 20px rgba(245, 158, 11, 0.2)"
+          }}>
+            <Wrench size={40} className="animate-spin-custom" style={{ color: "#f59e0b" }} />
+          </div>
+          <h1 style={{
+            fontSize: "28px",
+            fontWeight: 800,
+            marginBottom: "16px",
+            letterSpacing: "-0.025em",
+            background: "linear-gradient(to right, #f59e0b, #facc15)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            margin: "0 0 16px 0"
+          }}>
+            System Under Maintenance
+          </h1>
+          <p style={{
+            fontSize: "15px",
+            color: "#94a3b8",
+            lineHeight: 1.6,
+            marginBottom: "32px",
+            fontWeight: 500,
+            margin: "0 0 32px 0"
+          }}>
+            {maintenanceQuery.data?.message || "The server is currently undergoing scheduled maintenance. Please try again shortly."}
+          </p>
+          <div style={{
+            fontSize: "12px",
+            color: "#64748b",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "rgba(255, 255, 255, 0.02)",
+            padding: "8px 16px",
+            borderRadius: "50px",
+            border: "1px solid rgba(255, 255, 255, 0.05)"
+          }}>
+            <div style={{
+              width: "6px",
+              height: "6px",
+              background: "#10b981",
+              borderRadius: "50%",
+              animation: "maintenancePulse 1.5s infinite"
+            }} />
+            Checking status in background...
+          </div>
+        </div>
+      </div>
     );
   }
 
