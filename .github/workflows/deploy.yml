@@ -9,77 +9,69 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
+  REGION: us-central1
   SERVICE_NAME: dp-am-ui
-  # Under GCP Artifact Registry, create a repository named 'dp-am-repo' or change this value
-  REGISTRY_NAME: dp-am-repo
+  REGISTRY_NAME: dpam-repo
 
 jobs:
   deploy:
     name: Deploy to GCP Cloud Run
     runs-on: ubuntu-latest
 
-    # Add id-token: write permission to allow Workload Identity Federation authentication
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
-      # Step 1: Checkout the repository code
       - name: Checkout Code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
 
-      # Step 2: Authenticate with Google Cloud via OIDC/Workload Identity Federation
       - name: Authenticate to Google Cloud
         id: auth
-        uses: google-github-actions/auth@71fee32a0bb7e9ad05985017281d1a1d0a79f642 # v2.1.2
+        uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           token_format: 'access_token'
+          workload_identity_provider: projects/471971608165/locations/global/workloadIdentityPools/rail-pr/providers/rail-pr
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
 
-      # Step 3: Login to Artifact Registry
       - name: Google Artifact Registry Login
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGION }}-docker.pkg.dev
           username: 'oauth2accesstoken'
           password: ${{ steps.auth.outputs.access_token }}
 
-      # Step 4: Set up Docker Buildx for optimization and caching support
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@988b5a0280414f521da01fbc1447f1837b750658 # v3.6.1
+        uses: docker/setup-buildx-action@v3
 
-      # Step 5: Build and push the Docker image
-      # Utilizes GHA Cache to make rebuilds/re-deployments incredibly fast
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@5cd15855d7fdd75b7b6c7be185333f28cf01f11a # v6.7.0
+        uses: docker/build-push-action@v6
         with:
           context: ./
           file: ./Dockerfile
           push: true
+          build-args: |
+            VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           tags: |
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REGISTRY_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REGISTRY_NAME }}/${{ env.SERVICE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Step 6: Deploy the container image to Google Cloud Run
       - name: Deploy to Cloud Run
         id: deploy
-        uses: google-github-actions/deploy-cloudrun@26fb37294d3ae7207604a11f207c455d31980895 # v2.2.0
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REGISTRY_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          # Cloud Run service settings (adjust these according to your application's requirements)
           flags: |
             --allow-unauthenticated
             --max-instances=10
-            --min-instances=0
+            --min-instances=1
             --cpu=1
             --memory=512Mi
 
-      # Step 7: Output the service URL for verification
       - name: Show Service URL
         run: echo "UI deployed successfully! URL is ${{ steps.deploy.outputs.url }}"
