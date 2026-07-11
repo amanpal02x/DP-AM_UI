@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import App from "./App";
+import App, { useAppStore } from "./App";
 import "./styles.css";
 import { supabase } from "./utils/supabaseClient";
 
@@ -38,6 +38,13 @@ async function initSession() {
       division: meta.division || 'BSP-HQ'
     };
     localStorage.setItem("telecom_user", JSON.stringify(userObj));
+
+    // CRITICAL: Update the Zustand store directly before rendering.
+    // The store initializes at import time (before initSession runs), so it
+    // reads a null token from localStorage. We must push the live values in
+    // so App() renders the dashboard instead of the login screen.
+    useAppStore.getState().setToken(session.access_token);
+    useAppStore.getState().setUser(userObj);
     
     // Render the React application
     renderApp();
