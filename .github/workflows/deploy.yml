@@ -31,7 +31,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: 'access_token'
-          workload_identity_provider: projects/471971608165/locations/global/workloadIdentityPools/rail-pr/providers/rail-pr
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
       - name: Google Artifact Registry Login
