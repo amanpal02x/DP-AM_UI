@@ -26,17 +26,15 @@ async function initSession() {
     localStorage.setItem("telecom_jwt_token", session.access_token);
     
     // Sync user metadata to localStorage for profile details
-    if (!localStorage.getItem("telecom_user")) {
       const meta = session.user.user_metadata || {};
       const userObj = {
         id: session.user.id,
-        username: session.user.email,
-        name: meta.workerName || meta.fullName || session.user.email?.split('@')[0],
+        username: session.user.email || session.user.phone,
+        name: meta.workerName || meta.fullName || session.user.email?.split('@')[0] || session.user.phone || 'User',
         role: (meta.role || 'user').toUpperCase(),
         division: meta.division || 'BSP-HQ'
       };
       localStorage.setItem("telecom_user", JSON.stringify(userObj));
-    }
     
     // Render the React application
     renderApp();
