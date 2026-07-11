@@ -1,3 +1,5 @@
+import { supabase } from '../utils/supabaseClient';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dp-am-backend.onrender.com";
 
 // Retrieve token from local storage
@@ -67,10 +69,18 @@ async function request<T>(
   const response = await fetch(`${API_BASE_URL}${path}`, options);
 
   if (response.status === 401) {
-    // Auto logout on token expiration/invalid
+    // Clear local credentials
     setAuthToken(null);
     setCachedUser(null);
-    window.location.reload();
+    // Sign out of Supabase so the cookie is removed too, then redirect to
+    // central login. Never call window.location.reload() here — that would
+    // create an infinite loop: cookie present → 401 → reload → 401 → …
+    supabase.auth.signOut().finally(() => {
+      window.location.href = 'https://secrtelecom.com/login?redirect_to=' + encodeURIComponent(window.location.origin);
+    });
+    // Return a rejected promise so the caller's .catch() fires instead of
+    // continuing to try to parse the response body
+    return Promise.reject(new Error('Session expired. Redirecting to login.')) as any;
   }
 
   const resJson = await response.json();
