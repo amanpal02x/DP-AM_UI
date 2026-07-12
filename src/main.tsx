@@ -96,7 +96,7 @@ async function initSession() {
     // Render the React application
     renderApp();
   } else {
-    window.alert("Session is null! Redirecting to central portal...");
+    window.alert("Session is null! Redirecting to central portal... Cookies present: " + document.cookie);
     // Clear storage and redirect to central portal
     localStorage.removeItem("telecom_jwt_token");
     localStorage.removeItem("telecom_user");
