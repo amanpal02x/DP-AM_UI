@@ -132,8 +132,15 @@ async function initSession() {
     const appName = "DP&AM";
     const subdomain = "dpam";
     const origin = window.location.origin;
-    const path = window.location.pathname + window.location.search + window.location.hash;
-    window.location.href = `https://secrtelecom.com/login?app=${encodeURIComponent(appName)}&subdomain=${subdomain}&path=${encodeURIComponent(path)}&redirect_to=${encodeURIComponent(origin)}`;
+    
+    // Clean path to prevent redirect loops containing authentication tokens
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('access_token');
+    urlParams.delete('refresh_token');
+    const searchStr = urlParams.toString();
+    const cleanPath = window.location.pathname + (searchStr ? '?' + searchStr : '') + window.location.hash;
+    
+    window.location.href = `https://secrtelecom.com/login?app=${encodeURIComponent(appName)}&subdomain=${subdomain}&path=${encodeURIComponent(cleanPath)}&redirect_to=${encodeURIComponent(origin)}`;
   }
 }
 
