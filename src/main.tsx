@@ -60,42 +60,49 @@ function showLoopError() {
 }
 
 async function initSession() {
-  // ── LOOP GUARD: Stop redirecting after 2 attempts in 15 seconds ──
-  const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
-  const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
   const now = Date.now();
-
-  if (redirectTs > 0 && (now - redirectTs) < 15000 && redirectCount >= 2) {
-    console.error('[SSO] Redirect loop detected after', redirectCount, 'attempts. Stopping.');
-    sessionStorage.removeItem('_dpam_redirect_ts');
-    sessionStorage.removeItem('_dpam_redirect_count');
-    localStorage.removeItem('telecom_jwt_token');
-    localStorage.removeItem('telecom_user');
-    showLoopError();
-    return;
-  }
 
   let accessToken: string | null = null;
 
-  // ── Step 1: URL query parameters (SSO redirect from portal — highest priority) ──
+  // ── Step 1: URL query parameters (SSO redirect from portal — ALWAYS check first) ──
+  // Must happen BEFORE the loop guard so a successful login always gets through.
   const urlParams = new URLSearchParams(window.location.search);
   const urlAccessToken = urlParams.get('access_token');
   const urlRefreshToken = urlParams.get('refresh_token');
 
   if (urlAccessToken) {
-    // Strip tokens from URL bar FIRST before anything else runs
+    // Strip tokens from URL bar immediately
     urlParams.delete('access_token');
     urlParams.delete('refresh_token');
     const cleanSearch = urlParams.toString();
     const cleanUrl = window.location.pathname + (cleanSearch ? '?' + cleanSearch : '') + window.location.hash;
     window.history.replaceState({}, '', cleanUrl);
 
-    // Trust URL tokens from portal — use directly without expiry check
-    // (Portal just generated them; they cannot be expired)
+    // A fresh token from the portal — always valid, reset loop guard
     accessToken = urlAccessToken;
     localStorage.setItem('telecom_jwt_token', accessToken);
     if (urlRefreshToken) {
       localStorage.setItem('telecom_refresh_token', urlRefreshToken);
+    }
+    // Clear any stale loop-guard counters so this clean login is never blocked
+    sessionStorage.removeItem('_dpam_redirect_ts');
+    sessionStorage.removeItem('_dpam_redirect_count');
+  }
+
+  // ── LOOP GUARD: Stop redirecting after 2 failed attempts in 15 seconds ──
+  // Only reached when there is NO access_token in the URL (i.e. NOT a portal redirect).
+  if (!accessToken) {
+    const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
+    const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
+
+    if (redirectTs > 0 && (now - redirectTs) < 15000 && redirectCount >= 2) {
+      console.error('[SSO] Redirect loop detected after', redirectCount, 'attempts. Stopping.');
+      sessionStorage.removeItem('_dpam_redirect_ts');
+      sessionStorage.removeItem('_dpam_redirect_count');
+      localStorage.removeItem('telecom_jwt_token');
+      localStorage.removeItem('telecom_user');
+      showLoopError();
+      return;
     }
   }
 
@@ -148,6 +155,8 @@ async function initSession() {
   } else {
     // No valid token — redirect to portal login
     // Record this redirect attempt for loop detection
+    const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
+    const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
     const newCount = (redirectTs > 0 && (now - redirectTs) < 15000) ? redirectCount + 1 : 1;
     sessionStorage.setItem('_dpam_redirect_ts', String(now));
     sessionStorage.setItem('_dpam_redirect_count', String(newCount));
