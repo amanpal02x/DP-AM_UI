@@ -21,8 +21,37 @@ async function initSession() {
   // Read the shared session cookie
   let { data: { session } } = await supabase.auth.getSession();
   
-  // Robust fallback: if Supabase fails to read the stripped session cookie,
-  // extract the access_token and refresh_token directly from document.cookie and set it manually.
+  // High-priority fallback: check URL query parameters for access_token and refresh_token
+  // (Bypasses Incognito cookie block completely!)
+  if (!session) {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAccessToken = urlParams.get('access_token');
+      const urlRefreshToken = urlParams.get('refresh_token');
+      
+      if (urlAccessToken && urlRefreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: urlAccessToken,
+          refresh_token: urlRefreshToken
+        });
+        if (error) {
+          window.alert("URL setSession Error: " + error.message);
+        } else {
+          session = data.session;
+          // Strip tokens from URL bar immediately to hide them from the user
+          urlParams.delete('access_token');
+          urlParams.delete('refresh_token');
+          const cleanSearch = urlParams.toString();
+          const cleanUrl = window.location.pathname + (cleanSearch ? '?' + cleanSearch : '') + window.location.hash;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      }
+    } catch (urlErr: any) {
+      window.alert("URL session restore failed: " + urlErr.message);
+    }
+  }
+  
+  // Secondary fallback: cookie parsing
   if (!session) {
     try {
       const cookieName = 'sb-qfjerdspejaapggtvtwu-auth-token=';
