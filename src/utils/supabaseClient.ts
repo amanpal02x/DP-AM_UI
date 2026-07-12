@@ -43,6 +43,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: customCookieStorage,
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: false  // We handle URL tokens manually in main.tsx to avoid double-setSession loops
   },
 });
