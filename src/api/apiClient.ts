@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabaseClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dp-am-backend.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dpam-server-471971608165.us-central1.run.app";
 
 // Retrieve token from local storage
 export function getAuthToken(): string | null {
