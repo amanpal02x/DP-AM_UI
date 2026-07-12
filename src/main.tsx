@@ -31,11 +31,11 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
   }
 }
 
-// Check if JWT is not expired (with 60s buffer)
+// Check if JWT is not expired (with 10s buffer)
 function isTokenExpired(token: string): boolean {
   const payload = decodeJwtPayload(token);
   if (!payload?.exp) return true;
-  return payload.exp < (Date.now() / 1000) + 60;
+  return payload.exp < (Date.now() / 1000) + 10;
 }
 
 function showLoopError() {

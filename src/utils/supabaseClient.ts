@@ -33,7 +33,10 @@ const customCookieStorage = {
     document.cookie = `${key}=${encodeURIComponent(valueToStore)};path=/;domain=.secrtelecom.com;SameSite=Lax;Secure`;
   },
   removeItem(key: string): void {
-    // Expire/remove cookie locally only. DO NOT delete wildcard domain cookie!
+    // Must specify domain=.secrtelecom.com to actually remove the wildcard cookie.
+    // Without the domain attribute, the browser removes a different (non-existent) cookie.
+    document.cookie = `${key}=;path=/;domain=.secrtelecom.com;expires=Thu, 01 Jan 1970 00:00:00 UTC;SameSite=Lax;Secure`;
+    // Also clear the local (non-wildcard) version as a safety net
     document.cookie = `${key}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC;SameSite=Lax;Secure`;
   }
 };
