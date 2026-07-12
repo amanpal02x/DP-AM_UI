@@ -19,7 +19,37 @@ const queryClient = new QueryClient({
 
 async function initSession() {
   // Read the shared session cookie
-  const { data: { session } } = await supabase.auth.getSession();
+  let { data: { session } } = await supabase.auth.getSession();
+  
+  // Robust fallback: if Supabase fails to read the stripped session cookie,
+  // extract the access_token and refresh_token directly from document.cookie and set it manually.
+  if (!session) {
+    try {
+      const cookieName = 'sb-qfjerdspejaapggtvtwu-auth-token=';
+      const decodedCookie = decodeURIComponent(document.cookie);
+      const ca = decodedCookie.split(';');
+      let cookieValue = '';
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(cookieName) === 0) {
+          cookieValue = c.substring(cookieName.length, c.length);
+          break;
+        }
+      }
+      if (cookieValue) {
+        const parsed = JSON.parse(cookieValue);
+        if (parsed.access_token && parsed.refresh_token) {
+          const { data } = await supabase.auth.setSession({
+            access_token: parsed.access_token,
+            refresh_token: parsed.refresh_token
+          });
+          session = data.session;
+        }
+      }
+    } catch (e) {
+      console.error("Manual cookie session restore failed:", e);
+    }
+  }
   
   if (session) {
     // Sync Supabase access token to localStorage so the apiClient.ts can read it
