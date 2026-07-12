@@ -40,27 +40,39 @@ async function initSession() {
         try {
           const parsed = JSON.parse(decodeURIComponent(cookieValue));
           if (parsed.access_token && parsed.refresh_token) {
-            const { data } = await supabase.auth.setSession({
+            const { data, error } = await supabase.auth.setSession({
               access_token: parsed.access_token,
               refresh_token: parsed.refresh_token
             });
+            if (error) {
+              window.alert("Supabase setSession Error: " + error.message);
+            }
             session = data.session;
           }
-        } catch (jsonErr) {
-          console.error("JSON parsing of cookie value failed:", jsonErr);
+        } catch (jsonErr: any) {
+          window.alert("JSON parsing of cookie failed: " + jsonErr.message);
         }
       }
-    } catch (e) {
-      console.error("Manual cookie session restore failed:", e);
+    } catch (e: any) {
+      window.alert("Cookie session restore error: " + e.message);
     }
   }
   
   if (session) {
-    // Sync Supabase access token to localStorage so the apiClient.ts can read it
+    window.alert("Session recovered successfully! Token: " + session.access_token.substring(0, 15) + "...");
     localStorage.setItem("telecom_jwt_token", session.access_token);
 
     // Fetch the full user object separately (we stripped it from cookie to save space)
-    const { data: { user } } = await supabase.auth.getUser();
+    let user = null;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+      if (!user) {
+        window.alert("Supabase getUser returned null user profile!");
+      }
+    } catch (userErr: any) {
+      window.alert("Supabase getUser threw exception: " + userErr.message);
+    }
     
     // Sync user metadata to localStorage for profile details
     const meta = (user?.user_metadata) || {};
@@ -80,9 +92,11 @@ async function initSession() {
     useAppStore.getState().setToken(session.access_token);
     useAppStore.getState().setUser(userObj);
     
+    window.alert("Successfully set Zustand store! Rendering app...");
     // Render the React application
     renderApp();
   } else {
+    window.alert("Session is null! Redirecting to central portal...");
     // Clear storage and redirect to central portal
     localStorage.removeItem("telecom_jwt_token");
     localStorage.removeItem("telecom_user");
