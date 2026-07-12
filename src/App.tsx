@@ -578,9 +578,9 @@ export const useAppStore = create<AppState>((set) => ({
     setAuthToken(null);
     setCachedUser(null);
     set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
-    // Sign out from Supabase to clear cookies and redirect to the central portal login
+    // Sign out from Supabase to clear cookies and redirect to the central portal home
     supabase.auth.signOut().finally(() => {
-      window.location.href = 'https://secrtelecom.com/login?redirect_to=' + encodeURIComponent(window.location.origin);
+      window.location.href = 'https://secrtelecom.com/';
     });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
