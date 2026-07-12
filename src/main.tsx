@@ -65,38 +65,66 @@ async function initSession() {
   let accessToken: string | null = null;
 
   // ── Step 1: URL query parameters (SSO redirect from portal — ALWAYS check first) ──
-  // Must happen BEFORE the loop guard so a successful login always gets through.
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlAccessToken = urlParams.get('access_token');
-  const urlRefreshToken = urlParams.get('refresh_token');
+  let refreshToken: string | null = null;
 
-  if (urlAccessToken) {
-    // Strip tokens from URL bar immediately
-    urlParams.delete('access_token');
-    urlParams.delete('refresh_token');
-    const cleanSearch = urlParams.toString();
-    const cleanUrl = window.location.pathname + (cleanSearch ? '?' + cleanSearch : '') + window.location.hash;
-    window.history.replaceState({}, '', cleanUrl);
+  // ── Step 1a: URL hash fragment — Supabase's default redirect format ──
+  // e.g. position.secrtelecom.com/#access_token=...&refresh_token=...
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const hashAccessToken = hashParams.get('access_token');
+  const hashRefreshToken = hashParams.get('refresh_token');
 
-    // A fresh token from the portal — always valid, reset loop guard
-    accessToken = urlAccessToken;
-    localStorage.setItem('telecom_jwt_token', accessToken);
-    if (urlRefreshToken) {
-      localStorage.setItem('telecom_refresh_token', urlRefreshToken);
+  if (hashAccessToken) {
+    console.log('[SSO] Token found in URL hash fragment');
+    accessToken = hashAccessToken;
+    refreshToken = hashRefreshToken;
+    // Clear hash from URL immediately
+    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+  }
+
+  // ── Step 1b: URL query parameters — custom portal redirect format ──
+  // e.g. position.secrtelecom.com/?access_token=...
+  if (!accessToken) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlAccessToken = urlParams.get('access_token');
+    const urlRefreshToken = urlParams.get('refresh_token');
+
+    if (urlAccessToken) {
+      console.log('[SSO] Token found in URL query params');
+      accessToken = urlAccessToken;
+      refreshToken = urlRefreshToken;
+      urlParams.delete('access_token');
+      urlParams.delete('refresh_token');
+      const cleanSearch = urlParams.toString();
+      window.history.replaceState({}, '', window.location.pathname + (cleanSearch ? '?' + cleanSearch : ''));
     }
-    // Clear any stale loop-guard counters so this clean login is never blocked
+  }
+
+  // If we got a token from the URL, store it and clear any loop counters
+  if (accessToken) {
+    localStorage.setItem('telecom_jwt_token', accessToken);
+    if (refreshToken) localStorage.setItem('telecom_refresh_token', refreshToken);
+    // Tell Supabase about this session so it can refresh it later
+    try {
+      if (refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        console.log('[SSO] Supabase session established from URL token');
+      }
+    } catch (e: any) {
+      console.warn('[SSO] Could not set Supabase session:', e.message);
+    }
+    // Clear stale loop-guard counters — this is a fresh login
     sessionStorage.removeItem('_dpam_redirect_ts');
     sessionStorage.removeItem('_dpam_redirect_count');
   }
 
-  // ── LOOP GUARD: Stop redirecting after 2 failed attempts in 15 seconds ──
-  // Only reached when there is NO access_token in the URL (i.e. NOT a portal redirect).
+  // ── LOOP GUARD — only when no URL token was present ──
   if (!accessToken) {
     const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
     const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
+    console.log(`[SSO] No URL token. Loop guard: count=${redirectCount}, age=${now - redirectTs}ms`);
 
-    if (redirectTs > 0 && (now - redirectTs) < 15000 && redirectCount >= 2) {
-      console.error('[SSO] Redirect loop detected after', redirectCount, 'attempts. Stopping.');
+    if (redirectTs > 0 && (now - redirectTs) < 30000 && redirectCount >= 3) {
+      console.error('[SSO] Redirect loop detected — stopping after', redirectCount, 'attempts.');
       sessionStorage.removeItem('_dpam_redirect_ts');
       sessionStorage.removeItem('_dpam_redirect_count');
       localStorage.removeItem('telecom_jwt_token');
@@ -109,15 +137,17 @@ async function initSession() {
   // ── Step 2: Stored token in localStorage ──
   if (!accessToken) {
     const stored = localStorage.getItem('telecom_jwt_token');
+    console.log('[SSO] localStorage token:', stored ? `found (expired=${isTokenExpired(stored)})` : 'none');
     if (stored && !isTokenExpired(stored)) {
       accessToken = stored;
     }
   }
 
-  // ── Step 3: Supabase cookie session ──
+  // ── Step 3: Supabase cookie/storage session ──
   if (!accessToken) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('[SSO] Supabase session:', session ? `found (expired=${isTokenExpired(session.access_token)})` : `none (${error?.message})`);
       if (session?.access_token && !isTokenExpired(session.access_token)) {
         accessToken = session.access_token;
         localStorage.setItem('telecom_jwt_token', accessToken);
@@ -129,11 +159,10 @@ async function initSession() {
 
   // ── Step 4: Render or redirect ──
   if (accessToken) {
-    // Success — reset loop counter
+    console.log('[SSO] ✅ Session established — rendering app');
     sessionStorage.removeItem('_dpam_redirect_ts');
     sessionStorage.removeItem('_dpam_redirect_count');
 
-    // Decode user info from JWT (no network call needed)
     const payload = decodeJwtPayload(accessToken);
     const rawPhone = (payload?.phone as string) || '';
     const userPhone = rawPhone.replace(/^\+?91/, '') || rawPhone;
@@ -154,10 +183,10 @@ async function initSession() {
     renderApp();
   } else {
     // No valid token — redirect to portal login
-    // Record this redirect attempt for loop detection
     const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
     const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
-    const newCount = (redirectTs > 0 && (now - redirectTs) < 15000) ? redirectCount + 1 : 1;
+    const newCount = (redirectTs > 0 && (now - redirectTs) < 30000) ? redirectCount + 1 : 1;
+    console.warn(`[SSO] ❌ No token found — redirecting to portal (attempt ${newCount})`);
     sessionStorage.setItem('_dpam_redirect_ts', String(now));
     sessionStorage.setItem('_dpam_redirect_count', String(newCount));
 
@@ -165,7 +194,7 @@ async function initSession() {
     localStorage.removeItem('telecom_user');
 
     const origin = window.location.origin;
-    const cleanPath = window.location.pathname + window.location.hash;
+    const cleanPath = window.location.pathname;
     window.location.href = `https://secrtelecom.com/login?app=${encodeURIComponent("DP&AM")}&subdomain=dpam&path=${encodeURIComponent(cleanPath)}&redirect_to=${encodeURIComponent(origin)}`;
   }
 }
