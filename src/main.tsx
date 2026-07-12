@@ -74,21 +74,20 @@ async function initSession() {
               refresh_token: parsed.refresh_token
             });
             if (error) {
-              window.alert("Supabase setSession Error: " + error.message);
+              console.error("Supabase setSession Error:", error.message);
             }
             session = data.session;
           }
         } catch (jsonErr: any) {
-          window.alert("JSON parsing of cookie failed: " + jsonErr.message);
+          console.error("JSON parsing of cookie failed:", jsonErr.message);
         }
       }
     } catch (e: any) {
-      window.alert("Cookie session restore error: " + e.message);
+      console.error("Cookie session restore error:", e.message);
     }
   }
   
   if (session) {
-    window.alert("Session recovered successfully! Token: " + session.access_token.substring(0, 15) + "...");
     localStorage.setItem("telecom_jwt_token", session.access_token);
 
     // Fetch the full user object separately (we stripped it from cookie to save space)
@@ -96,11 +95,8 @@ async function initSession() {
     try {
       const { data } = await supabase.auth.getUser();
       user = data.user;
-      if (!user) {
-        window.alert("Supabase getUser returned null user profile!");
-      }
     } catch (userErr: any) {
-      window.alert("Supabase getUser threw exception: " + userErr.message);
+      console.error("Supabase getUser threw exception:", userErr.message);
     }
     
     // Sync user metadata to localStorage for profile details
@@ -121,11 +117,9 @@ async function initSession() {
     useAppStore.getState().setToken(session.access_token);
     useAppStore.getState().setUser(userObj);
     
-    window.alert("Successfully set Zustand store! Rendering app...");
     // Render the React application
     renderApp();
   } else {
-    window.alert("Session is null! Redirecting to central portal... Cookies present: " + document.cookie);
     // Clear storage and redirect to central portal
     localStorage.removeItem("telecom_jwt_token");
     localStorage.removeItem("telecom_user");
