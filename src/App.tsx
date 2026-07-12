@@ -5,6 +5,7 @@ import { create } from "zustand";
 import bgSketch from "./assets/bg-sketch.png";
 import irLogo from "./assets/ir-logo.png";
 import secrHq from "./assets/secr_hq.jpg";
+import { supabase } from "./utils/supabaseClient";
 import {
   AlertTriangle,
   BarChart3,
@@ -577,6 +578,10 @@ export const useAppStore = create<AppState>((set) => ({
     setAuthToken(null);
     setCachedUser(null);
     set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
+    // Sign out from Supabase to clear cookies and redirect to the central portal login
+    supabase.auth.signOut().finally(() => {
+      window.location.href = 'https://secrtelecom.com/login?redirect_to=' + encodeURIComponent(window.location.origin);
+    });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
