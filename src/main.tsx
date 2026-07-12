@@ -37,13 +37,17 @@ async function initSession() {
         }
       }
       if (cookieValue) {
-        const parsed = JSON.parse(cookieValue);
-        if (parsed.access_token && parsed.refresh_token) {
-          const { data } = await supabase.auth.setSession({
-            access_token: parsed.access_token,
-            refresh_token: parsed.refresh_token
-          });
-          session = data.session;
+        try {
+          const parsed = JSON.parse(decodeURIComponent(cookieValue));
+          if (parsed.access_token && parsed.refresh_token) {
+            const { data } = await supabase.auth.setSession({
+              access_token: parsed.access_token,
+              refresh_token: parsed.refresh_token
+            });
+            session = data.session;
+          }
+        } catch (jsonErr) {
+          console.error("JSON parsing of cookie value failed:", jsonErr);
         }
       }
     } catch (e) {
