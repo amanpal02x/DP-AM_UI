@@ -1408,7 +1408,31 @@ function App() {
     );
   }
 
-  const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
+  const isForbidden = profileQuery.error && ((profileQuery.error as any).status === 403 || profileQuery.error.message?.includes("403"));
+  if (isForbidden) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', width: '100vw', background: '#0a0d14', color: '#ffffff',
+        fontFamily: 'system-ui, -apple-system, sans-serif', padding: '20px', textAlign: 'center', gap: '16px'
+      }}>
+        <p style={{ fontSize: '15px', color: '#94a3b8', margin: 0 }}>
+          Access denied for DPDA (Daily Position). Please contact your administrator to gain access.
+        </p>
+        <button 
+          onClick={() => window.location.href = "https://secrtelecom.com"}
+          style={{
+            background: '#0076c0', color: '#fff', border: 'none', padding: '10px 22px', 
+            borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px'
+          }}
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const isProfileLoading = profileQuery.isLoading || (["Asset Dashboard", "Daily Position"].includes(activeNav) && dashboardLoading);
   if (isProfileLoading) {
     return (
       <div className="app-loading-container">
