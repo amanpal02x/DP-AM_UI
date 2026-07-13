@@ -575,6 +575,11 @@ export const useAppStore = create<AppState>((set) => ({
   setDpHistoryCategoryFilter: (dpHistoryCategoryFilter) => set({ dpHistoryCategoryFilter }),
   setDpHistoryFormTypeFilter: (dpHistoryFormTypeFilter) => set({ dpHistoryFormTypeFilter }),
   logout: () => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0a0d14;color:#ffffff;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui, -apple-system, sans-serif;font-size:16px;font-weight:600;";
+    overlay.innerText = "Logging out...";
+    document.body.appendChild(overlay);
+
     setAuthToken(null);
     setCachedUser(null);
     set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
@@ -12895,7 +12900,7 @@ function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) =>
 }
 
 function AuthView({ showToast }: { showToast: (msg: string) => void }) {
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(() => window.location.hash.includes('signup'));
   const [activeTab, setActiveTab] = useState<"username" | "phone">("username");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -13354,7 +13359,13 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         <div className="auth-right">
           <div className="auth-card">
             {isSignup ? (
-              <StaffSignupForm showToast={showToast} onSuccess={() => setIsSignup(false)} />
+              <StaffSignupForm 
+                showToast={showToast} 
+                onSuccess={() => {
+                  setIsSignup(false);
+                  window.location.href = `https://secrtelecom.com/login?app=DP%26AM&redirect_to=${encodeURIComponent(window.location.origin)}`;
+                }} 
+              />
             ) : (
               <>
                 <div className="auth-card-header">

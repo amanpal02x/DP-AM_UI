@@ -60,6 +60,12 @@ function showLoopError() {
 }
 
 async function initSession() {
+  if (window.location.hash.includes('signup')) {
+    console.log('[SSO] Signup route detected, bypassing redirect');
+    renderApp();
+    return;
+  }
+
   const now = Date.now();
 
   let accessToken: string | null = null;
