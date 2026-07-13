@@ -199,6 +199,13 @@ async function initSession() {
     renderApp();
   } else {
     // No valid token — redirect to portal login
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
+      console.log('[SSO] Running locally, bypassing redirect to show local login');
+      renderApp();
+      return;
+    }
+
     const redirectTs = parseInt(sessionStorage.getItem('_dpam_redirect_ts') || '0');
     const redirectCount = parseInt(sessionStorage.getItem('_dpam_redirect_count') || '0');
     const newCount = (redirectTs > 0 && (now - redirectTs) < 30000) ? redirectCount + 1 : 1;
