@@ -22,14 +22,14 @@ const customCookieStorage = {
   },
   setItem(key: string, value: string): void {
     const encoded = encodeURIComponent(value);
+    const maxAge = 365 * 24 * 60 * 60; // 1 year persistence
     // Write session cookie to wildcard domain .secrtelecom.com
-    document.cookie = `${key}=${encoded};path=/;domain=.secrtelecom.com;SameSite=Lax;Secure`;
+    document.cookie = `${key}=${encoded};path=/;domain=.secrtelecom.com;max-age=${maxAge};SameSite=Lax;Secure`;
+    document.cookie = `${key}=${encoded};path=/;domain=secrtelecom.com;max-age=${maxAge};SameSite=Lax;Secure`;
   },
   removeItem(key: string): void {
-    // Must specify domain=.secrtelecom.com to actually remove the wildcard cookie.
-    // Without the domain attribute, the browser removes a different (non-existent) cookie.
     document.cookie = `${key}=;path=/;domain=.secrtelecom.com;expires=Thu, 01 Jan 1970 00:00:00 UTC;SameSite=Lax;Secure`;
-    // Also clear the local (non-wildcard) version as a safety net
+    document.cookie = `${key}=;path=/;domain=secrtelecom.com;expires=Thu, 01 Jan 1970 00:00:00 UTC;SameSite=Lax;Secure`;
     document.cookie = `${key}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC;SameSite=Lax;Secure`;
   }
 };
