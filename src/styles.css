@@ -2331,6 +2331,16 @@ textarea {
   color: #ffffff;
 }
 
+.profile-hover-card::before {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 0;
+  right: 0;
+  height: 15px;
+  background: transparent;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(8px);
@@ -5264,6 +5274,16 @@ path:focus {
   border-radius: 10px !important;
   padding: 14px !important;
   z-index: 100 !important;
+}
+
+.header-profile-hover-card::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: transparent;
 }
 
 .header-profile-hover-card .profile-field .label {
