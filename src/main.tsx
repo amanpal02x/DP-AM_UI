@@ -134,16 +134,7 @@ async function initSession() {
     }
   }
 
-  // ── Step 2: Stored token in localStorage ──
-  if (!accessToken) {
-    const stored = localStorage.getItem('telecom_jwt_token');
-    console.log('[SSO] localStorage token:', stored ? `found (expired=${isTokenExpired(stored)})` : 'none');
-    if (stored && !isTokenExpired(stored)) {
-      accessToken = stored;
-    }
-  }
-
-  // ── Step 3: Supabase cookie/storage session ──
+  // ── Step 2: Supabase cookie/storage session (wildcard cookie from Portal) ──
   if (!accessToken) {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -154,6 +145,25 @@ async function initSession() {
       }
     } catch (e: any) {
       console.error('[SSO] getSession error:', e.message);
+    }
+  }
+
+  // ── Step 3: Stored token in local private localStorage ──
+  if (!accessToken) {
+    const stored = localStorage.getItem('telecom_jwt_token');
+    console.log('[SSO] localStorage token:', stored ? `found (expired=${isTokenExpired(stored)})` : 'none');
+    if (stored && !isTokenExpired(stored)) {
+      accessToken = stored;
+      const storedRefresh = localStorage.getItem('telecom_refresh_token');
+      try {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: storedRefresh || ''
+        });
+        console.log('[SSO] Synced local token to Supabase cookie');
+      } catch (e: any) {
+        console.warn('[SSO] Could not sync local token to Supabase:', e.message);
+      }
     }
   }
 
