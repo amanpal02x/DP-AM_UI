@@ -6656,7 +6656,7 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
               No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
             </div>
           ) : (
-            <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "420px", paddingRight: "6px" }}>
+            <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "500px", paddingRight: "6px" }}>
               <style>{`
               .wt-lobby-table {
                 border-collapse: separate;
