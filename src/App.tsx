@@ -3942,6 +3942,254 @@ function DailyPositionTrendsPanel({
   );
 }
 
+function WalkieTalkieTestedTodayPanel({
+  summary,
+  onCategoryClick
+}: {
+  summary?: any;
+  onCategoryClick?: (categoryName: string) => void;
+}) {
+  const { division: userDivision, role } = useAppStore();
+  const todayStr = toDateValue();
+
+  const todayLogsQuery = useQuery({
+    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
+    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
+    staleTime: 30 * 1000,
+  });
+
+  const normalizeDiv = (divName?: string) => {
+    if (!divName) return "Others";
+    const l = divName.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  const isMultiDivViewer = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
+  const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
+  const allDivisions = summary?.walkieTalkieDivisions || [];
+
+  const divisions = isMultiDivViewer || !normalizedUserDiv
+    ? allDivisions
+    : allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv);
+
+  // Group today's logs and sum up testedCount and faultyCount
+  const todayLogs = todayLogsQuery.data?.data || [];
+  
+  const divisionStats = useMemo(() => {
+    const stats: Record<string, { tested: number; faulty: number }> = {
+      Raipur: { tested: 0, faulty: 0 },
+      Bilaspur: { tested: 0, faulty: 0 },
+      Nagpur: { tested: 0, faulty: 0 },
+      Others: { tested: 0, faulty: 0 }
+    };
+
+    todayLogs.forEach((r: any) => {
+      if (r.status === "DRAFT") return;
+      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!isWalkieTalkie) return;
+
+      const divNorm = normalizeDiv(r.division);
+      const testedCount = Number(r.formData?.testedCount || 0);
+      const isFaulty = !isRecordAllOk(r);
+
+      if (!stats[divNorm]) {
+        stats[divNorm] = { tested: 0, faulty: 0 };
+      }
+      stats[divNorm].tested += testedCount;
+      if (isFaulty) {
+        stats[divNorm].faulty++;
+      }
+    });
+
+    return stats;
+  }, [todayLogs]);
+
+  const totalTestedAll = divisions.reduce((sum: number, d: any) => {
+    const divNorm = normalizeDiv(d.division);
+    return sum + (divisionStats[divNorm]?.tested || 0);
+  }, 0);
+
+  const totalFaultyAll = divisions.reduce((sum: number, d: any) => {
+    const divNorm = normalizeDiv(d.division);
+    return sum + (divisionStats[divNorm]?.faulty || 0);
+  }, 0);
+
+  const divColors: Record<string, string> = {
+    Raipur: "#f97316",   // Orange
+    Bilaspur: "#3b82f6", // Blue
+    Nagpur: "#f5b51b"    // Yellow
+  };
+
+  const isLoading = todayLogsQuery.isLoading;
+
+  if (divisions.length === 1) {
+    const div = divisions[0];
+    const divNorm = normalizeDiv(div.division);
+    const tested = divisionStats[divNorm]?.tested || 0;
+    const total = div.testing?.total ?? 0;
+    const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
+    const faulty = divisionStats[divNorm]?.faulty || 0;
+    const color = divColors[div.division] || "#94a3b8";
+
+    return (
+      <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested Today</h3>
+          <button
+            onClick={() => onCategoryClick?.("Walkie-Talkie")}
+            style={{
+              background: totalFaultyAll > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+              color: totalFaultyAll > 0 ? "#ef4444" : "#10b981",
+              border: "none",
+              borderRadius: 12,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "all 0.2s ease"
+            }}
+            className="wt-kpi-badge"
+          >
+            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalFaultyAll > 0 ? "#ef4444" : "#10b981" }} />
+            Faults Reported: {totalFaultyAll}
+          </button>
+        </div>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "10px 0" }}>
+          {/* Large Division Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
+            <strong style={{ fontSize: 15, color: "#1e293b", fontWeight: 800 }}>{div.division} Division</strong>
+          </div>
+
+          {/* Styled Stats Box */}
+          <div style={{ width: "100%", display: "flex", gap: 10 }}>
+            {/* Testing Stats Card */}
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Tested Today</div>
+              {isLoading ? (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
+              ) : (
+                <>
+                  <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{tested} sets</strong>
+                  <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>{testPercent}% of {total} sets</div>
+                  <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                    <div style={{ width: `${testPercent}%`, height: "100%", background: color }} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Faulty logs today Card */}
+            <div style={{ flex: 1, background: faulty > 0 ? "#fff5f5" : "#f0fdf4", border: faulty > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: faulty > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Faults Today</div>
+              {isLoading ? (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
+              ) : (
+                <>
+                  <strong style={{ fontSize: 22, fontWeight: 800, color: faulty > 0 ? "#b91c1c" : "#14532d" }}>{faulty}</strong>
+                  <div style={{ fontSize: 12, color: faulty > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{faulty > 0 ? "Faulty Logs Today" : "No Faults Today"}</div>
+                  <div style={{ height: 4, background: faulty > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                    <div style={{ width: faulty > 0 ? "100%" : "0%", height: "100%", background: faulty > 0 ? "#ef4444" : "#10b981" }} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested Today</h3>
+        
+        <button
+          onClick={() => onCategoryClick?.("Walkie-Talkie")}
+          style={{
+            background: totalFaultyAll > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+            color: totalFaultyAll > 0 ? "#ef4444" : "#10b981",
+            border: "none",
+            borderRadius: 12,
+            padding: "4px 10px",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            transition: "all 0.2s ease"
+          }}
+          className="wt-kpi-badge"
+        >
+          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalFaultyAll > 0 ? "#ef4444" : "#10b981" }} />
+          Faults Reported: {totalFaultyAll}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "center" }}>
+        {isLoading ? (
+          <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>Loading daily stats...</div>
+        ) : (
+          divisions.map((div: any) => {
+            const divNorm = normalizeDiv(div.division);
+            const tested = divisionStats[divNorm]?.tested || 0;
+            const total = div.testing?.total ?? 0;
+            const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
+            const faulty = divisionStats[divNorm]?.faulty || 0;
+
+            return (
+              <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>
+                      Tested: {tested}/{total} ({testPercent}%)
+                    </span>
+                    {faulty > 0 && (
+                      <span style={{
+                        background: "#fee2e2",
+                        color: "#b91c1c",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: "2px 6px",
+                        borderRadius: 4
+                      }}>
+                        {faulty} Faulty
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      width: `${testPercent}%`,
+                      height: "100%",
+                      background: divColors[div.division] || "#64748b",
+                      borderRadius: 3
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </article>
+  );
+}
+
 function WalkieTalkieDivisionPanel({
   summary,
   activeCounts = {},
@@ -3987,9 +4235,16 @@ function WalkieTalkieDivisionPanel({
     const div = divisions[0];
     const tested = div.testing?.tested ?? 0;
     const total = div.testing?.total ?? 0;
-    const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
     const pendingRepair = getActiveFaultsCount(div.division);
+    const healthy = Math.max(0, tested - pendingRepair);
+    const notTested = Math.max(0, total - tested);
     const color = divColors[div.division] || "#94a3b8";
+
+    const pieData = [
+      { name: "Healthy (Tested)", value: healthy, color: color },
+      { name: "Active Faulty", value: pendingRepair, color: "#ef4444" },
+      { name: "Not Tested", value: notTested, color: "#cbd5e1" }
+    ].filter(item => item.value > 0);
 
     return (
       <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -4018,32 +4273,71 @@ function WalkieTalkieDivisionPanel({
           </button>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", alignItems: "center", gap: 14, padding: "10px 0" }}>
-          {/* Large Division Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
-            <strong style={{ fontSize: 15, color: "#1e293b", fontWeight: 800 }}>{div.division} Division</strong>
+        <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: 20 }}>
+          {/* Pie Chart */}
+          <div style={{ width: 120, height: 120, flexShrink: 0, position: "relative" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart style={{ outline: 'none' }}>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={36}
+                  outerRadius={54}
+                  paddingAngle={3}
+                  dataKey="value"
+                  style={{ outline: 'none' }}
+                >
+                  {pieData.map((entry, idx) => (
+                    <Cell key={`cell-${idx}`} fill={entry.color} style={{ outline: 'none' }} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, name) => [`${value} Sets`, name]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{
+              position: "absolute",
+              top: "54%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              textAlign: "center",
+              pointerEvents: "none"
+            }}>
+              <strong style={{ fontSize: 18, color: "var(--navy)", display: "block", lineHeight: 1 }}>{total}</strong>
+              <span style={{ fontSize: 8, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total</span>
+            </div>
           </div>
 
-          {/* Styled Stats Box */}
-          <div style={{ width: "100%", display: "flex", gap: 10 }}>
-            {/* Testing Stats Card */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, textAlign: "center" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Testing Progress</div>
-              <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{testPercent}%</strong>
-              <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>{tested} of {total} sets</div>
-              <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
-                <div style={{ width: `${testPercent}%`, height: "100%", background: color }} />
-              </div>
+          {/* Details Legend */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px", borderRadius: 12, background: `${color}15`, alignSelf: "flex-start", marginBottom: 2 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
+              <strong style={{ fontSize: 13, color: "#1e293b", fontWeight: 700 }}>{div.division} Division</strong>
             </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
+                  Healthy (Tested):
+                </span>
+                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{healthy} sets</strong>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+                  Faulty (Active):
+                </span>
+                <strong style={{ color: pendingRepair > 0 ? "#b91c1c" : "var(--navy)", fontWeight: 750 }}>{pendingRepair} sets</strong>
+              </div>
 
-            {/* Active Faults Card */}
-            <div style={{ flex: 1, background: pendingRepair > 0 ? "#fff5f5" : "#f0fdf4", border: pendingRepair > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Active Faults</div>
-              <strong style={{ fontSize: 22, fontWeight: 800, color: pendingRepair > 0 ? "#b91c1c" : "#14532d" }}>{pendingRepair}</strong>
-              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Faulty Logs Found" : "All Healthy"}</div>
-              <div style={{ height: 4, background: pendingRepair > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
-                <div style={{ width: pendingRepair > 0 ? "100%" : "0%", height: "100%", background: pendingRepair > 0 ? "#ef4444" : "#10b981" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#cbd5e1" }} />
+                  Not Tested:
+                </span>
+                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{notTested} sets</strong>
               </div>
             </div>
           </div>
@@ -4051,6 +4345,35 @@ function WalkieTalkieDivisionPanel({
       </article>
     );
   }
+
+  // Sum tested healthy sets per division
+  const RaipurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Raipur");
+  const BilaspurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Bilaspur");
+  const NagpurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Nagpur");
+
+  const testedR = RaipurDiv?.testing?.tested ?? 0;
+  const pendingR = getActiveFaultsCount("Raipur");
+  const healthyR = Math.max(0, testedR - pendingR);
+
+  const testedB = BilaspurDiv?.testing?.tested ?? 0;
+  const pendingB = getActiveFaultsCount("Bilaspur");
+  const healthyB = Math.max(0, testedB - pendingB);
+
+  const testedN = NagpurDiv?.testing?.tested ?? 0;
+  const pendingN = getActiveFaultsCount("Nagpur");
+  const healthyN = Math.max(0, testedN - pendingN);
+
+  const totalSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.total ?? 0), 0);
+  const testedSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.tested ?? 0), 0);
+  const notTestedSum = Math.max(0, totalSum - testedSum);
+
+  const pieData = [
+    { name: "Raipur (Healthy)", value: healthyR, color: "#f97316" },
+    { name: "Bilaspur (Healthy)", value: healthyB, color: "#3b82f6" },
+    { name: "Nagpur (Healthy)", value: healthyN, color: "#f5b51b" },
+    { name: "Active Faults", value: totalDefective, color: "#ef4444" },
+    { name: "Not Tested", value: notTestedSum, color: "#cbd5e1" }
+  ].filter(item => item.value > 0);
 
   return (
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -4080,44 +4403,81 @@ function WalkieTalkieDivisionPanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "flex-start" }}>
-        {divisions.map((div: any) => {
-          const tested = div.testing?.tested ?? 0;
-          const total = div.testing?.total ?? 0;
-          const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
-          const pendingRepair = getActiveFaultsCount(div.division);
+      <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: 20 }}>
+        {/* Pie Chart */}
+        <div style={{ width: 120, height: 120, flexShrink: 0, position: "relative" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart style={{ outline: 'none' }}>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={36}
+                outerRadius={54}
+                paddingAngle={3}
+                dataKey="value"
+                style={{ outline: 'none' }}
+              >
+                {pieData.map((entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={entry.color} style={{ outline: 'none' }} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [`${value} Sets`, name]} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{
+            position: "absolute",
+            top: "54%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            pointerEvents: "none"
+          }}>
+            <strong style={{ fontSize: 18, color: "var(--navy)", display: "block", lineHeight: 1 }}>{totalSum}</strong>
+            <span style={{ fontSize: 8, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total</span>
+          </div>
+        </div>
 
-          return (
-            <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>
-                    Tested: {tested}/{total} ({testPercent}%)
-                  </span>
-                  {pendingRepair > 0 && (
-                    <span style={{
-                      background: "#fee2e2",
-                      color: "#b91c1c",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      padding: "2px 6px",
-                      borderRadius: 4
-                    }}>
-                      {pendingRepair} Faulty
+        {/* Divisions breakdown list */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, justifyContent: "center" }}>
+          {divisions.map((div: any) => {
+            const tested = div.testing?.tested ?? 0;
+            const total = div.testing?.total ?? 0;
+            const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
+            const pendingRepair = getActiveFaultsCount(div.division);
+
+            return (
+              <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 600 }}>
+                      {tested}/{total} ({testPercent}%)
                     </span>
-                  )}
+                    {pendingRepair > 0 && (
+                      <span style={{
+                        background: "#fee2e2",
+                        color: "#b91c1c",
+                        fontSize: 9,
+                        fontWeight: 800,
+                        padding: "1px 4px",
+                        borderRadius: 3
+                      }}>
+                        {pendingRepair}F
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 2 }} />
                 </div>
               </div>
-              <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 3 }} />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </article>
   );
@@ -4374,7 +4734,10 @@ function DailyPositionDashboardView({
 
       {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0 }}>
-        <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
+          <WalkieTalkieTestedTodayPanel summary={data} onCategoryClick={onCategoryClick} />
+          <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
+        </div>
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
