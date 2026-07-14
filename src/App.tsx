@@ -4643,7 +4643,6 @@ function DailyPositionDashboardView({
       id: "wifiFaults",
       label: "Wi-Fi Faults",
       value: String(totalWifiCount),
-      detail: "Stations with Wi-Fi",
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
@@ -8512,7 +8511,7 @@ function ModuleView({
                     type="button"
                     className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
                     onClick={() => setShowBalance(false)}
-                    title="Present (Stations with Asset)"
+                    title="Present (Asset)"
                     style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
                     P
@@ -8726,7 +8725,7 @@ function ModuleView({
                   type="button"
                   className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
                   onClick={() => setShowBalance(false)}
-                  title="Present (Stations with Asset)"
+                  title="Present (Asset)"
                   style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                 >
                   P
