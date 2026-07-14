@@ -4641,7 +4641,7 @@ function DailyPositionDashboardView({
 
     const wifiKpi = {
       id: "wifiFaults",
-      label: "Wi-Fi Faults",
+      label: "Total Wi-Fi Faults",
       value: String(totalWifiCount),
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
