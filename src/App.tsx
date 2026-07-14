@@ -4643,6 +4643,7 @@ function DailyPositionDashboardView({
       id: "wifiFaults",
       label: "Total Wi-Fi Faults",
       value: String(totalWifiCount),
+      detail: `Working: ${workingWifiCount}/${totalWifiCount}`,
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
