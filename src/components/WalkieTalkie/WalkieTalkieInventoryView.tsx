@@ -984,13 +984,36 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                                   />
                                 </td>
                                 <td style={{ padding: "10px 24px", width: "40%" }}>
-                                  <input 
-                                    type="text" 
-                                    value={editingWTMakeModel} 
+                                  <select
+                                    value={["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) ? editingWTMakeModel : "Other"}
                                     disabled={isMutating}
-                                    onChange={(e) => setEditingWTMakeModel(e.target.value)} 
-                                    style={{ width: "100%", padding: "6px 12px", fontSize: "13px", border: "1px solid #c6c6cd", borderRadius: "6px", outline: "none", opacity: isMutating ? 0.7 : 1 }} 
-                                  />
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === "Other") {
+                                        if (["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel)) {
+                                          setEditingWTMakeModel("");
+                                        }
+                                      } else {
+                                        setEditingWTMakeModel(val);
+                                      }
+                                    }}
+                                    style={{ width: "100%", padding: "6px 12px", fontSize: "13px", border: "1px solid #c6c6cd", borderRadius: "6px", outline: "none", background: "#ffffff", opacity: isMutating ? 0.7 : 1 }}
+                                  >
+                                    <option value="Motorola">Motorola</option>
+                                    <option value="Sanchar">Sanchar</option>
+                                    <option value="Convey">Convey</option>
+                                    <option value="Other">Other (Specify manually)</option>
+                                  </select>
+                                  {!["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) && (
+                                    <input 
+                                      type="text" 
+                                      placeholder="Specify Make / Model..."
+                                      value={editingWTMakeModel} 
+                                      disabled={isMutating}
+                                      onChange={(e) => setEditingWTMakeModel(e.target.value)} 
+                                      style={{ width: "100%", padding: "6px 12px", fontSize: "13px", border: "1px solid #c6c6cd", borderRadius: "6px", outline: "none", opacity: isMutating ? 0.7 : 1, marginTop: "4px" }} 
+                                    />
+                                  )}
                                 </td>
                                 <td style={{ padding: "10px 24px", width: "20%", textAlign: "right" }}>
                                   <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
@@ -1100,14 +1123,36 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <label style={{ fontSize: "11px", fontWeight: 700, color: "#76777d", textTransform: "uppercase", letterSpacing: "0.05em", paddingLeft: "4px" }}>Make / Model</label>
-                      <input
-                        type="text"
-                        placeholder="Make / Model..."
-                        value={newWTMakeModel}
+                      <select
+                        value={["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) ? newWTMakeModel : "Other"}
                         disabled={isMutating}
-                        onChange={(e) => setNewWTMakeModel(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "Other") {
+                            if (["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel)) {
+                              setNewWTMakeModel("");
+                            }
+                          } else {
+                            setNewWTMakeModel(val);
+                          }
+                        }}
                         style={{ width: "100%", padding: "8px 12px", border: "1px solid #c6c6cd", borderRadius: "8px", fontSize: "14px", outline: "none", background: "#ffffff" }}
-                      />
+                      >
+                        <option value="Motorola">Motorola</option>
+                        <option value="Sanchar">Sanchar</option>
+                        <option value="Convey">Convey</option>
+                        <option value="Other">Other (Specify manually)</option>
+                      </select>
+                      {!["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) && (
+                        <input
+                          type="text"
+                          placeholder="Specify Make / Model..."
+                          value={newWTMakeModel}
+                          disabled={isMutating}
+                          onChange={(e) => setNewWTMakeModel(e.target.value)}
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #c6c6cd", borderRadius: "8px", fontSize: "14px", outline: "none", background: "#ffffff", marginTop: "4px" }}
+                        />
+                      )}
                     </div>
                     <div>
                       <button

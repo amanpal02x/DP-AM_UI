@@ -1227,7 +1227,7 @@ function App() {
   const stationsQuery = useQuery({
     queryKey: ["stations-list"],
     queryFn: () => api.stations.list(),
-    enabled: !!token && ["Master List", "Assets", "LC Gate"].includes(activeNav),
+    enabled: !!token && ["Master List", "Assets", "LC Gate", "Daily Position"].includes(activeNav),
     staleTime: 5 * 60 * 1000,
     placeholderData: previousData => previousData,
   });
@@ -4270,11 +4270,20 @@ function DailyPositionDashboardView({
       ...originalFaultsKpi,
       value: activeFaultsCountClient
     };
+
+    const stations = queries.stationsQuery?.data?.data || [];
+    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
+    const totalWifiCount = stations.filter((s: any) => {
+      const matchesDiv = !targetDiv || normalizeDivName(s.division) === targetDiv;
+      return s.hasWifi && matchesDiv;
+    }).length;
+    const workingWifiCount = Math.max(0, totalWifiCount - wifiFaultsCount);
+
     const wifiKpi = {
       id: "wifiFaults",
       label: "Wi-Fi Faults",
-      value: String(wifiFaultsCount),
-      detail: "",
+      value: String(totalWifiCount),
+      detail: "Stations with Wi-Fi",
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
@@ -4295,7 +4304,7 @@ function DailyPositionDashboardView({
       series: [0, 0, 0, 0, 0]
     };
     return [faultsKpi, faultsTodayKpi, resolvedTodayKpi, wifiKpi];
-  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient]);
+  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient, queries.stationsQuery.data, userDivision]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -6967,13 +6976,38 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                               onChange={(e) => setEditingWTSerial(e.target.value)}
                               style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
                             />
-                            <input
-                              type="text"
-                              value={editingWTMakeModel}
-                              disabled={isMutating}
-                              onChange={(e) => setEditingWTMakeModel(e.target.value)}
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }}
-                            />
+                            <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: "2px", marginRight: "8px" }}>
+                              <select
+                                value={["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) ? editingWTMakeModel : "Other"}
+                                disabled={isMutating}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === "Other") {
+                                    if (["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel)) {
+                                      setEditingWTMakeModel("");
+                                    }
+                                  } else {
+                                    setEditingWTMakeModel(val);
+                                  }
+                                }}
+                                style={{ padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", background: "#ffffff", opacity: isMutating ? 0.7 : 1 }}
+                              >
+                                <option value="Motorola">Motorola</option>
+                                <option value="Sanchar">Sanchar</option>
+                                <option value="Convey">Convey</option>
+                                <option value="Other">Other (Specify manually)</option>
+                              </select>
+                              {!["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) && (
+                                <input
+                                  type="text"
+                                  placeholder="Specify Make / Model..."
+                                  value={editingWTMakeModel}
+                                  disabled={isMutating}
+                                  onChange={(e) => setEditingWTMakeModel(e.target.value)}
+                                  style={{ padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
+                                />
+                              )}
+                            </div>
                             <div style={{ display: "flex", gap: "6px" }}>
                               <button
                                 onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)}
@@ -7035,14 +7069,38 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                     onChange={(e) => setNewWTSerial(e.target.value)}
                     style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
                   />
-                  <input
-                    type="text"
-                    placeholder="Make / Model..."
-                    value={newWTMakeModel}
-                    disabled={isMutating}
-                    onChange={(e) => setNewWTMakeModel(e.target.value)}
-                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
-                  />
+                  <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <select
+                      value={["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) ? newWTMakeModel : "Other"}
+                      disabled={isMutating}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "Other") {
+                          if (["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel)) {
+                            setNewWTMakeModel("");
+                          }
+                        } else {
+                          setNewWTMakeModel(val);
+                        }
+                      }}
+                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", background: "#ffffff", opacity: isMutating ? 0.7 : 1 }}
+                    >
+                      <option value="Motorola">Motorola</option>
+                      <option value="Sanchar">Sanchar</option>
+                      <option value="Convey">Convey</option>
+                      <option value="Other">Other (Specify manually)</option>
+                    </select>
+                    {!["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) && (
+                      <input
+                        type="text"
+                        placeholder="Specify Make / Model..."
+                        value={newWTMakeModel}
+                        disabled={isMutating}
+                        onChange={(e) => setNewWTMakeModel(e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
+                      />
+                    )}
+                  </div>
                   <button
                     onClick={() => handleAddSingleWalkieTalkie(viewingLobby)}
                     disabled={isMutating}
