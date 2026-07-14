@@ -13,7 +13,7 @@ export interface KpiMetric {
   id: string;
   label: string;
   value: string;
-  detail: string;
+  detail?: string;
   trend?: string;
   tone: "blue" | "green" | "amber" | "red" | "purple" | "teal";
   series: number[];
