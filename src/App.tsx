@@ -3053,6 +3053,7 @@ function CategoryFaultsPageView({
 }) {
   const lowerCat = categoryName.toLowerCase();
   const isWalkieTalkie = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
+  const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults";
 
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
@@ -3060,6 +3061,9 @@ function CategoryFaultsPageView({
       const params: any = { limit: 500 };
       if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
         params.isResolved = "true";
+      } else if (lowerCat === "walkie-talkie active faults") {
+        // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
+        params.isFaulty = "true";
       } else if (
         lowerCat === "faults today" ||
         lowerCat === "faults reported today" ||
@@ -3197,11 +3201,19 @@ function CategoryFaultsPageView({
       return parsed ? toDateValue(parsed) === todayStr : false;
     }
 
+    // 5. Walkie-Talkie Active Faults (all unresolved WT faults, across all days)
+    if (lowerCat === "walkie-talkie active faults") {
+      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!matchesWT) return false;
+      if (isRecordAllOk(r)) return false;
+      return !r.rectificationTime; // Only unresolved (still active)
+    }
+
     // For other categories, they represent active faults of that category, so we exclude all OK ones.
     const isWT = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
     if (isRecordAllOk(r) && !isWT) return false;
 
-    // 5. Walkie-Talkie Records
+    // 6. Walkie-Talkie Today Records
     if (isWT) {
       const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       if (!matchesWT) return false;
@@ -3285,12 +3297,13 @@ function CategoryFaultsPageView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults", "walkie-talkie active faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
             {(() => {
               const lower = categoryName.toLowerCase();
               if (lower === "active faults") return "Active Faults";
+              if (lower === "walkie-talkie active faults") return "Walkie-Talkie — Active Faults";
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
               if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
               return `${categoryName} Faults`;
@@ -4246,6 +4259,13 @@ function WalkieTalkieDivisionPanel({
   onCategoryClick?: (categoryName: string, divisionName?: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
+  const todayStr = toDateValue();
+
+  const todayLogsQuery = useQuery({
+    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
+    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
+    staleTime: 30 * 1000,
+  });
 
   const normalizeDiv = (divName?: string) => {
     if (!divName) return "Others";
@@ -4271,6 +4291,37 @@ function WalkieTalkieDivisionPanel({
 
   const totalDefective = divisions.reduce((sum: number, d: any) => sum + getActiveFaultsCount(d.division), 0);
 
+  const todayLogs = todayLogsQuery.data?.data || [];
+
+  const divisionStats = useMemo(() => {
+    const stats: Record<string, { tested: number; faulty: number }> = {
+      Raipur: { tested: 0, faulty: 0 },
+      Bilaspur: { tested: 0, faulty: 0 },
+      Nagpur: { tested: 0, faulty: 0 },
+      Others: { tested: 0, faulty: 0 }
+    };
+
+    todayLogs.forEach((r: any) => {
+      if (r.status === "DRAFT") return;
+      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!isWalkieTalkie) return;
+
+      const divNorm = normalizeDiv(r.division);
+      const testedCount = Number(r.formData?.testedCount || 0);
+      const isFaulty = !isRecordAllOk(r);
+
+      if (!stats[divNorm]) {
+        stats[divNorm] = { tested: 0, faulty: 0 };
+      }
+      stats[divNorm].tested += testedCount;
+      if (isFaulty) {
+        stats[divNorm].faulty++;
+      }
+    });
+
+    return stats;
+  }, [todayLogs]);
+
   const divColors: Record<string, string> = {
     Raipur: "#f97316",   // Orange
     Bilaspur: "#3b82f6", // Blue
@@ -4279,8 +4330,10 @@ function WalkieTalkieDivisionPanel({
 
   if (divisions.length === 1) {
     const div = divisions[0];
-    const tested = div.testing?.tested ?? 0;
     const total = div.testing?.total ?? 0;
+    const divNorm = normalizeDiv(div.division);
+    const testedToday = divisionStats[divNorm]?.tested || 0;
+    const tested = Math.min(total, Math.max(div.testing?.tested ?? 0, testedToday));
     const pendingRepair = getActiveFaultsCount(div.division);
     const healthy = Math.max(0, tested - pendingRepair);
     const notTested = Math.max(0, total - tested);
@@ -4297,7 +4350,7 @@ function WalkieTalkieDivisionPanel({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
           <button
-            onClick={() => onCategoryClick?.("Walkie-Talkie")}
+            onClick={() => onCategoryClick?.("Walkie-Talkie Active Faults")}
             style={{
               background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
               color: totalDefective > 0 ? "#ef4444" : "#10b981",
@@ -4392,25 +4445,38 @@ function WalkieTalkieDivisionPanel({
     );
   }
 
-  // Sum tested healthy sets per division
+  // Sum tested healthy sets per division (including today's counts)
   const RaipurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Raipur");
   const BilaspurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Bilaspur");
   const NagpurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Nagpur");
 
-  const testedR = RaipurDiv?.testing?.tested ?? 0;
+  const totalR = RaipurDiv?.testing?.total ?? 0;
+  const testedTodayR = divisionStats["Raipur"]?.tested || 0;
+  const testedR = Math.min(totalR, Math.max(RaipurDiv?.testing?.tested ?? 0, testedTodayR));
   const pendingR = getActiveFaultsCount("Raipur");
   const healthyR = Math.max(0, testedR - pendingR);
 
-  const testedB = BilaspurDiv?.testing?.tested ?? 0;
+  const totalB = BilaspurDiv?.testing?.total ?? 0;
+  const testedTodayB = divisionStats["Bilaspur"]?.tested || 0;
+  const testedB = Math.min(totalB, Math.max(BilaspurDiv?.testing?.tested ?? 0, testedTodayB));
   const pendingB = getActiveFaultsCount("Bilaspur");
   const healthyB = Math.max(0, testedB - pendingB);
 
-  const testedN = NagpurDiv?.testing?.tested ?? 0;
+  const totalN = NagpurDiv?.testing?.total ?? 0;
+  const testedTodayN = divisionStats["Nagpur"]?.tested || 0;
+  const testedN = Math.min(totalN, Math.max(NagpurDiv?.testing?.tested ?? 0, testedTodayN));
   const pendingN = getActiveFaultsCount("Nagpur");
   const healthyN = Math.max(0, testedN - pendingN);
 
   const totalSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.total ?? 0), 0);
-  const testedSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.tested ?? 0), 0);
+  
+  const testedSum = divisions.reduce((sum: number, d: any) => {
+    const divNorm = normalizeDiv(d.division);
+    const tToday = divisionStats[divNorm]?.tested || 0;
+    const tCum = d.testing?.tested ?? 0;
+    return sum + Math.min(d.testing?.total ?? 0, Math.max(tCum, tToday));
+  }, 0);
+  
   const notTestedSum = Math.max(0, totalSum - testedSum);
 
   const pieData = [
@@ -4427,7 +4493,7 @@ function WalkieTalkieDivisionPanel({
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
 
         <button
-          onClick={() => onCategoryClick?.("Walkie-Talkie")}
+          onClick={() => onCategoryClick?.("Walkie-Talkie Active Faults")}
           style={{
             background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
             color: totalDefective > 0 ? "#ef4444" : "#10b981",
@@ -4487,7 +4553,9 @@ function WalkieTalkieDivisionPanel({
         {/* Divisions breakdown list */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, justifyContent: "center" }}>
           {divisions.map((div: any) => {
-            const tested = div.testing?.tested ?? 0;
+            const divNorm = normalizeDiv(div.division);
+            const testedToday = divisionStats[divNorm]?.tested || 0;
+            const tested = Math.min(div.testing?.total ?? 0, Math.max(div.testing?.tested ?? 0, testedToday));
             const total = div.testing?.total ?? 0;
             const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
             const pendingRepair = getActiveFaultsCount(div.division);
