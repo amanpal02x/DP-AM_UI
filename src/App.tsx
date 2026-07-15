@@ -3052,8 +3052,17 @@ function CategoryFaultsPageView({
   initialDivision?: string;
 }) {
   const lowerCat = categoryName.toLowerCase();
-  const isWalkieTalkie = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
-  const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults";
+  const isWalkieTalkie =
+    lowerCat === "walkie-talkie" ||
+    lowerCat === "walkie-talkies" ||
+    lowerCat === "walkie talkie" ||
+    lowerCat === "walkie-talkie active faults" ||
+    lowerCat === "walkie-talkie status";
+  const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status";
+
+  const [wtTab, setWtTab] = useState<"faults" | "tested">("faults");
+
+  const todayStr = toDateValue(new Date());
 
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
@@ -3061,7 +3070,7 @@ function CategoryFaultsPageView({
       const params: any = { limit: 500 };
       if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
         params.isResolved = "true";
-      } else if (lowerCat === "walkie-talkie active faults") {
+      } else if (lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status") {
         // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
         params.isFaulty = "true";
       } else if (
@@ -3078,6 +3087,20 @@ function CategoryFaultsPageView({
       }
       return api.dailyPosition.list(params);
     },
+  });
+
+  const allLogsQuery = useQuery({
+    queryKey: ["daily-position-all-walkie-talkie-logs-detail"],
+    queryFn: () => api.dailyPosition.list({ limit: 1000 }),
+    staleTime: 30 * 1000,
+    enabled: isWalkieTalkie,
+  });
+
+  const { data: dashboardSummary } = useQuery({
+    queryKey: ["dashboard-summary", ""],
+    queryFn: () => getDashboardSummary(""),
+    staleTime: 5 * 60_000,
+    enabled: isWalkieTalkie,
   });
 
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -3162,67 +3185,82 @@ function CategoryFaultsPageView({
     }
   });
 
-  const todayStr = toDateValue(new Date());
-
-  const records = (faultsQuery.data?.data || []).filter((r: any) => {
-    if (r.status === "DRAFT") return false;
-
-    const lowerCat = categoryName.toLowerCase();
-
-    // 1. Active Faults
-    if (lowerCat === "active faults") {
-      if (isRecordAllOk(r)) return false;
-      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return !isWifi && !r.rectificationTime; // Must be active
+  const rawRecords = useMemo(() => {
+    if (isWalkieTalkie && wtTab === "tested") {
+      return allLogsQuery.data?.data || [];
     }
+    return faultsQuery.data?.data || [];
+  }, [isWalkieTalkie, wtTab, faultsQuery.data, allLogsQuery.data]);
 
-    // 2. Wi-Fi Faults
-    if (lowerCat === "wi-fi") {
-      if (isRecordAllOk(r)) return false;
-      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return isWifi && !r.rectificationTime; // Must be active
-    }
+  const records = useMemo(() => {
+    return rawRecords.filter((r: any) => {
+      if (r.status === "DRAFT") return false;
 
-    // 3. Faults Reported Today
-    if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
       const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (isWT) {
+      if (isWalkieTalkie) {
+        if (!isWT) return false;
+        if (wtTab === "faults") {
+          if (isRecordAllOk(r)) return false;
+          return !r.rectificationTime;
+        }
+        return true;
+      }
+
+      const lowerCat = categoryName.toLowerCase();
+
+      // 1. Active Faults
+      if (lowerCat === "active faults") {
         if (isRecordAllOk(r)) return false;
-        const parsed = parseSafeDate(r.date || r.createdAt);
+        const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+        return !isWifi && !isWT && !r.rectificationTime; // Must be active
+      }
+
+      // 2. Wi-Fi Faults
+      if (lowerCat === "wi-fi") {
+        if (isRecordAllOk(r)) return false;
+        const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+        return isWifi && !r.rectificationTime; // Must be active
+      }
+
+      // 3. Faults Reported Today
+      if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+        if (isWT) {
+          if (isRecordAllOk(r)) return false;
+          const parsed = parseSafeDate(r.date || r.createdAt);
+          return parsed ? toDateValue(parsed) === todayStr : false;
+        }
+        const parsed = parseSafeDate(r.failureTime);
         return parsed ? toDateValue(parsed) === todayStr : false;
       }
-      const parsed = parseSafeDate(r.failureTime);
-      return parsed ? toDateValue(parsed) === todayStr : false;
-    }
 
-    // 4. Faults Resolved Today
-    if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
-      const parsed = parseSafeDate(r.rectificationTime);
-      return parsed ? toDateValue(parsed) === todayStr : false;
-    }
+      // 4. Faults Resolved Today
+      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+        const parsed = parseSafeDate(r.rectificationTime);
+        return parsed ? toDateValue(parsed) === todayStr : false;
+      }
 
-    // 5. Walkie-Talkie Active Faults (all unresolved WT faults, across all days)
-    if (lowerCat === "walkie-talkie active faults") {
-      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!matchesWT) return false;
-      if (isRecordAllOk(r)) return false;
-      return !r.rectificationTime; // Only unresolved (still active)
-    }
+      // 5. Walkie-Talkie Active Faults (all unresolved WT faults, across all days)
+      if (lowerCat === "walkie-talkie active faults") {
+        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+        if (!matchesWT) return false;
+        if (isRecordAllOk(r)) return false;
+        return !r.rectificationTime; // Only unresolved (still active)
+      }
 
-    // For other categories, they represent active faults of that category, so we exclude all OK ones.
-    const isWT = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
-    if (isRecordAllOk(r) && !isWT) return false;
+      // For other categories, they represent active faults of that category, so we exclude all OK ones.
+      if (isRecordAllOk(r) && !isWT) return false;
 
-    // 6. Walkie-Talkie Today Records
-    if (isWT) {
-      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!matchesWT) return false;
-      const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
-      return parsed ? toDateValue(parsed) === todayStr : false;
-    }
+      // 6. Walkie-Talkie Today Records
+      if (isWT) {
+        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+        if (!matchesWT) return false;
+        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
+        return parsed ? toDateValue(parsed) === todayStr : false;
+      }
 
-    return r.category?.toLowerCase() === categoryName?.toLowerCase();
-  });
+      return r.category?.toLowerCase() === categoryName?.toLowerCase();
+    });
+  }, [rawRecords, isWalkieTalkie, wtTab, categoryName, todayStr]);
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a: any, b: any) => {
@@ -3291,6 +3329,77 @@ function CategoryFaultsPageView({
     return Number.isNaN(date.getTime()) ? dateStr : formatDateTime24(date);
   };
 
+  const normalizeDiv = (divName?: string) => {
+    if (!divName) return "Others";
+    const l = divName.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  const stats = useMemo(() => {
+    const defaultStats = { total: 0, tested: 0, healthy: 0, faulty: 0, notTested: 0 };
+    if (!isWalkieTalkie || !dashboardSummary) return defaultStats;
+
+    const divisions = dashboardSummary.walkieTalkieDivisions || [];
+    
+    // Group active faults from faultsQuery.data?.data by division
+    const activeFaultsList = faultsQuery.data?.data || [];
+    const getActiveFaultsCount = (divName: string) => {
+      const norm = normalizeDiv(divName);
+      return activeFaultsList.filter((r: any) => {
+        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+        if (!matchesWT) return false;
+        if (isRecordAllOk(r)) return false;
+        if (r.rectificationTime) return false;
+        return normalizeDiv(r.division) === norm;
+      }).length;
+    };
+
+    // Calculate today's division stats from allLogsQuery
+    const tLogs = allLogsQuery.data?.data || [];
+    const divisionTodayTested: Record<string, number> = { Raipur: 0, Bilaspur: 0, Nagpur: 0, Others: 0 };
+    tLogs.forEach((r: any) => {
+      if (r.status === "DRAFT") return;
+      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!isWT) return;
+      
+      const parsed = parseSafeDate(r.date || r.createdAt);
+      if (!parsed || toDateValue(parsed) !== todayStr) return;
+
+      const divNorm = normalizeDiv(r.division);
+      const testedCount = Number(r.formData?.testedCount || 0);
+      divisionTodayTested[divNorm] += testedCount;
+    });
+
+    const targetDivNorm = selectedDivision ? normalizeDiv(selectedDivision) : "";
+
+    let total = 0;
+    let tested = 0;
+    let faulty = 0;
+
+    divisions.forEach((d: any) => {
+      const divNorm = normalizeDiv(d.division);
+      if (targetDivNorm && divNorm !== targetDivNorm) return;
+
+      const dTotal = d.testing?.total ?? 0;
+      const tToday = divisionTodayTested[divNorm] || 0;
+      const tCum = d.testing?.tested ?? 0;
+      const dTested = Math.min(dTotal, Math.max(tCum, tToday));
+      const dFaulty = getActiveFaultsCount(d.division);
+
+      total += dTotal;
+      tested += dTested;
+      faulty += dFaulty;
+    });
+
+    const healthy = Math.max(0, tested - faulty);
+    const notTested = Math.max(0, total - tested);
+
+    return { total, tested, healthy, faulty, notTested };
+  }, [isWalkieTalkie, dashboardSummary, faultsQuery.data, allLogsQuery.data, selectedDivision]);
+
   return (
     <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "500px", padding: "24px" }}>
       {/* Page Header */}
@@ -3304,6 +3413,7 @@ function CategoryFaultsPageView({
               const lower = categoryName.toLowerCase();
               if (lower === "active faults") return "Active Faults";
               if (lower === "walkie-talkie active faults") return "Walkie-Talkie — Active Faults";
+              if (lower === "walkie-talkie status") return `Walkie-Talkie Status — ${selectedDivision ? `${selectedDivision} Division` : "All Divisions"}`;
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
               if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
               return `${categoryName} Faults`;
@@ -3312,15 +3422,79 @@ function CategoryFaultsPageView({
           <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
             {faultsQuery.isLoading
               ? "Loading faults..."
-              : categoryName.toLowerCase().includes("resolved")
-                ? `${records.length} resolved faults found`
-                : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
+              : isWalkieTalkie
+                ? `${wtTab === "faults" ? `${filteredRecords.length} active faults` : `${filteredRecords.length} tested logs`} found`
+                : categoryName.toLowerCase().includes("resolved")
+                  ? `${records.length} resolved faults found`
+                  : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
           </p>
         </div>
         <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
           ← Back
         </button>
       </div>
+
+      {/* Walkie-Talkie KPI Cards */}
+      {isWalkieTalkie && dashboardSummary && (
+        <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 150px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Total sets</div>
+            <strong style={{ fontSize: "22px", color: "var(--navy)", fontWeight: 800 }}>{stats.total}</strong>
+          </div>
+          <div style={{ flex: "1 1 150px", background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Healthy (Tested)</div>
+            <strong style={{ fontSize: "22px", color: "#15803d", fontWeight: 800 }}>{stats.healthy}</strong>
+          </div>
+          <div style={{ flex: "1 1 150px", background: "#fff5f5", border: "1px solid #fee2e2", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Active Faults</div>
+            <strong style={{ fontSize: "22px", color: "#b91c1c", fontWeight: 800 }}>{stats.faulty}</strong>
+          </div>
+          <div style={{ flex: "1 1 150px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Not Tested</div>
+            <strong style={{ fontSize: "22px", color: "#64748b", fontWeight: 800 }}>{stats.notTested}</strong>
+          </div>
+        </div>
+      )}
+
+      {/* Walkie-Talkie Tabs */}
+      {isWalkieTalkie && (
+        <div style={{ display: "flex", gap: "10px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px" }}>
+          <button
+            onClick={() => setWtTab("faults")}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "8px 16px",
+              fontSize: "14px",
+              fontWeight: 700,
+              color: wtTab === "faults" ? "#ef4444" : "#64748b",
+              borderBottom: wtTab === "faults" ? "3px solid #ef4444" : "3px solid transparent",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              marginBottom: "-11px"
+            }}
+          >
+            Faults Report ({stats.faulty})
+          </button>
+          <button
+            onClick={() => setWtTab("tested")}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "8px 16px",
+              fontSize: "14px",
+              fontWeight: 700,
+              color: wtTab === "tested" ? "var(--blue)" : "#64748b",
+              borderBottom: wtTab === "tested" ? "3px solid var(--blue)" : "3px solid transparent",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              marginBottom: "-11px"
+            }}
+          >
+            Overall Tested Data ({filteredRecords.length})
+          </button>
+        </div>
+      )}
 
       {/* Page Body */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
@@ -3331,75 +3505,79 @@ function CategoryFaultsPageView({
           </div>
         ) : records.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
-            {categoryName.toLowerCase().includes("resolved") ? "No resolved faults found." : `No active faults found for ${categoryName}.`}
+            {isWalkieTalkie
+              ? wtTab === "faults"
+                ? "No active faults found for Walkie-Talkie."
+                : "No Walkie-Talkie testing records found."
+              : categoryName.toLowerCase().includes("resolved")
+                ? "No resolved faults found."
+                : `No active faults found for ${categoryName}.`}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
             {/* Filters Panel */}
-            {!isWalkieTalkie && (
-              <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
-                <div style={{ flex: "1 1 150px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-                  <ClearableSelect
-                    value={selectedDivision}
-                    onChange={setSelectedDivision}
-                    style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-                  >
-                    <option value="">All Divisions</option>
-                    {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
-                      <option key={div} value={div}>{div}</option>
-                    ))}
-                  </ClearableSelect>
-                </div>
-
-                <div style={{ flex: "1 1 180px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
-                  <ClearableSelect
-                    value={selectedStation}
-                    onChange={setSelectedStation}
-                    style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-                  >
-                    <option value="">All Stations</option>
-                    {uniqueStations.map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                  </ClearableSelect>
-                </div>
-
-                <div style={{ flex: "1 1 0" }} />
-
-                <div style={{ flex: "0 1 280px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Search station, remarks..."
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-
-                {(selectedDivision || selectedStation || searchTerm) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedDivision("");
-                      setSelectedStation("");
-                      setSearchTerm("");
-                    }}
-                    className="action-btn text-red"
-                    style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
-                  >
-                    Clear Filters
-                  </button>
-                )}
+            <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 150px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+                <ClearableSelect
+                  value={selectedDivision}
+                  onChange={setSelectedDivision}
+                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                >
+                  <option value="">All Divisions</option>
+                  {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
+                    <option key={div} value={div}>{div}</option>
+                  ))}
+                </ClearableSelect>
               </div>
-            )}
+
+              <div style={{ flex: "1 1 180px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
+                <ClearableSelect
+                  value={selectedStation}
+                  onChange={setSelectedStation}
+                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                >
+                  <option value="">All Stations</option>
+                  {uniqueStations.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </ClearableSelect>
+              </div>
+
+              <div style={{ flex: "1 1 0" }} />
+
+              <div style={{ flex: "0 1 280px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search station, remarks..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+
+              {(selectedDivision || selectedStation || searchTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDivision("");
+                    setSelectedStation("");
+                    setSearchTerm("");
+                  }}
+                  className="action-btn text-red"
+                  style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
 
             {filteredRecords.length === 0 ? (
               <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
@@ -4561,7 +4739,12 @@ function WalkieTalkieDivisionPanel({
             const pendingRepair = getActiveFaultsCount(div.division);
 
             return (
-              <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div
+                key={div.division}
+                onClick={() => onCategoryClick?.("Walkie-Talkie Status", div.division)}
+                className="walkie-talkie-div-row"
+                style={{ display: "flex", flexDirection: "column", gap: 3 }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
@@ -4652,8 +4835,9 @@ function DailyPositionDashboardView({
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isRecordAllOk(r) && matchesDiv;
+      return !isWifi && !isWT && !isRecordAllOk(r) && matchesDiv;
     });
 
     if (!activeFaultsQuery.data) {
@@ -4669,8 +4853,9 @@ function DailyPositionDashboardView({
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isRecordAllOk(r) && matchesDiv;
+      return !isWifi && !isWT && !isRecordAllOk(r) && matchesDiv;
     });
 
     const counts: Record<string, number> = {
