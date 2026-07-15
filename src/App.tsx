@@ -3402,6 +3402,7 @@ function CategoryFaultsPageView({
                       <th>Circuit Name</th>
                       <th>Failure Time</th>
                       <th>Rectification Time</th>
+                      {isWalkieTalkie && <th>Make / Model / Serial No.</th>}
                       <th>Duration</th>
                       <th>Remarks</th>
                     </tr>
@@ -3450,6 +3451,11 @@ function CategoryFaultsPageView({
                             </button>
                           )}
                         </td>
+                        {isWalkieTalkie && (
+                          <td>
+                            {record.formData?.makeModel || "-"} / {record.formData?.serialNo || "-"}
+                          </td>
+                        )}
                         <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
                           {isRecordAllOk(record) ? "-" : getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
