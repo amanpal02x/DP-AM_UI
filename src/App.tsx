@@ -3197,11 +3197,11 @@ function CategoryFaultsPageView({
       return parsed ? toDateValue(parsed) === todayStr : false;
     }
 
-    // Exclude all OK records since we only show reported faults
-    if (isRecordAllOk(r)) return false;
+    // For other categories, they represent active faults of that category, so we exclude all OK ones.
+    const isWT = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
+    if (isRecordAllOk(r) && !isWT) return false;
 
     // 5. Walkie-Talkie Records
-    const isWT = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
     if (isWT) {
       const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       if (!matchesWT) return false;
