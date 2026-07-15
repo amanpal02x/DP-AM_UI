@@ -1104,7 +1104,7 @@ function App() {
   const [panelItemId, setPanelItemId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [viewCategoryFaults, setViewCategoryFaults] = useState<string | null>(null);
+  const [viewCategoryFaults, setViewCategoryFaults] = useState<{ categoryName: string; divisionName?: string } | null>(null);
 
   // Fetch maintenance status
   const maintenanceQuery = useQuery({
@@ -1485,7 +1485,8 @@ function App() {
         <Suspense fallback={<div className="module-loading-skeleton" aria-label="Loading module" />}>
           {viewCategoryFaults ? (
             <CategoryFaultsPageView
-              categoryName={viewCategoryFaults}
+              categoryName={viewCategoryFaults.categoryName}
+              initialDivision={viewCategoryFaults.divisionName}
               onBack={() => setViewCategoryFaults(null)}
               queries={queries}
               showToast={showToast}
@@ -1505,7 +1506,7 @@ function App() {
             )
           ) : activeNav === "Daily Position" ? (
             dashboardData ? (
-              <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
+              <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={(category: string, division?: string) => setViewCategoryFaults({ categoryName: category, divisionName: division })} />
             ) : (
               <div className="dashboard-loading-grid" aria-label="Loading daily position dashboard">
                 {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
@@ -2641,7 +2642,7 @@ function DailyPositionHighPriorityFaultsPanel({
   userDivision: string;
   showToast: (msg: string) => void;
   queries: any;
-  onCategoryClick?: (categoryName: string) => void;
+  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
 }) {
   const { role, setActiveNav, setDpHistoryFilter, setDpHistoryCategoryFilter } = useAppStore();
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -3041,21 +3042,32 @@ function CategoryFaultsPageView({
   categoryName,
   onBack,
   queries,
-  showToast
+  showToast,
+  initialDivision
 }: {
   categoryName: string;
   onBack: () => void;
   queries?: any;
   showToast?: (msg: string) => void;
+  initialDivision?: string;
 }) {
+  const lowerCat = categoryName.toLowerCase();
+  const isWalkieTalkie = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
+
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
     queryFn: () => {
       const params: any = { limit: 500 };
-      const lowerCat = categoryName.toLowerCase();
       if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
         params.isResolved = "true";
-      } else if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+      } else if (
+        lowerCat === "faults today" ||
+        lowerCat === "faults reported today" ||
+        lowerCat === "reported today" ||
+        lowerCat === "walkie-talkie" ||
+        lowerCat === "walkie-talkies" ||
+        lowerCat === "walkie talkie"
+      ) {
         params.date = todayStr;
       } else {
         params.isFaulty = "true";
@@ -3068,7 +3080,7 @@ function CategoryFaultsPageView({
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
 
-  const [selectedDivision, setSelectedDivision] = useState("");
+  const [selectedDivision, setSelectedDivision] = useState(initialDivision || "");
   const [selectedStation, setSelectedStation] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -3169,6 +3181,12 @@ function CategoryFaultsPageView({
 
     // 3. Faults Reported Today
     if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (isWT) {
+        if (isRecordAllOk(r)) return false;
+        const parsed = parseSafeDate(r.date || r.createdAt);
+        return parsed ? toDateValue(parsed) === todayStr : false;
+      }
       const parsed = parseSafeDate(r.failureTime);
       return parsed ? toDateValue(parsed) === todayStr : false;
     }
@@ -3180,11 +3198,15 @@ function CategoryFaultsPageView({
     }
 
     // For other categories, they represent active faults of that category, so we exclude all OK ones.
-    if (isRecordAllOk(r)) return false;
+    const isWT = lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie";
+    if (isRecordAllOk(r) && !isWT) return false;
 
     // 5. Walkie-Talkie Records
-    if (lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie") {
-      return (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+    if (isWT) {
+      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!matchesWT) return false;
+      const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
+      return parsed ? toDateValue(parsed) === todayStr : false;
     }
 
     return r.category?.toLowerCase() === categoryName?.toLowerCase();
@@ -3301,68 +3323,70 @@ function CategoryFaultsPageView({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
             {/* Filters Panel */}
-            <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 150px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-                <ClearableSelect
-                  value={selectedDivision}
-                  onChange={setSelectedDivision}
-                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-                >
-                  <option value="">All Divisions</option>
-                  {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
-                    <option key={div} value={div}>{div}</option>
-                  ))}
-                </ClearableSelect>
-              </div>
-
-              <div style={{ flex: "1 1 180px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
-                <ClearableSelect
-                  value={selectedStation}
-                  onChange={setSelectedStation}
-                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-                >
-                  <option value="">All Stations</option>
-                  {uniqueStations.map(st => (
-                    <option key={st} value={st}>{st}</option>
-                  ))}
-                </ClearableSelect>
-              </div>
-
-              <div style={{ flex: "1 1 0" }} />
-
-              <div style={{ flex: "0 1 280px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Search station, remarks..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
-                  />
+            {!isWalkieTalkie && (
+              <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
+                <div style={{ flex: "1 1 150px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+                  <ClearableSelect
+                    value={selectedDivision}
+                    onChange={setSelectedDivision}
+                    style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                  >
+                    <option value="">All Divisions</option>
+                    {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
+                      <option key={div} value={div}>{div}</option>
+                    ))}
+                  </ClearableSelect>
                 </div>
-              </div>
 
-              {(selectedDivision || selectedStation || searchTerm) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDivision("");
-                    setSelectedStation("");
-                    setSearchTerm("");
-                  }}
-                  className="action-btn text-red"
-                  style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
+                <div style={{ flex: "1 1 180px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
+                  <ClearableSelect
+                    value={selectedStation}
+                    onChange={setSelectedStation}
+                    style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                  >
+                    <option value="">All Stations</option>
+                    {uniqueStations.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </ClearableSelect>
+                </div>
+
+                <div style={{ flex: "1 1 0" }} />
+
+                <div style={{ flex: "0 1 280px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Search...</label>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search station, remarks..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      style={{ width: "100%", padding: "6px 10px 6px 30px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                {(selectedDivision || selectedStation || searchTerm) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDivision("");
+                      setSelectedStation("");
+                      setSearchTerm("");
+                    }}
+                    className="action-btn text-red"
+                    style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            )}
 
             {filteredRecords.length === 0 ? (
               <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
@@ -3395,7 +3419,9 @@ function CategoryFaultsPageView({
                         </td>
                         <td>{formatDateTime(record.failureTime)}</td>
                         <td>
-                          {record.rectificationTime ? (
+                          {isRecordAllOk(record) ? (
+                            "-"
+                          ) : record.rectificationTime ? (
                             formatDateTime(record.rectificationTime)
                           ) : (
                             <button
@@ -3425,7 +3451,7 @@ function CategoryFaultsPageView({
                           )}
                         </td>
                         <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
-                          {getDurationText(record.failureTime, record.rectificationTime)}
+                          {isRecordAllOk(record) ? "-" : getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -3573,7 +3599,7 @@ function DailyPositionCategoryPanel({
   onCategoryClick
 }: {
   categoryData: any[];
-  onCategoryClick: (categoryName: string) => void;
+  onCategoryClick: (categoryName: string, divisionName?: string) => void;
 }) {
   const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log");
   const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
@@ -3947,7 +3973,7 @@ function WalkieTalkieTestedTodayPanel({
   onCategoryClick
 }: {
   summary?: any;
-  onCategoryClick?: (categoryName: string) => void;
+  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
   const todayStr = toDateValue();
@@ -4078,9 +4104,18 @@ function WalkieTalkieTestedTodayPanel({
               ) : (
                 <>
                   <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{tested} sets</strong>
-                  <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>{testPercent}% of {total} sets</div>
-                  <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
-                    <div style={{ width: `${testPercent}%`, height: "100%", background: color }} />
+                  <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>
+                    <span style={{ color: "#10b981" }}>Healthy: {Math.max(0, tested - faulty)}</span> &nbsp;|&nbsp; <span style={{ color: "#ef4444" }}>Faulty: {faulty}</span>
+                  </div>
+                  <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8, display: "flex" }}>
+                    {tested > 0 ? (
+                      <>
+                        <div style={{ width: `${((Math.max(0, tested - faulty)) / tested) * 100}%`, height: "100%", background: color }} />
+                        <div style={{ width: `${(faulty / tested) * 100}%`, height: "100%", background: "#ef4444" }} />
+                      </>
+                    ) : (
+                      <div style={{ width: "0%", height: "100%", background: "#cbd5e1" }} />
+                    )}
                   </div>
                 </>
               )}
@@ -4147,7 +4182,12 @@ function WalkieTalkieTestedTodayPanel({
             const faulty = divisionStats[divNorm]?.faulty || 0;
 
             return (
-              <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div
+                key={div.division}
+                onClick={() => onCategoryClick?.("Walkie-Talkie", div.division)}
+                className="walkie-talkie-div-row"
+                style={{ display: "flex", flexDirection: "column", gap: 5 }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
@@ -4155,31 +4195,31 @@ function WalkieTalkieTestedTodayPanel({
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>
-                      Tested: {tested}/{total} ({testPercent}%)
+                      Tested: {tested} &nbsp;|&nbsp; <span style={{ color: "#10b981", fontWeight: 700 }}>Healthy: {Math.max(0, tested - faulty)}</span> &nbsp;|&nbsp; <span style={{ color: "#ef4444", fontWeight: 700 }}>Faulty: {faulty}</span>
                     </span>
-                    {faulty > 0 && (
-                      <span style={{
-                        background: "#fee2e2",
-                        color: "#b91c1c",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        padding: "2px 6px",
-                        borderRadius: 4
-                      }}>
-                        {faulty} Faulty
-                      </span>
-                    )}
                   </div>
                 </div>
-                <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${testPercent}%`,
-                      height: "100%",
-                      background: divColors[div.division] || "#64748b",
-                      borderRadius: 3
-                    }}
-                  />
+                <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", display: "flex" }}>
+                  {tested > 0 ? (
+                    <>
+                      <div
+                        style={{
+                          width: `${((Math.max(0, tested - faulty)) / tested) * 100}%`,
+                          height: "100%",
+                          background: divColors[div.division] || "#64748b",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: `${(faulty / tested) * 100}%`,
+                          height: "100%",
+                          background: "#ef4444",
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <div style={{ width: "0%", height: "100%", background: "#e2e8f0" }} />
+                  )}
                 </div>
               </div>
             );
@@ -4197,7 +4237,7 @@ function WalkieTalkieDivisionPanel({
 }: {
   summary?: any;
   activeCounts?: Record<string, number>;
-  onCategoryClick?: (categoryName: string) => void;
+  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
 
@@ -4494,9 +4534,16 @@ function DailyPositionDashboardView({
   openPanel: (title: string, itemId?: string | null) => void;
   queries: any;
   showToast: (msg: string) => void;
-  onCategoryClick: (categoryName: string) => void;
+  onCategoryClick: (categoryName: string, divisionName?: string) => void;
 }) {
   const { role, division: userDivision } = useAppStore();
+  const todayStr = toDateValue();
+
+  const todayLogsQuery = useQuery({
+    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
+    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
+    staleTime: 30 * 1000,
+  });
 
   const activeFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-active-faults", userDivision],
@@ -4646,7 +4693,16 @@ function DailyPositionDashboardView({
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
-    const faultsTodayKpi = data.kpis.find(k => k.id === "faultsToday") || {
+    const wtFaultsToday = (todayLogsQuery.data?.data || []).filter((r: any) => {
+      if (r.status === "DRAFT") return false;
+      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!isWalkieTalkie) return false;
+      const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
+      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
+      return !isRecordAllOk(r) && matchesDiv;
+    }).length;
+
+    const baseFaultsToday = data.kpis.find(k => k.id === "faultsToday") || {
       id: "faultsToday",
       label: "Faults Today",
       value: "0",
@@ -4654,6 +4710,12 @@ function DailyPositionDashboardView({
       tone: "amber",
       series: [0, 0, 0, 0, 0]
     };
+
+    const faultsTodayKpi = {
+      ...baseFaultsToday,
+      value: String(Number(baseFaultsToday.value || 0) + wtFaultsToday)
+    };
+
     const resolvedTodayKpi = data.kpis.find(k => k.id === "resolvedToday") || {
       id: "resolvedToday",
       label: "Resolved Today",
@@ -4663,7 +4725,7 @@ function DailyPositionDashboardView({
       series: [0, 0, 0, 0, 0]
     };
     return [faultsKpi, faultsTodayKpi, resolvedTodayKpi, wifiKpi];
-  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient, queries.stationsQuery.data, userDivision]);
+  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient, queries.stationsQuery.data, userDivision, todayLogsQuery.data]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -4758,7 +4820,7 @@ function DailyPositionDashboardView({
 }
 
 // KPI Card Component
-function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: number; onCategoryClick?: (categoryName: string) => void }) {
+function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: number; onCategoryClick?: (categoryName: string, divisionName?: string) => void }) {
   const Icon = toneIcons[kpi.tone];
   const { setActiveNav, setAssetStatusFilter, setDpHistoryFilter, role } = useAppStore();
 

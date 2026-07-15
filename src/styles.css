@@ -5517,3 +5517,16 @@ th.interactive-summary-cell:hover {
   color: #ffffff !important;
   text-decoration: underline;
 }
+
+.walkie-talkie-div-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+}
+
+.walkie-talkie-div-row:hover {
+  background-color: rgba(59, 130, 246, 0.08);
+  transform: translateX(4px);
+}
