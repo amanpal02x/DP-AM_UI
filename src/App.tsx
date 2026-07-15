@@ -3060,7 +3060,7 @@ function CategoryFaultsPageView({
     lowerCat === "walkie-talkie status";
   const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status";
 
-  const [wtTab, setWtTab] = useState<"faults" | "tested">("faults");
+  const [wtTab, setWtTab] = useState<"faults" | "tested" | "healthy">("faults");
 
   const todayStr = toDateValue(new Date());
 
@@ -3186,7 +3186,7 @@ function CategoryFaultsPageView({
   });
 
   const rawRecords = useMemo(() => {
-    if (isWalkieTalkie && wtTab === "tested") {
+    if (isWalkieTalkie && (wtTab === "tested" || wtTab === "healthy")) {
       return allLogsQuery.data?.data || [];
     }
     return faultsQuery.data?.data || [];
@@ -3202,6 +3202,9 @@ function CategoryFaultsPageView({
         if (wtTab === "faults") {
           if (isRecordAllOk(r)) return false;
           return !r.rectificationTime;
+        }
+        if (wtTab === "healthy") {
+          return isRecordAllOk(r);
         }
         return true;
       }
@@ -3343,58 +3346,36 @@ function CategoryFaultsPageView({
     if (!isWalkieTalkie || !dashboardSummary) return defaultStats;
 
     const divisions = dashboardSummary.walkieTalkieDivisions || [];
-    
-    // Group active faults from faultsQuery.data?.data by division
-    const activeFaultsList = faultsQuery.data?.data || [];
-    const getActiveFaultsCount = (divName: string) => {
-      const norm = normalizeDiv(divName);
-      return activeFaultsList.filter((r: any) => {
-        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-        if (!matchesWT) return false;
-        if (isRecordAllOk(r)) return false;
-        if (r.rectificationTime) return false;
-        return normalizeDiv(r.division) === norm;
-      }).length;
-    };
-
-    // Calculate today's division stats from allLogsQuery
-    const tLogs = allLogsQuery.data?.data || [];
-    const divisionTodayTested: Record<string, number> = { Raipur: 0, Bilaspur: 0, Nagpur: 0, Others: 0 };
-    tLogs.forEach((r: any) => {
-      if (r.status === "DRAFT") return;
-      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!isWT) return;
-      
-      const parsed = parseSafeDate(r.date || r.createdAt);
-      if (!parsed || toDateValue(parsed) !== todayStr) return;
-
-      const divNorm = normalizeDiv(r.division);
-      const testedCount = Number(r.formData?.testedCount || 0);
-      divisionTodayTested[divNorm] += testedCount;
-    });
-
     const targetDivNorm = selectedDivision ? normalizeDiv(selectedDivision) : "";
 
+    // Calculate total sets from dashboard summary
     let total = 0;
-    let tested = 0;
-    let faulty = 0;
-
     divisions.forEach((d: any) => {
       const divNorm = normalizeDiv(d.division);
       if (targetDivNorm && divNorm !== targetDivNorm) return;
-
-      const dTotal = d.testing?.total ?? 0;
-      const tToday = divisionTodayTested[divNorm] || 0;
-      const tCum = d.testing?.tested ?? 0;
-      const dTested = Math.min(dTotal, Math.max(tCum, tToday));
-      const dFaulty = getActiveFaultsCount(d.division);
-
-      total += dTotal;
-      tested += dTested;
-      faulty += dFaulty;
+      total += d.testing?.total ?? 0;
     });
 
-    const healthy = Math.max(0, tested - faulty);
+    // Count actual active faults from faultsQuery data
+    const activeFaultsList = faultsQuery.data?.data || [];
+    const faulty = activeFaultsList.filter((r: any) => {
+      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!matchesWT) return false;
+      if (isRecordAllOk(r)) return false;
+      if (r.rectificationTime) return false;
+      return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
+    }).length;
+
+    // Count healthy and tested sets from allLogsQuery data
+    const allLogs = allLogsQuery.data?.data || [];
+    const wtLogs = allLogs.filter((r: any) => {
+      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!matchesWT) return false;
+      return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
+    });
+
+    const healthy = wtLogs.filter((r: any) => isRecordAllOk(r)).length;
+    const tested = wtLogs.length;
     const notTested = Math.max(0, total - tested);
 
     return { total, tested, healthy, faulty, notTested };
@@ -3423,7 +3404,7 @@ function CategoryFaultsPageView({
             {faultsQuery.isLoading
               ? "Loading faults..."
               : isWalkieTalkie
-                ? `${wtTab === "faults" ? `${filteredRecords.length} active faults` : `${filteredRecords.length} tested logs`} found`
+                ? `Tested: ${stats.tested}/${stats.total} (${stats.total > 0 ? Math.round((stats.tested / stats.total) * 100) : 0}%) | Faults: ${stats.faulty}F`
                 : categoryName.toLowerCase().includes("resolved")
                   ? `${records.length} resolved faults found`
                   : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
@@ -3477,6 +3458,23 @@ function CategoryFaultsPageView({
             Faults Report ({stats.faulty})
           </button>
           <button
+            onClick={() => setWtTab("healthy")}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "8px 16px",
+              fontSize: "14px",
+              fontWeight: 700,
+              color: wtTab === "healthy" ? "#10b981" : "#64748b",
+              borderBottom: wtTab === "healthy" ? "3px solid #10b981" : "3px solid transparent",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              marginBottom: "-11px"
+            }}
+          >
+            Healthy (All OK) ({stats.healthy})
+          </button>
+          <button
             onClick={() => setWtTab("tested")}
             style={{
               background: "none",
@@ -3491,7 +3489,7 @@ function CategoryFaultsPageView({
               marginBottom: "-11px"
             }}
           >
-            Overall Tested Data ({filteredRecords.length})
+            Overall Tested Data ({stats.tested})
           </button>
         </div>
       )}
@@ -3508,7 +3506,9 @@ function CategoryFaultsPageView({
             {isWalkieTalkie
               ? wtTab === "faults"
                 ? "No active faults found for Walkie-Talkie."
-                : "No Walkie-Talkie testing records found."
+                : wtTab === "healthy"
+                  ? "No healthy (All OK) Walkie-Talkie records found."
+                  : "No Walkie-Talkie testing records found."
               : categoryName.toLowerCase().includes("resolved")
                 ? "No resolved faults found."
                 : `No active faults found for ${categoryName}.`}
