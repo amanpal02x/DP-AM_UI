@@ -278,6 +278,10 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           background-repeat: repeat;
         }
         @media print {
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+          }
           #root {
             display: none !important;
           }
