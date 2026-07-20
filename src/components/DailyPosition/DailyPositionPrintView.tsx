@@ -43,8 +43,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     queryFn: () => api.stations.list(),
   });
 
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-print"],
+    queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
+  });
+
   const isLoading =
     stationsQuery.isLoading ||
+    lobbiesQuery.isLoading ||
     ((!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading) ||
     ((!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading) ||
     ((!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading);
@@ -861,7 +867,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         <tr style={{ background: "#f8fafc" }}>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "5%", textAlign: "center" }}>Sr. No.</th>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Division</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "47%", textAlign: "left" }}>Lobby</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "47%", textAlign: "left" }}>Lobby/Location</th>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Total Sets</th>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Sets Tested</th>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Balance</th>
@@ -877,14 +883,138 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                             const map = divisionMaps[div] || {};
                             const formEntries = map[form.name] || map[form.systemCode] || [];
                             const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+
+                            const computedEntries = activeEntries.map((entry: any) => {
+                              let lobbyStr = "-";
+                              let totalSets = 0;
+                              let testedSets = 0;
+                              let balance = 0;
+
+                              const fd = entry.formData || {};
+                              if (isWtTest) {
+                                lobbyStr = fd.stationLobby || fd.lobbyName || fd.stationCode || entry.stationLobby || entry.stationCode || entry.stationName || "-";
+                                totalSets = Number(fd.toBeTestedCount ?? fd.totalSets ?? 0);
+                                testedSets = Number(fd.testedCount ?? 0);
+                                const bal = fd.balanceWalkieTalkies ?? (totalSets - testedSets);
+                                balance = bal < 0 ? 0 : bal;
+                              } else if (isWtRepair) {
+                                lobbyStr = fd.lobbyName || fd.stationLobby || fd.stationCode || entry.stationCode || entry.stationName || "-";
+                                const tot = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0);
+                                totalSets = tot;
+                                testedSets = Number(fd.repairedFromFirm || 0);
+                                const bal = tot - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
+                                balance = bal < 0 ? 0 : bal;
+                              }
+
+                              return {
+                                lobbyStr: lobbyStr.trim(),
+                                totalSets,
+                                testedSets,
+                                balance,
+                                id: entry.id
+                              };
+                            });
+
+                            const groupedMap: Record<string, { lobbyStr: string; totalSets: number; testedSets: number; balance: number; ids: string[] }> = {};
+                            computedEntries.forEach((entry) => {
+                              const key = entry.lobbyStr.toLowerCase().trim();
+                              if (key === "testing") return; // exclude testing data
+
+                              if (!groupedMap[key]) {
+                                groupedMap[key] = {
+                                  lobbyStr: entry.lobbyStr,
+                                  totalSets: 0,
+                                  testedSets: 0,
+                                  balance: 0,
+                                  ids: []
+                                };
+                              }
+groupedMap[key].totalSets += entry.totalSets;
+                              groupedMap[key].testedSets += entry.testedSets;
+                              groupedMap[key].balance += entry.balance;
+                              groupedMap[key].ids.push(entry.id);
+                            });
+                            const groupedEntries = Object.values(groupedMap);
+
+                            let finalEntries: any[] = [];
+                            
+                            const normalizeDiv = (divName?: string) => {
+                              if (!divName) return "Others";
+                              const l = divName.toLowerCase();
+                              if (l.includes("raipur") || l === "r") return "Raipur";
+                              if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+                              if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+                              return "Others";
+                            };
+
+                            const masterLobbies = (lobbiesQuery.data || []) as any[];
+                            const divisionLobbies = masterLobbies.filter((l: any) => {
+                              const lDiv = normalizeDiv(l.division);
+                              const targetDiv = normalizeDiv(div);
+                              const lobbyKey = (l.lobbyName || "").toLowerCase().trim();
+                              return lDiv === targetDiv && lobbyKey !== "testing";
+                            });
+
+                            let lobbyNames = divisionLobbies.map(l => l.lobbyName);
+                            if (normalizeDiv(div) === "Raipur") {
+                              if (!lobbyNames.some(n => n.toLowerCase().includes("durg"))) {
+                                lobbyNames.push("DURG");
+                              }
+                            }
+
+                            const mergedLobbyStr = lobbyNames.join(" / ");
+                            
+                            const mergedTotalSets = divisionLobbies.reduce((acc, l) => {
+                              const count = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
+                                ? l.walkieTalkies.length
+                                : (l.totalWalkieTalkies || 0);
+                              return acc + count;
+                            }, 0);
+
+                            const mergedTestedSets = groupedEntries.reduce((acc, curr) => {
+                              const isLobbyOfDiv = divisionLobbies.some(dl => dl.lobbyName.toLowerCase().trim() === curr.lobbyStr.toLowerCase().trim());
+                              const isDurg = curr.lobbyStr.toLowerCase().trim() === "durg";
+                              if (isLobbyOfDiv || isDurg) {
+                                return acc + curr.testedSets;
+                              }
+                              return acc;
+                            }, 0);
+
+                            const mergedBalance = mergedTotalSets - mergedTestedSets;
+                            const mergedIds = groupedEntries.flatMap(e => e.ids);
+
+                            if (lobbyNames.length > 0) {
+                              finalEntries = [{
+                                isPlaceholder: false,
+                                lobbyStr: mergedLobbyStr,
+                                totalSets: mergedTotalSets,
+                                testedSets: mergedTestedSets,
+                                balance: mergedBalance < 0 ? 0 : mergedBalance,
+                                ids: mergedIds
+                              }];
+                            } else {
+                              finalEntries = [{
+                                isPlaceholder: true,
+                                lobbyStr: "-",
+                                totalSets: 0,
+                                testedSets: 0,
+                                balance: 0,
+                                ids: [] as string[]
+                              }];
+                            }
+
                             return {
                               div,
-                              entries: activeEntries.length > 0 ? activeEntries : [{ isPlaceholder: true }],
+                              entries: finalEntries,
                             };
                           });
 
                           const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
                           let formRowIndex = 0;
+
+                          const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.totalSets || 0)), 0);
+                          const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.testedSets || 0)), 0);
+                          const grandBalance = grandTotalSets - grandTestedSets;
 
                           return (
                             <React.Fragment key={form.systemCode}>
@@ -902,25 +1032,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                   let balanceStr = "0";
 
                                   if (!entry.isPlaceholder) {
-                                    const fd = entry.formData || {};
-                                    if (isWtTest) {
-                                      lobbyStr = fd.stationLobby || fd.lobbyName || fd.stationCode || entry.stationLobby || entry.stationCode || entry.stationName || "-";
-                                      totalSetsStr = String(fd.toBeTestedCount ?? fd.totalSets ?? 0);
-                                      testedSetsStr = String(fd.testedCount ?? 0);
-                                      const bal = fd.balanceWalkieTalkies ?? (Number(totalSetsStr) - Number(testedSetsStr));
-                                      balanceStr = String(bal < 0 ? 0 : bal);
-                                    } else if (isWtRepair) {
-                                      lobbyStr = fd.lobbyName || fd.stationLobby || fd.stationCode || entry.stationCode || entry.stationName || "-";
-                                      const tot = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0);
-                                      totalSetsStr = String(tot);
-                                      testedSetsStr = String(fd.repairedFromFirm || 0);
-                                      const bal = tot - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
-                                      balanceStr = String(bal < 0 ? 0 : bal);
-                                    }
+                                    lobbyStr = entry.lobbyStr;
+                                    totalSetsStr = String(entry.totalSets);
+                                    testedSetsStr = String(entry.testedSets);
+                                    balanceStr = String(entry.balance);
                                   }
 
                                   return (
-                                    <tr key={`${div}-${entry.id || entryIndex}`} style={{
+                                    <tr key={`${div}-${entry.ids?.join('-') || entryIndex}`} style={{
                                       borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
                                     }}>
                                       {isFirstFormRow && (
@@ -961,6 +1080,24 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                   );
                                 });
                               })}
+                              {/* Grand Total Row */}
+                              <tr style={{ fontWeight: "bold", background: "#f8fafc" }}>
+                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }} colSpan={2}>
+                                  Total
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "5px" }}>
+                                  -
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                  {grandTotalSets}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                  {grandTestedSets}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                  {grandBalance < 0 ? 0 : grandBalance}
+                                </td>
+                              </tr>
                             </React.Fragment>
                           );
                         })}
