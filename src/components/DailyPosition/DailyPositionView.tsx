@@ -5121,7 +5121,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     display: "inline-block",
                     maxWidth: "100%"
                   }}>
-                    Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"} ({detailsRecord.createdBy?.designation || "N/A"})</strong> at <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                    Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> {detailsRecord.createdBy?.designation ? `(${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile || (detailsRecord.createdByUsername && /^\d{10}$/.test(detailsRecord.createdByUsername) ? detailsRecord.createdByUsername : "") ? ` [${detailsRecord.createdBy?.mobile || detailsRecord.createdByUsername}]` : ""} at <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
                   </div>
                 </div>
               ) : (
@@ -5333,7 +5333,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     }}>
                       <span>
                         Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                        {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                        {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile || (detailsRecord.createdByUsername && /^\d{10}$/.test(detailsRecord.createdByUsername) ? detailsRecord.createdByUsername : "") ? ` [${detailsRecord.createdBy?.mobile || detailsRecord.createdByUsername}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
                       </span>
                     </div>
                   </div>
