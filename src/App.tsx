@@ -3096,6 +3096,7 @@ function CategoryFaultsPageView({
         params.date = todayStr;
       } else {
         params.isFaulty = "true";
+        params.category = categoryName;
       }
       return api.dailyPosition.list(params);
     },
@@ -3278,7 +3279,7 @@ function CategoryFaultsPageView({
         return parsed ? toDateValue(parsed) === todayStr : false;
       }
 
-      return r.category?.toLowerCase() === categoryName?.toLowerCase();
+      return r.category?.toLowerCase() === categoryName?.toLowerCase() && !r.rectificationTime;
     });
   }, [rawRecords, isWalkieTalkie, wtTab, categoryName, todayStr]);
 
@@ -3825,7 +3826,7 @@ function DailyPositionCategoryPanel({
   categoryData: any[];
   onCategoryClick: (categoryName: string, divisionName?: string) => void;
 }) {
-  const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log");
+  const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log" && cat !== "Network & Internet" && cat !== "Testing & Maintenance");
   const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
 
   const displayData = displayedCategories.map((cat, idx) => {
