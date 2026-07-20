@@ -4913,7 +4913,7 @@ function DailyPositionDashboardView({
 
   const wifiActiveFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-wifi-active-faults", userDivision],
-    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", formType: "Wi-Fi", limit: 500 }),
+    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", formType: "Wi-Fi", isFaulty: "true", limit: 500 }),
     staleTime: 30 * 1000,
   });
 

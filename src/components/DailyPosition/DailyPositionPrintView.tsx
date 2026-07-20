@@ -790,7 +790,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 if (rtTimeStr === "-") rtTimeStr = "";
                                 if (durationStr === "-") durationStr = "";
                                 if (faultySec === "-") faultySec = "";
-                                if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok") {
+                                if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok" || actionRemarks === "Joints logged." || actionRemarks === "Insulation faults logged.") {
                                   actionRemarks = "All OK";
                                 }
                               }
