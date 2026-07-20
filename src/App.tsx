@@ -5150,7 +5150,11 @@ function DailyPositionDashboardView({
       {/* Row 2 (Middle Section): Division Active Faults, Category-wise Fault, & Weekly Trends */}
       <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: -15 }}>
         {userDivision ? (
-          <LatestUpdatesWidget showToast={showToast} />
+          role === "STAFF" ? (
+            <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
+          ) : (
+            <LatestUpdatesWidget showToast={showToast} />
+          )
         ) : (
           <ActiveFaultsDivisionPanel metrics={activeFaultsByDivisionClient} />
         )}
@@ -5165,7 +5169,9 @@ function DailyPositionDashboardView({
       <section className="dashboard-grid" style={{ marginTop: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
           <WalkieTalkieTestedTodayPanel summary={data} onCategoryClick={onCategoryClick} />
-          <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
+          {role !== "STAFF" && (
+            <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
+          )}
         </div>
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
