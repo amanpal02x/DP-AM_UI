@@ -48,9 +48,15 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     queryFn: () => api.walkieTalkie.listLobbies().then((res: any) => res.data || []),
   });
 
+  const activeFaultsQuery = useQuery({
+    queryKey: ["daily-position-active-faults-print"],
+    queryFn: () => api.dailyPosition.list({ limit: 1000, isFaulty: "true" }).then((res: any) => res.data || []),
+  });
+
   const isLoading =
     stationsQuery.isLoading ||
     lobbiesQuery.isLoading ||
+    activeFaultsQuery.isLoading ||
     ((!filterDivision || filterDivision === "Bilaspur") && bspQuery.isLoading) ||
     ((!filterDivision || filterDivision === "Raipur") && rprQuery.isLoading) ||
     ((!filterDivision || filterDivision === "Nagpur") && ngpQuery.isLoading);
@@ -867,10 +873,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         <tr style={{ background: "#f8fafc" }}>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "5%", textAlign: "center" }}>Sr. No.</th>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Division</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "47%", textAlign: "left" }}>Lobby/Location</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Total Sets</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Sets Tested</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Balance</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "37%", textAlign: "left" }}>Lobby/Location</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Total Sets</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Sets Tested</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "center" }}>Active Faults</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Balance</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -929,7 +936,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                   ids: []
                                 };
                               }
-groupedMap[key].totalSets += entry.totalSets;
+                              groupedMap[key].totalSets += entry.totalSets;
                               groupedMap[key].testedSets += entry.testedSets;
                               groupedMap[key].balance += entry.balance;
                               groupedMap[key].ids.push(entry.id);
@@ -980,6 +987,23 @@ groupedMap[key].totalSets += entry.totalSets;
                               return acc;
                             }, 0);
 
+                            const activeFaults = (activeFaultsQuery.data || []) as any[];
+                            const divisionFaultyRecords = activeFaults.filter((r: any) => {
+                              const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+                              const recordLobby = (r.formData?.stationLobby || r.formData?.lobbyName || r.stationCode || r.stationName || "").toLowerCase().trim();
+                              const matchesAnyLobby = divisionLobbies.some(dl => dl.lobbyName.toLowerCase().trim() === recordLobby) ||
+                                                    (normalizeDiv(div) === "Raipur" && recordLobby === "durg");
+                              const isDraft = r.status === "DRAFT";
+                              const isRectified = r.status === "RECTIFIED" || r.reason === "All OK" || (r.formData && r.formData.actionType === "OK") || r.formData?.reportType === "Healthy";
+                              return isWT && matchesAnyLobby && !isDraft && !isRectified;
+                            });
+
+                            const mergedFaultySets = divisionFaultyRecords.length;
+                            const faultySerials = divisionFaultyRecords
+                              .map(r => r.formData?.serialNo)
+                              .filter(Boolean);
+                            const faultySerialsStr = faultySerials.length > 0 ? ` (${faultySerials.join(", ")})` : "";
+
                             const mergedBalance = mergedTotalSets - mergedTestedSets;
                             const mergedIds = groupedEntries.flatMap(e => e.ids);
 
@@ -989,6 +1013,8 @@ groupedMap[key].totalSets += entry.totalSets;
                                 lobbyStr: mergedLobbyStr,
                                 totalSets: mergedTotalSets,
                                 testedSets: mergedTestedSets,
+                                faultySets: mergedFaultySets,
+                                faultySerialsStr: faultySerialsStr,
                                 balance: mergedBalance < 0 ? 0 : mergedBalance,
                                 ids: mergedIds
                               }];
@@ -998,6 +1024,8 @@ groupedMap[key].totalSets += entry.totalSets;
                                 lobbyStr: "-",
                                 totalSets: 0,
                                 testedSets: 0,
+                                faultySets: 0,
+                                faultySerialsStr: "",
                                 balance: 0,
                                 ids: [] as string[]
                               }];
@@ -1014,6 +1042,7 @@ groupedMap[key].totalSets += entry.totalSets;
 
                           const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.totalSets || 0)), 0);
                           const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.testedSets || 0)), 0);
+                          const grandFaultySets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.faultySets || 0)), 0);
                           const grandBalance = grandTotalSets - grandTestedSets;
 
                           return (
@@ -1029,12 +1058,14 @@ groupedMap[key].totalSets += entry.totalSets;
                                   let lobbyStr = "-";
                                   let totalSetsStr = "0";
                                   let testedSetsStr = "0";
+                                  let faultySetsStr = "0";
                                   let balanceStr = "0";
 
                                   if (!entry.isPlaceholder) {
                                     lobbyStr = entry.lobbyStr;
                                     totalSetsStr = String(entry.totalSets);
                                     testedSetsStr = String(entry.testedSets);
+                                    faultySetsStr = String(entry.faultySets);
                                     balanceStr = String(entry.balance);
                                   }
 
@@ -1074,6 +1105,9 @@ groupedMap[key].totalSets += entry.totalSets;
                                         {testedSetsStr}
                                       </td>
                                       <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                        {faultySetsStr}
+                                      </td>
+                                      <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                         {balanceStr}
                                       </td>
                                     </tr>
@@ -1095,19 +1129,22 @@ groupedMap[key].totalSets += entry.totalSets;
                                   {grandTestedSets}
                                 </td>
                                 <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                  {grandFaultySets}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                   {grandBalance < 0 ? 0 : grandBalance}
                                 </td>
                               </tr>
                             </React.Fragment>
                           );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            );
-          })()}
+                         })}
+                       </tbody>
+                     </table>
+                   </div>
+                 )}
+               </>
+             );
+           })()}
 
           {/* Footer Area */}
           <div style={{ marginTop: "30px", borderTop: "1px solid #000000", paddingTop: "12px", display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#475569" }}>
