@@ -5,6 +5,7 @@ import { Printer, X } from "lucide-react";
 import { api } from "../../api/apiClient";
 import { formatDateTime24, formatPositionDate, formatTime24 } from "../../utils/dateTime";
 import { DAILY_POSITION_FORMS } from "./dailyPositionForms";
+import { useAppStore } from "../../App";
 
 type DailyPositionPrintViewProps = {
   selectedDate: string;
@@ -14,6 +15,7 @@ type DailyPositionPrintViewProps = {
 };
 
 export default function DailyPositionPrintView({ selectedDate, onClose, filterDivision, positionType = "MORNING" }: DailyPositionPrintViewProps) {
+  const { role } = useAppStore();
   // Fetch data for the divisions on the selected date
   const bspQuery = useQuery({
     queryKey: ["dp-print-table", "Bilaspur", selectedDate, positionType],
@@ -78,12 +80,26 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     const base = DAILY_POSITION_FORMS.filter(
       (form) => form.category !== "Daily Log" && form.name !== "Daily Position Log"
     );
+
+    const isEligibleRole = !role || role === "SUPER_ADMIN" || role === "VIEWER" || role === "ALL_DIVISION_VIEWER" || role === "DIVISIONAL_VIEWER";
+    const isSuperAdminOrViewerPrint = isEligibleRole && (!filterDivision || DIVISIONS.length > 1);
+
+    if (isSuperAdminOrViewerPrint) {
+      const isWifiOrWt = (f: any) => {
+        const l = (f.name || "").toLowerCase();
+        return l.includes("wi-fi") || l.includes("wifi") || l.includes("walkie");
+      };
+      const regularForms = base.filter(f => !isWifiOrWt(f));
+      const wifiOrWtForms = base.filter(f => isWifiOrWt(f));
+      return [...regularForms, ...wifiOrWtForms];
+    }
+
     const wifi = base.find(f => f.name === "Wi-Fi");
     if (wifi) {
       return [...base.filter(f => f.name !== "Wi-Fi"), wifi];
     }
     return base;
-  }, []);
+  }, [role, filterDivision, DIVISIONS.length]);
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -553,7 +569,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                 const isInsulation = form.name === "Low Insulation";
 
                 // Prepare rendering data for each division
-                const divisionRenderData = DIVISIONS.map((div) => {
+                let divisionRenderData = DIVISIONS.map((div) => {
                   const map = divisionMaps[div] || {};
                   const formEntries = map[form.name] || map[form.systemCode] || [];
                   const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
@@ -579,8 +595,80 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                   return {
                     div,
                     entries,
+                    hasFaults: faultEntries.length > 0,
                   };
                 });
+
+                // For Super Admin and Viewer accounts only:
+                // If all 3 divisions (Bilaspur, Raipur, Nagpur) are All OK for configured forms,
+                // display only one row with "SECR" in Division column.
+                const SECR_CONSOLIDATED_FORMS = [
+                  "Control & ICMS Position",
+                  "FOIS",
+                  "Hotline",
+                  "Video Conferencing with Divisions",
+                  "Railway Board Video Phones",
+                  "CFTM Conference",
+                  "Railnet / Internet",
+                  "PRS/UTS",
+                  "Cable Cut (OFC & Quad)",
+                  "Temporary Joints",
+                  "Low Insulation",
+                  "Passenger Amenities",
+                  "Exchange",
+                  "Rail Madad",
+                ];
+                const SECR_CONSOLIDATED_CODES = [
+                  "SECR/TEL/ICMS-01",
+                  "SECR/TEL/FOIS-02",
+                  "SECR/TEL/HOT-03",
+                  "SECR/TEL/VC-04",
+                  "SECR/TEL/VPHONE-05",
+                  "SECR/TEL/CONF-06",
+                  "SECR/TEL/NET-08",
+                  "SECR/TEL/PRSUTS-11",
+                  "SECR/TEL/CUT-13",
+                  "SECR/TEL/JNT-14",
+                  "SECR/TEL/INS-15",
+                  "SECR/TEL/PA-16",
+                  "SECR/TEL/EX-ALL",
+                  "SECR/TEL/MAD-07",
+                ];
+
+                const isConsolidatedForm = SECR_CONSOLIDATED_FORMS.includes(form.name) || SECR_CONSOLIDATED_CODES.includes(form.systemCode);
+                const isSuperAdminOrViewer = !role || role === "SUPER_ADMIN" || role === "VIEWER" || role === "ALL_DIVISION_VIEWER" || role === "DIVISIONAL_VIEWER";
+
+                const isWifiForm = form.name === "Wi-Fi" || form.systemCode === "SECR/TEL/WIFI-09";
+
+                if (isWifiForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
+                  divisionRenderData = DIVISIONS.map((div) => {
+                    const map = divisionMaps[div] || {};
+                    const formEntries = map[form.name] || map[form.systemCode] || [];
+                    const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                    const faultEntries = activeEntries.filter((e: any) => {
+                      const s = (e.status || "").toUpperCase();
+                      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                      return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                    });
+
+                    return {
+                      div,
+                      entries: [{ isWifiSummary: true, faultCount: faultEntries.length }],
+                      hasFaults: faultEntries.length > 0,
+                    };
+                  });
+                } else if (isConsolidatedForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
+                  const allDivisionsAllOk = divisionRenderData.every((d) => !d.hasFaults);
+                  if (allDivisionsAllOk) {
+                    divisionRenderData = [
+                      {
+                        div: "SECR",
+                        entries: [{ isPlaceholder: true }],
+                        hasFaults: false,
+                      },
+                    ];
+                  }
+                }
 
                 // Calculate the total number of rows across all divisions for this form
                 const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
@@ -605,13 +693,20 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         let actionRemarks = "-";
 
                         const hasFault = !entry.isPlaceholder &&
+                          !entry.isWifiSummary &&
                           !entry.rectificationTime &&
                           entry.status !== "All Ok" &&
                           entry.status !== "RECTIFIED" &&
                           entry.reason !== "All OK" &&
                           !(entry.formData && entry.formData.actionType === "OK");
 
-                        if (!entry.isPlaceholder) {
+                        if (entry.isWifiSummary) {
+                          failTimeStr = "";
+                          rtTimeStr = "";
+                          durationStr = "";
+                          faultySec = "";
+                          actionRemarks = `Faults: ${entry.faultCount}`;
+                        } else if (!entry.isPlaceholder) {
                           if (isWtRepair) {
                             const fd = entry.formData || {};
                             const pending = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0) - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
@@ -673,15 +768,15 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               actionRemarks = "-";
                             }
                           }
-                          const isAllOk = !entry.isPlaceholder &&
-                            (entry.reason === "All OK" ||
-                              (entry.formData && entry.formData.actionType === "OK"));
-                          if (isAllOk) {
-                            if (failTimeStr === "-") failTimeStr = "";
-                            if (rtTimeStr === "-") rtTimeStr = "";
-                            if (durationStr === "-") durationStr = "";
-                            if (faultySec === "-") faultySec = "";
-                            if (actionRemarks === "-") actionRemarks = "";
+                        }
+
+                        if (!hasFault) {
+                          if (failTimeStr === "-") failTimeStr = "";
+                          if (rtTimeStr === "-") rtTimeStr = "";
+                          if (durationStr === "-") durationStr = "";
+                          if (faultySec === "-") faultySec = "";
+                          if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok") {
+                            actionRemarks = "All OK";
                           }
                         }
 
