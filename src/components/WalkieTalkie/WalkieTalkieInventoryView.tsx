@@ -3,6 +3,7 @@ import { Plus, X, Search, Download, PlusCircle, Upload } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/apiClient";
 import { useAppStore } from "../../App";
+import { toDateValue } from "../../utils/dateTime";
 
 interface WalkieTalkieInventoryViewProps {
   showToast: (message: string) => void;
@@ -55,7 +56,40 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     try {
       setIsLoading(true);
       const res = await api.walkieTalkie.listLobbies();
-      if (res.success) setLobbies(res.data);
+      if (res.success) {
+        const todayStr = toDateValue(new Date());
+        const logsRes = await api.dailyPosition.list({ date: todayStr, limit: 1000 });
+        const todayLogs = logsRes.success ? (logsRes.data || []) : [];
+
+        const lobbyTestedCounts: Record<string, number> = {};
+        todayLogs.forEach((r: any) => {
+          if (r.status === "DRAFT") return;
+          const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+          if (!isWalkieTalkie) return;
+
+          const lobbyName = (r.formData?.stationLobby || r.formData?.lobbyName || r.stationCode || r.stationName || "").toLowerCase().trim();
+          if (!lobbyName) return;
+
+          let count = 0;
+          if ((r.formType || r.name || "").includes("Testing")) {
+            count = Number(r.formData?.testedCount || 0);
+          } else if ((r.formType || r.name || "").includes("Repairing")) {
+            count = Number(r.formData?.repairedFromFirm || 0);
+          }
+
+          lobbyTestedCounts[lobbyName] = (lobbyTestedCounts[lobbyName] || 0) + count;
+        });
+
+        const updatedLobbies = res.data.map((l: any) => {
+          const lobbyKey = (l.lobbyName || "").toLowerCase().trim();
+          return {
+            ...l,
+            testedCount: lobbyTestedCounts[lobbyKey] || 0
+          };
+        });
+
+        setLobbies(updatedLobbies);
+      }
     } catch (err: any) {
       showToast(err.message || "Failed to fetch lobbies");
     } finally {

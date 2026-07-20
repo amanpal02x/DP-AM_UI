@@ -405,7 +405,7 @@ const isRecordAllOk = (r: any): boolean => {
   if (reason === "ALL OK") return true;
   if (actionType === "OK") return true;
   if (formType === "WALKIE-TALKIE TESTING" && reportType === "HEALTHY") return true;
-  
+
   return false;
 };
 
@@ -1424,10 +1424,10 @@ function App() {
         <p style={{ fontSize: '15px', color: '#94a3b8', margin: 0 }}>
           Access denied for DPDA (Daily Position). Please contact your administrator to gain access.
         </p>
-        <button 
+        <button
           onClick={() => window.location.href = "https://secrtelecom.com"}
           style={{
-            background: '#0076c0', color: '#fff', border: 'none', padding: '10px 22px', 
+            background: '#0076c0', color: '#fff', border: 'none', padding: '10px 22px',
             borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px'
           }}
         >
@@ -3080,6 +3080,9 @@ function CategoryFaultsPageView({
       } else if (lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status") {
         // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
         params.isFaulty = "true";
+      } else if (lowerCat === "wi-fi") {
+        params.formType = "Wi-Fi";
+        params.isFaulty = "true";
       } else if (
         lowerCat === "faults today" ||
         lowerCat === "faults reported today" ||
@@ -4224,7 +4227,7 @@ function WalkieTalkieTestedTodayPanel({
 
   // Group today's logs and sum up testedCount and faultyCount
   const todayLogs = todayLogsQuery.data?.data || [];
-  
+
   const divisionStats = useMemo(() => {
     const stats: Record<string, { tested: number; faulty: number }> = {
       Raipur: { tested: 0, faulty: 0 },
@@ -4415,7 +4418,7 @@ function WalkieTalkieTestedTodayPanel({
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
-        
+
         <button
           onClick={() => onCategoryClick?.("Walkie-Talkie")}
           style={{
@@ -4691,7 +4694,7 @@ function WalkieTalkieDivisionPanel({
               <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
               <strong style={{ fontSize: 13, color: "#1e293b", fontWeight: 700 }}>{div.division} Division</strong>
             </div>
-            
+
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
@@ -4700,7 +4703,7 @@ function WalkieTalkieDivisionPanel({
                 </span>
                 <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{healthy} sets</strong>
               </div>
-              
+
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
@@ -4750,12 +4753,12 @@ function WalkieTalkieDivisionPanel({
   const healthyN = Math.max(0, testedN - pendingN);
 
   const totalSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.total ?? 0), 0);
-  
+
   const testedSum = divisions.reduce((sum: number, d: any) => {
     const divNorm = normalizeDiv(d.division);
     return sum + calcDivTested(d, divNorm);
   }, 0);
-  
+
   const notTestedSum = Math.max(0, totalSum - testedSum);
 
   const pieData = [
@@ -4908,6 +4911,12 @@ function DailyPositionDashboardView({
     staleTime: 30 * 1000,
   });
 
+  const wifiActiveFaultsQuery = useQuery({
+    queryKey: ["daily-position-dashboard-wifi-active-faults", userDivision],
+    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", formType: "Wi-Fi", isFaulty: "true", limit: 500 }),
+    staleTime: 30 * 1000,
+  });
+
   const normalizeDivName = (div?: string) => {
     if (!div) return "Others";
     const l = div.toLowerCase();
@@ -4918,16 +4927,16 @@ function DailyPositionDashboardView({
   };
 
   const wifiFaultsCount = useMemo(() => {
-    const rawRecords = activeFaultsQuery.data?.data || [];
+    const rawRecords = wifiActiveFaultsQuery.data?.data || [];
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return isWifi && !isRecordAllOk(r) && matchesDiv;
+      return isWifi && !isRecordAllOk(r) && !r.rectificationTime && matchesDiv;
     });
     return filtered.length;
-  }, [activeFaultsQuery.data, userDivision]);
+  }, [wifiActiveFaultsQuery.data, userDivision]);
 
   const activeFaultsCountClient = useMemo(() => {
     const rawRecords = activeFaultsQuery.data?.data || [];
@@ -5048,7 +5057,7 @@ function DailyPositionDashboardView({
     const wifiKpi = {
       id: "wifiFaults",
       label: "Total Wi-Fi Faults",
-      value: String(totalWifiCount),
+      value: String(wifiFaultsCount),
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
@@ -5638,6 +5647,9 @@ function DailyPositionDetailsModal({
                         }
 
                         let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || entry.mobile;
+                        if (!mobile && entry.createdByUsername && /^\d{10}$/.test(entry.createdByUsername)) {
+                          mobile = entry.createdByUsername;
+                        }
                         if (!mobile && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
                           mobile = currentUser.mobile || currentUser.mobileNumber || currentUser.phone || currentUser.phoneNumber;
                         }
@@ -14235,12 +14247,12 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         <div className="auth-right">
           <div className="auth-card">
             {isSignup ? (
-              <StaffSignupForm 
-                showToast={showToast} 
+              <StaffSignupForm
+                showToast={showToast}
                 onSuccess={() => {
                   setIsSignup(false);
                   window.location.href = `https://secrtelecom.com/login?app=DP%26AM&redirect_to=${encodeURIComponent(window.location.origin)}`;
-                }} 
+                }}
               />
             ) : (
               <>

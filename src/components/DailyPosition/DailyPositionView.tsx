@@ -5135,6 +5135,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       }
 
                       let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || detailsRecord.mobile;
+                      if (!mobile && detailsRecord.createdByUsername && /^\d{10}$/.test(detailsRecord.createdByUsername)) {
+                        mobile = detailsRecord.createdByUsername;
+                      }
                       if (!mobile && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
                         mobile = user.mobile || user.mobileNumber || user.phone || user.phoneNumber;
                       }
@@ -5376,6 +5379,9 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         }
 
                         let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || detailsRecord.mobile;
+                        if (!mobile && detailsRecord.createdByUsername && /^\d{10}$/.test(detailsRecord.createdByUsername)) {
+                          mobile = detailsRecord.createdByUsername;
+                        }
                         if (!mobile && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
                           mobile = user.mobile || user.mobileNumber || user.phone || user.phoneNumber;
                         }
