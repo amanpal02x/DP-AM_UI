@@ -2854,6 +2854,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [isSavingAndNext, setIsSavingAndNext] = useState(false);
   const [isSubmittingAllOk, setIsSubmittingAllOk] = useState(false);
   const [isAddingRecord, setIsAddingRecord] = useState(false);
+  const [isFaultyMode, setIsFaultyMode] = useState(false);
   const [localDrafts, setLocalDrafts] = useState<any[]>([]);
 
   // Local completed forms state for today
@@ -3786,12 +3787,14 @@ export default function DailyPositionView({ role, division, user, mode, showToas
     });
     setQuadReadings(record.formData?.quadReadings || []);
     setEditingRecordId(record.id);
+    setIsFaultyMode(true);
     if (mode === "history") {
       setLocalViewMode("form");
     }
   };
 
   const handleCancelEdit = () => {
+    setIsFaultyMode(false);
     resetForm();
     if (role === "SUPER_ADMIN") {
       setSelectedDivision("");
@@ -3802,6 +3805,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   };
 
   const resetForm = () => {
+    setIsFaultyMode(false);
     if (selectedForm?.name === "Railnet / Internet") {
       setValues({ maintenanceType: "Divisional Maintenance" });
       setMaintenanceType("Divisional");
@@ -4347,7 +4351,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     🔒 This category is read-only. Staff can only write under "Testing & Maintenance".
                   </div>
                 )}
-                <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px" }}>
+                <div className="dp-form-intro" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", borderBottom: "1px solid var(--line)", paddingBottom: "10px", marginBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
                   <div>
                     <h3 style={{ margin: 0 }}>
                       {selectedForm.name === "Exchange" && values.exchangeName
@@ -4356,57 +4360,180 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </h3>
                     <p style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--muted)" }}>{selectedForm.description}</p>
                   </div>
-                  {selectedForm.name === "Railnet / Internet" && selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && selectedDivision !== "Raipur" && selectedDivision !== "R" && (
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        type="button"
-                        className="export-button"
-                        style={{
-                          background: maintenanceType === "Divisional" ? "var(--blue-soft)" : "transparent",
-                          color: maintenanceType === "Divisional" ? "var(--blue)" : "var(--muted)",
-                          borderColor: maintenanceType === "Divisional" ? "var(--blue)" : "var(--line)",
-                          fontWeight: 700,
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
-                        }}
-                        disabled={isCompletedToday && !editingRecordId}
-                        onClick={() => {
-                          setMaintenanceType("Divisional");
-                          setValue("maintenanceType", "Divisional Maintenance");
-                        }}
-                      >
-                        Divisional Maintenance
-                      </button>
-                      <button
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                    {selectedForm.name === "Railnet / Internet" && selectedDivision !== "Nagpur" && selectedDivision !== "NGP" && selectedDivision !== "Raipur" && selectedDivision !== "R" && (
+                      <div style={{ display: "flex", gap: "5px" }}>
+                        <button
                           type="button"
                           className="export-button"
                           style={{
-                            background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
-                            color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
-                            borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
-                            fontWeight: 700,
-                            padding: "6px 14px",
-                            borderRadius: "6px",
-                            fontSize: "13px",
+                            background: maintenanceType === "Divisional" ? "var(--blue-soft)" : "transparent",
+                            color: maintenanceType === "Divisional" ? "var(--blue)" : "var(--muted)",
+                            borderColor: maintenanceType === "Divisional" ? "var(--blue)" : "var(--line)",
+                            fontWeight: 600,
+                            padding: "4px 10px",
+                            height: "28px",
+                            borderRadius: "5px",
+                            fontSize: "11.5px",
                             cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
                           }}
                           disabled={isCompletedToday && !editingRecordId}
                           onClick={() => {
-                            setMaintenanceType("HQ");
-                            setValue("maintenanceType", "HQ Maintenance");
+                            setMaintenanceType("Divisional");
+                            setValue("maintenanceType", "Divisional Maintenance");
                           }}
                         >
-                          HQ Maintenance
+                          Divisional Maintenance
                         </button>
-                    </div>
-                  )}
+                        <button
+                            type="button"
+                            className="export-button"
+                            style={{
+                              background: maintenanceType === "HQ" ? "var(--blue-soft)" : "transparent",
+                              color: maintenanceType === "HQ" ? "var(--blue)" : "var(--muted)",
+                              borderColor: maintenanceType === "HQ" ? "var(--blue)" : "var(--line)",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              height: "28px",
+                              borderRadius: "5px",
+                              fontSize: "11.5px",
+                              cursor: (isCompletedToday && !editingRecordId) ? "not-allowed" : "pointer"
+                            }}
+                            disabled={isCompletedToday && !editingRecordId}
+                            onClick={() => {
+                              setMaintenanceType("HQ");
+                              setValue("maintenanceType", "HQ Maintenance");
+                            }}
+                          >
+                            HQ Maintenance
+                          </button>
+                      </div>
+                    )}
+
+                    {/* Header Action Buttons: ALL OK & FAULTY */}
+                    {canFill && !editingRecordId && selectedForm?.name !== "Walkie-Talkie Testing" && (() => {
+                      const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
+                      const hasDrafts = draftsCount > 0;
+                      const isCurrentFormEmpty = isFormEmpty();
+                      const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts || !isCurrentFormEmpty;
+                      const isFaultyButtonDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId);
+
+                      return (
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          {/* ALL OK Button */}
+                          <button 
+                            className="export-button ok-button" 
+                            type="button" 
+                            onClick={handleOk} 
+                            disabled={isOkButtonDisabled}
+                            onMouseEnter={() => setIsOkHovered(true)}
+                            onMouseLeave={() => setIsOkHovered(false)}
+                            style={{
+                              background: "#10b981",
+                              color: "#ffffff",
+                              border: "none",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              height: "28px",
+                              borderRadius: "5px",
+                              fontSize: "11.5px",
+                              letterSpacing: "0.2px",
+                              opacity: isOkButtonDisabled ? 0.6 : 1,
+                              cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
+                              transition: "all 0.15s ease-in-out",
+                              boxShadow: isOkButtonDisabled ? "none" : "0 1px 3px rgba(16, 185, 129, 0.25)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px"
+                            }}
+                            title={isOkButtonDisabled ? (hasDrafts ? "Draft records exist. Cannot submit ALL OK." : (!isCurrentFormEmpty ? "Form contains field entries. Cannot submit ALL OK." : "Submit ALL OK")) : "Submit form as ALL OK"}
+                          >
+                            {isSubmittingAllOk ? (
+                              <>
+                                <span className="dp-btn-loader" />
+                                Submitting...
+                              </>
+                            ) : (
+                              <>
+                                {isOkButtonDisabled ? (
+                                  <Ban size={13} />
+                                ) : (
+                                  <CheckCircle2 size={13} />
+                                )}
+                                ALL OK
+                              </>
+                            )}
+                          </button>
+
+                          {/* FAULTY Button */}
+                          <button 
+                            className="export-button faulty-button" 
+                            type="button" 
+                            onClick={() => {
+                              if (isFaultyButtonDisabled) return;
+                              if (!isFaultyMode && !editingRecordId) {
+                                setIsFaultyMode(true);
+                                setTimeout(() => {
+                                  const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
+                                  if (firstInput) {
+                                    firstInput.focus();
+                                    firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                                  }
+                                }, 50);
+                                showToast("Form unlocked. Please fill out failure details and click Submit.");
+                              } else if (!isCurrentFormEmpty) {
+                                handleSaveAndNext();
+                              } else {
+                                const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
+                                if (firstInput) {
+                                  firstInput.focus();
+                                  firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }
+                                showToast("Please enter failure details below to submit a Fault report.");
+                              }
+                            }} 
+                            disabled={isFaultyButtonDisabled}
+                            style={{
+                              background: isFaultyMode ? "#dc2626" : "#ef4444",
+                              color: "#ffffff",
+                              border: "none",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              height: "28px",
+                              borderRadius: "5px",
+                              fontSize: "11.5px",
+                              letterSpacing: "0.2px",
+                              opacity: isFaultyButtonDisabled ? 0.6 : 1,
+                              cursor: isFaultyButtonDisabled ? "not-allowed" : "pointer",
+                              transition: "all 0.15s ease-in-out",
+                              boxShadow: isFaultyButtonDisabled ? "none" : "0 1px 3px rgba(239, 68, 68, 0.25)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px"
+                            }}
+                            title={isFaultyMode ? "Enter or submit Fault report details" : "Unlock form fields to report a Fault"}
+                          >
+                            <AlertTriangle size={13} />
+                            {isFaultyMode ? "Faulty (Unlocked)" : "Faulty"}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
+                {/* Lock Banner + Form Body Wrapper */}
+                {canFill && !editingRecordId && !isFaultyMode && selectedForm?.name !== "Walkie-Talkie Testing" && (
+                  <div className="dp-form-lock-banner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    Form is in view-only mode — click <strong style={{ color: "#ef4444", margin: "0 3px" }}>Faulty</strong> to unlock and report a fault, or <strong style={{ color: "#10b981", margin: "0 3px" }}>ALL OK</strong> to submit as healthy.
+                  </div>
+                )}
 
-
-
+                <div className={canFill && !editingRecordId && !isFaultyMode && selectedForm?.name !== "Walkie-Talkie Testing" ? "dp-form-locked-wrapper" : (isFaultyMode ? "dp-form-unlocked" : "")}>
 
                 {selectedForm?.name === "Walkie-Talkie Testing" && (
                   <div style={{
@@ -4532,7 +4659,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={!canFill || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
+                      readOnly={!canFill || (!isFaultyMode && !editingRecordId) || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
                       formName={selectedForm.name}
                       records={records}
                     />
@@ -4678,11 +4805,25 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", marginBottom: "16px" }}>
                     <button
                       type="button"
-                      className="export-button"
+                      className="export-button faulty-button"
                       onClick={handleAddRecord}
                       disabled={isCompletedToday || !!editingRecordId || isAddingRecord}
                       style={{
-                        cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer"
+                        background: "#ef4444",
+                        color: "#ffffff",
+                        border: "none",
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        height: "28px",
+                        borderRadius: "5px",
+                        fontSize: "11.5px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        boxShadow: "0 1px 3px rgba(239,68,68,0.25)",
+                        cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer",
+                        opacity: (isCompletedToday || editingRecordId || isAddingRecord) ? 0.6 : 1,
+                        transition: "all 0.15s ease-in-out"
                       }}
                     >
                       {isAddingRecord ? (
@@ -4692,8 +4833,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         </>
                       ) : (
                         <>
-                          <Plus size={16} />
-                          Add Record
+                          <AlertTriangle size={14} />
+                          Add Faulty
                         </>
                       )}
                     </button>
@@ -4888,6 +5029,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </div>
                   </section>
                 )}
+                </div>{/* end dp-form-locked-wrapper / dp-form-unlocked */}
               </div>
 
               {canFill && (
@@ -4902,44 +5044,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       Cancel
                     </button>
                   )}
-                  {!editingRecordId && !(selectedForm?.name === "Walkie-Talkie Testing") && (() => {
-                    const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
-                    const hasDrafts = draftsCount > 0;
-                    const isCurrentFormEmpty = isFormEmpty();
-                    const isOkButtonDisabled = isSubmittingAllOk || createRecord.isPending || (isCompletedToday && !editingRecordId) || hasDrafts || !isCurrentFormEmpty;
-                    
-                    return (
-                      <button 
-                        className="export-button ok-button" 
-                        type="button" 
-                        onClick={handleOk} 
-                        disabled={isOkButtonDisabled}
-                        onMouseEnter={() => setIsOkHovered(true)}
-                        onMouseLeave={() => setIsOkHovered(false)}
-                        style={{
-                          opacity: isOkButtonDisabled ? 0.6 : 1,
-                          cursor: isOkButtonDisabled ? "not-allowed" : "pointer",
-                          transition: "all 0.2s ease-in-out",
-                        }}
-                      >
-                        {isSubmittingAllOk ? (
-                          <>
-                            <span className="dp-btn-loader" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            {isOkButtonDisabled ? (
-                              <Ban size={16} />
-                            ) : (
-                              <CheckCircle2 size={16} />
-                            )}
-                            ALL OK
-                          </>
-                        )}
-                      </button>
-                    );
-                  })()}
+
                   {editingRecordId && (
                     <button 
                       className="export-button" 
@@ -4960,25 +5065,61 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     </button>
                   )}
                   {!editingRecordId && (() => {
-                    const draftsCount = records.filter((r: any) => r.formType === selectedForm?.name && r.status === "DRAFT").length;
-                    const hasNoDrafts = draftsCount === 0;
-                    const isCurrentFormEmpty = isFormEmpty();
                     const isWtTestingBalanced = selectedForm?.name === "Walkie-Talkie Testing" && 
                       walkieTalkieMode === "testing" && 
                       Number(values.testedCount || 0) >= Number(values.toBeTestedCount || 0) && 
                       Number(values.toBeTestedCount || 0) > 0;
-                    const isHtmlDisabled = isSavingAndNext || createRecord.isPending || updateRecord.isPending || (isCompletedToday && !editingRecordId) || isWtTestingBalanced;
-                    const isSubmitDisabledStyle = isHtmlDisabled || (hasNoDrafts && isCurrentFormEmpty);
+                    const isPendingSubmit = isSavingAndNext || createRecord.isPending || updateRecord.isPending;
+                    const isCompleted = isCompletedToday && !editingRecordId;
+                    const isDisabled = isPendingSubmit || isCompleted || isWtTestingBalanced;
+
                     return (
                       <button 
-                        className="export-button" 
+                        className="export-button submit-button" 
                         type="button" 
-                        onClick={handleSaveAndNext} 
-                        disabled={isSubmitDisabledStyle}
+                        onClick={() => {
+                          if (isDisabled) return;
+                          if (!isFaultyMode && !editingRecordId) {
+                            setIsFaultyMode(true);
+                            setTimeout(() => {
+                              const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
+                              if (firstInput) {
+                                firstInput.focus();
+                                firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }
+                            }, 50);
+                            showToast("Form unlocked. Please fill out failure details and click Submit.");
+                            return;
+                          }
+                          if (isFormEmpty()) {
+                            const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
+                            if (firstInput) {
+                              firstInput.focus();
+                              firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }
+                            showToast("Please fill out failure details before submitting.");
+                            return;
+                          }
+                          handleSaveAndNext();
+                        }} 
+                        disabled={isDisabled}
                         style={{
-                          opacity: isSubmitDisabledStyle ? 0.6 : 1,
-                          cursor: isSubmitDisabledStyle ? "not-allowed" : "pointer",
-                          transition: "all 0.2s ease-in-out"
+                          background: "#2563eb",
+                          color: "#ffffff",
+                          border: "none",
+                          fontWeight: 600,
+                          padding: "4px 14px",
+                          height: "30px",
+                          borderRadius: "5px",
+                          fontSize: "11.5px",
+                          letterSpacing: "0.2px",
+                          opacity: isDisabled ? 0.6 : 1,
+                          cursor: isDisabled ? "not-allowed" : "pointer",
+                          transition: "all 0.15s ease-in-out",
+                          boxShadow: isDisabled ? "none" : "0 1px 3px rgba(37, 99, 235, 0.25)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px"
                         }}
                       >
                         {isSavingAndNext ? (
@@ -4988,11 +5129,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                           </>
                         ) : (
                           <>
-                            {isSubmitDisabledStyle ? (
-                              <Ban size={16} />
-                            ) : (
-                              <Send size={16} />
-                            )}
+                            {isDisabled ? <Ban size={14} /> : <Send size={14} />}
                             Submit
                           </>
                         )}
