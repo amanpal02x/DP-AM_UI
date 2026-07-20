@@ -5121,7 +5121,38 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                     display: "inline-block",
                     maxWidth: "100%"
                   }}>
-                    Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"} ({detailsRecord.createdBy?.designation || "N/A"})</strong> at <strong style={{ color: "#0f172a", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
+                    {(() => {
+                      const createdBy = detailsRecord.createdBy || {};
+                      let name = createdBy.name || createdBy.fullName || detailsRecord.createdByUsername || createdBy.username;
+                      if ((!name || name === "System User") && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                        name = user.name || user.fullName || user.username;
+                      }
+                      if (!name) name = "System User";
+
+                      let designation = createdBy.designation || detailsRecord.designation;
+                      if (!designation && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                        designation = user.designation;
+                      }
+
+                      let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || detailsRecord.mobile;
+                      if (!mobile && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                        mobile = user.mobile || user.mobileNumber || user.phone || user.phoneNumber;
+                      }
+
+                      const timeStr = detailsRecord.createdAt
+                        ? formatDateTime24(detailsRecord.createdAt)
+                        : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-");
+
+                      return (
+                        <span>
+                          Submitted by: <strong style={{ color: "#0f172a", fontWeight: 700 }}>{name}</strong>
+                          {designation ? ` (${designation})` : ""}
+                          {mobile ? ` [${mobile}]` : ""}
+                          {" at "}
+                          <strong style={{ color: "#0f172a", fontWeight: 700 }}>{timeStr}</strong>
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : (
@@ -5331,10 +5362,38 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       fontSize: "11.5px",
                       color: "#64748b"
                     }}>
-                      <span>
-                        Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdBy?.name || detailsRecord.createdByUsername || "System User"}</strong> 
-                        {detailsRecord.createdBy?.designation ? ` (${detailsRecord.createdBy.designation})` : ""}{detailsRecord.createdBy?.mobile ? ` [${detailsRecord.createdBy.mobile}]` : ""} at <strong style={{ color: "#1e293b", fontWeight: 700 }}>{detailsRecord.createdAt ? formatDateTime24(detailsRecord.createdAt) : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-")}</strong>
-                      </span>
+                      {(() => {
+                        const createdBy = detailsRecord.createdBy || {};
+                        let name = createdBy.name || createdBy.fullName || detailsRecord.createdByUsername || createdBy.username;
+                        if ((!name || name === "System User") && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                          name = user.name || user.fullName || user.username;
+                        }
+                        if (!name) name = "System User";
+
+                        let designation = createdBy.designation || detailsRecord.designation;
+                        if (!designation && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                          designation = user.designation;
+                        }
+
+                        let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || detailsRecord.mobile;
+                        if (!mobile && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
+                          mobile = user.mobile || user.mobileNumber || user.phone || user.phoneNumber;
+                        }
+
+                        const timeStr = detailsRecord.createdAt
+                          ? formatDateTime24(detailsRecord.createdAt)
+                          : (detailsRecord.date ? formatDate24(detailsRecord.date) : "-");
+
+                        return (
+                          <span>
+                            Submitted by: <strong style={{ color: "#1e293b", fontWeight: 700 }}>{name}</strong>
+                            {designation ? ` (${designation})` : ""}
+                            {mobile ? ` [${mobile}]` : ""}
+                            {" at "}
+                            <strong style={{ color: "#1e293b", fontWeight: 700 }}>{timeStr}</strong>
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </>

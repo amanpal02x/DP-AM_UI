@@ -5623,10 +5623,39 @@ function DailyPositionDetailsModal({
                       fontSize: "11px",
                       color: "var(--muted)"
                     }}>
-                      <span>
-                        Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong>
-                        {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
-                      </span>
+                      {(() => {
+                        const currentUser = useAppStore.getState().user;
+                        const createdBy = entry.createdBy || {};
+                        let name = createdBy.name || createdBy.fullName || entry.createdByUsername || createdBy.username;
+                        if ((!name || name === "System User") && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
+                          name = currentUser.name || currentUser.fullName || currentUser.username;
+                        }
+                        if (!name) name = "System User";
+
+                        let designation = createdBy.designation || entry.designation;
+                        if (!designation && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
+                          designation = currentUser.designation;
+                        }
+
+                        let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || entry.mobile;
+                        if (!mobile && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
+                          mobile = currentUser.mobile || currentUser.mobileNumber || currentUser.phone || currentUser.phoneNumber;
+                        }
+
+                        const timeStr = entry.createdAt
+                          ? formatDateTime24(entry.createdAt)
+                          : (entry.date ? formatDate24(entry.date) : "-");
+
+                        return (
+                          <span>
+                            Submitted by: <strong>{name}</strong>
+                            {designation ? ` (${designation})` : ""}
+                            {mobile ? ` [${mobile}]` : ""}
+                            {" at "}
+                            <strong>{timeStr}</strong>
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   {index < displayEntries.length - 1 && (
