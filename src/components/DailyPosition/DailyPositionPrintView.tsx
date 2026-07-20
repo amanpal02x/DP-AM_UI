@@ -294,15 +294,20 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
           background-repeat: repeat;
         }
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 8mm 10mm;
+          }
           html, body {
+            width: 100% !important;
             height: auto !important;
             overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
           }
           #root {
             display: none !important;
-          }
-          body {
-            background: #ffffff !important;
           }
           .print-preview-overlay {
             position: static !important;
@@ -318,21 +323,35 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: #fff !important;
+            background: #ffffff !important;
             width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .print-exclude {
             display: none !important;
           }
           table {
-            page-break-inside: auto;
+            width: 100% !important;
+            table-layout: fixed !important;
+            word-wrap: break-word !important;
+            word-break: break-word !important;
+            border-collapse: collapse !important;
           }
           tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
           }
           thead {
-            display: table-header-group;
+            display: table-header-group !important;
+          }
+          th, td {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            box-sizing: border-box !important;
+            padding: 4px 5px !important;
           }
           .print-watermark {
             position: absolute !important;
@@ -349,17 +368,8 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .print-preview-content {
-            position: relative !important;
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #fff !important;
-            width: 100% !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-      `}} />
+        }`
+      }} />
 
       {/* Main Printable Document Sheet */}
       {isLoading ? (
@@ -536,315 +546,435 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               <span>{positionTitle}</span>
             </div>
           </div>
-
           {/* Report Data Grid */}
-          <table style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "11px",
-            lineHeight: "1.3"
-          }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "4%", textAlign: "center" }}>Sr. No.</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "32%" : "22%", textAlign: "left" }}>Name of the circuit</th>
-                {!filterDivision && (
-                  <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Division</th>
-                )}
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Failure Time</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "left" }}>Rectified Time</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "7%", textAlign: "center" }}>Failure durations/Pending</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "left" }}>Faulty Section/station</th>
-                <th style={{ border: "1px solid #000000", padding: "6px", width: "20%", textAlign: "left" }}>Failure Remarks & Action taken</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedForms.map((form, index) => {
-                const srNo = index + 1;
+          {(() => {
+            const isSuperAdminOrViewer = !role || role === "SUPER_ADMIN" || role === "VIEWER" || role === "ALL_DIVISION_VIEWER" || role === "DIVISIONAL_VIEWER";
+            const isSuperAdminOrViewerPrint = isSuperAdminOrViewer && (!filterDivision || DIVISIONS.length > 1);
 
-                // Handle Walkie-Talkie Testing, Repairing, Temporary Joints, Low Insulation
-                const isWtRepair = form.name === "Walkie-Talkie Repairing";
-                const isWtTest = form.name === "Walkie-Talkie Testing";
-                const isJoints = form.name === "Temporary Joints";
-                const isInsulation = form.name === "Low Insulation";
+            const isWtForm = (f: any) => f.name === "Walkie-Talkie Testing" || f.name === "Walkie-Talkie Repairing";
+            const mainForms = isSuperAdminOrViewerPrint ? displayedForms.filter(f => !isWtForm(f)) : displayedForms;
+            const wtForms = isSuperAdminOrViewerPrint ? displayedForms.filter(f => isWtForm(f)) : [];
 
-                // Prepare rendering data for each division
-                let divisionRenderData = DIVISIONS.map((div) => {
-                  const map = divisionMaps[div] || {};
-                  const formEntries = map[form.name] || map[form.systemCode] || [];
-                  const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+            return (
+              <>
+                <table style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "11px",
+                  lineHeight: "1.3"
+                }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "4%" : "3%", textAlign: "center" }}>Sr. No.</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "24%" : "17%", textAlign: "left" }}>Name of the circuit</th>
+                      {!filterDivision && (
+                        <th style={{ border: "1px solid #000000", padding: "6px", width: "8%", textAlign: "center" }}>Division</th>
+                      )}
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "12%" : "11%", textAlign: "left" }}>Failure Time</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "12%" : "11%", textAlign: "left" }}>Rectified Time</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "8%" : "8%", textAlign: "center" }}>Failure durations/Pending</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "12%" : "11%", textAlign: "left" }}>Faulty Section/station</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "28%" : "31%", textAlign: "left" }}>Failure Remarks & Action taken</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mainForms.map((form, index) => {
+                      const srNo = index + 1;
 
-                  // Find active faults
-                  const faultEntries = activeEntries.filter((e: any) => {
-                    const s = (e.status || "").toUpperCase();
-                    const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                    return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
-                  });
+                      const isWtRepair = form.name === "Walkie-Talkie Repairing";
+                      const isWtTest = form.name === "Walkie-Talkie Testing";
+                      const isJoints = form.name === "Temporary Joints";
+                      const isInsulation = form.name === "Low Insulation";
 
-                  let entries: any[] = [];
-                  if (faultEntries.length > 0) {
-                    entries = faultEntries;
-                  } else if (activeEntries.length > 0) {
-                    // Show the latest entry (typically an OK/All Ok/Rectified state)
-                    entries = [activeEntries[0]];
-                  } else {
-                    // Show a placeholder empty row
-                    entries = [{ isPlaceholder: true }];
-                  }
+                      let divisionRenderData = DIVISIONS.map((div) => {
+                        const map = divisionMaps[div] || {};
+                        const formEntries = map[form.name] || map[form.systemCode] || [];
+                        const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
 
-                  return {
-                    div,
-                    entries,
-                    hasFaults: faultEntries.length > 0,
-                  };
-                });
+                        const faultEntries = activeEntries.filter((e: any) => {
+                          const s = (e.status || "").toUpperCase();
+                          const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                          return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                        });
 
-                // For Super Admin and Viewer accounts only:
-                // If all 3 divisions (Bilaspur, Raipur, Nagpur) are All OK for configured forms,
-                // display only one row with "SECR" in Division column.
-                const SECR_CONSOLIDATED_FORMS = [
-                  "Control & ICMS Position",
-                  "FOIS",
-                  "Hotline",
-                  "Video Conferencing with Divisions",
-                  "Railway Board Video Phones",
-                  "CFTM Conference",
-                  "Railnet / Internet",
-                  "PRS/UTS",
-                  "Cable Cut (OFC & Quad)",
-                  "Temporary Joints",
-                  "Low Insulation",
-                  "Passenger Amenities",
-                  "Exchange",
-                  "Rail Madad",
-                ];
-                const SECR_CONSOLIDATED_CODES = [
-                  "SECR/TEL/ICMS-01",
-                  "SECR/TEL/FOIS-02",
-                  "SECR/TEL/HOT-03",
-                  "SECR/TEL/VC-04",
-                  "SECR/TEL/VPHONE-05",
-                  "SECR/TEL/CONF-06",
-                  "SECR/TEL/NET-08",
-                  "SECR/TEL/PRSUTS-11",
-                  "SECR/TEL/CUT-13",
-                  "SECR/TEL/JNT-14",
-                  "SECR/TEL/INS-15",
-                  "SECR/TEL/PA-16",
-                  "SECR/TEL/EX-ALL",
-                  "SECR/TEL/MAD-07",
-                ];
-
-                const isConsolidatedForm = SECR_CONSOLIDATED_FORMS.includes(form.name) || SECR_CONSOLIDATED_CODES.includes(form.systemCode);
-                const isSuperAdminOrViewer = !role || role === "SUPER_ADMIN" || role === "VIEWER" || role === "ALL_DIVISION_VIEWER" || role === "DIVISIONAL_VIEWER";
-
-                const isWifiForm = form.name === "Wi-Fi" || form.systemCode === "SECR/TEL/WIFI-09";
-
-                if (isWifiForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
-                  divisionRenderData = DIVISIONS.map((div) => {
-                    const map = divisionMaps[div] || {};
-                    const formEntries = map[form.name] || map[form.systemCode] || [];
-                    const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
-                    const faultEntries = activeEntries.filter((e: any) => {
-                      const s = (e.status || "").toUpperCase();
-                      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                      return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
-                    });
-
-                    return {
-                      div,
-                      entries: [{ isWifiSummary: true, faultCount: faultEntries.length }],
-                      hasFaults: faultEntries.length > 0,
-                    };
-                  });
-                } else if (isConsolidatedForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
-                  const allDivisionsAllOk = divisionRenderData.every((d) => !d.hasFaults);
-                  if (allDivisionsAllOk) {
-                    divisionRenderData = [
-                      {
-                        div: "SECR",
-                        entries: [{ isPlaceholder: true }],
-                        hasFaults: false,
-                      },
-                    ];
-                  }
-                }
-
-                // Calculate the total number of rows across all divisions for this form
-                const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
-
-                let formRowIndex = 0;
-
-                return (
-                  <React.Fragment key={form.systemCode}>
-                    {divisionRenderData.map((divData, divIndex) => {
-                      const { div, entries } = divData;
-
-                      return entries.map((entry, entryIndex) => {
-                        const isFirstFormRow = formRowIndex === 0;
-                        const isFirstDivRow = entryIndex === 0;
-                        formRowIndex++;
-
-                        // Display values variables
-                        let failTimeStr = "-";
-                        let rtTimeStr = "-";
-                        let durationStr = "-";
-                        let faultySec = "-";
-                        let actionRemarks = "-";
-
-                        const hasFault = !entry.isPlaceholder &&
-                          !entry.isWifiSummary &&
-                          !entry.rectificationTime &&
-                          entry.status !== "All Ok" &&
-                          entry.status !== "RECTIFIED" &&
-                          entry.reason !== "All OK" &&
-                          !(entry.formData && entry.formData.actionType === "OK");
-
-                        if (entry.isWifiSummary) {
-                          failTimeStr = "";
-                          rtTimeStr = "";
-                          durationStr = "";
-                          faultySec = "";
-                          actionRemarks = `Faults: ${entry.faultCount}`;
-                        } else if (!entry.isPlaceholder) {
-                          if (isWtRepair) {
-                            const fd = entry.formData || {};
-                            const pending = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0) - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
-                            failTimeStr = `Opening Def: ${fd.openingDefective ?? 0} | Recv: ${fd.receivedFromUser ?? 0}`;
-                            rtTimeStr = `Repaired: ${fd.repairedFromFirm ?? 0} | Sent: ${fd.sentToFirm ?? 0}`;
-                            durationStr = `Pend: ${pending}`;
-                            faultySec = `Cond: ${fd.setsCondemned ?? 0}`;
-                            actionRemarks = entry.remarks || "WT Repairing logged.";
-                          } else if (isWtTest) {
-                            const fd = entry.formData || {};
-                            failTimeStr = `To Test: ${fd.toBeTestedCount ?? 0}`;
-                            rtTimeStr = `Tested: ${fd.testedCount ?? 0}`;
-                            durationStr = `Bal: ${fd.balanceWalkieTalkies ?? 0}`;
-                            faultySec = fd.makeModel || "WT Testing";
-                            actionRemarks = entry.remarks || "WT Testing logged.";
-                          } else if (isJoints) {
-                            const fd = entry.formData || {};
-                            failTimeStr = formatTime(fd.dateTime) || "-";
-                            rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
-                            // Show actual time duration, not count
-                            durationStr = getDurationText({ failureTime: fd.dateTime, rectificationTime: fd.rectifiedDateTime });
-                            // Show actual section/station location, not balance count
-                            faultySec = actualLocation(entry);
-                            actionRemarks = fd.actionPlan || entry.remarks || "Joints logged.";
-                          } else if (isInsulation) {
-                            const fd = entry.formData || {};
-                            failTimeStr = formatTime(entry.failureTime) || "-";
-                            rtTimeStr = formatTime(entry.rectificationTime) || "-";
-                            // Show actual time duration, not count
-                            durationStr = getDurationText(entry);
-                            // Show actual section/station location, not balance count
-                            faultySec = actualLocation(entry);
-                            actionRemarks = fd.actionPlanTdc || entry.remarks || "Insulation faults logged.";
-                          } else {
-                            failTimeStr = formatTime(entry.failureTime) || "-";
-                            rtTimeStr = formatTime(entry.rectificationTime) || "-";
-                            durationStr = getDurationText(entry);
-
-                            // Map location to name/code
-                            const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
-                            if (codeOrName) {
-                              const sList = stationsQuery.data?.data || [];
-                              const found = sList.find(
-                                (s: any) =>
-                                  String(s.code).toLowerCase() === codeOrName.toLowerCase() ||
-                                  String(s.name).toLowerCase() === codeOrName.toLowerCase()
-                              );
-                              faultySec = found ? `${found.name}/${found.code}` : codeOrName;
-                            } else if (entry.section || entry.formData?.section) {
-                              faultySec = entry.section || entry.formData?.section;
-                            } else if (entry.formData?.majorSection) {
-                              faultySec = entry.formData.majorSection;
-                            } else if (entry.formData?.exchangeName) {
-                              faultySec = entry.formData.exchangeName;
-                            }
-
-                            actionRemarks = entry.remarks || entry.reason || "OK";
-                            if (actionRemarks === "No fault reported.") {
-                              actionRemarks = "-";
-                            }
-                          }
+                        let entries: any[] = [];
+                        if (isWtTest || isWtRepair) {
+                          entries = activeEntries.length > 0 ? activeEntries : [{ isPlaceholder: true }];
+                        } else if (faultEntries.length > 0) {
+                          entries = faultEntries;
+                        } else if (activeEntries.length > 0) {
+                          entries = [activeEntries[0]];
+                        } else {
+                          entries = [{ isPlaceholder: true }];
                         }
 
-                        if (!hasFault) {
-                          if (failTimeStr === "-") failTimeStr = "";
-                          if (rtTimeStr === "-") rtTimeStr = "";
-                          if (durationStr === "-") durationStr = "";
-                          if (faultySec === "-") faultySec = "";
-                          if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok") {
-                            actionRemarks = "All OK";
-                          }
-                        }
-
-                        return (
-                          <tr key={`${div}-${entry.id || entryIndex}`} style={{
-                            borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
-                          }}>
-                            {/* Rowspans for first division row */}
-                            {isFirstFormRow && (
-                              <>
-                                <td rowSpan={totalRows} style={{
-                                  border: "1px solid #000000",
-                                  padding: "6px",
-                                  textAlign: "center",
-                                  fontWeight: "bold",
-                                  verticalAlign: "middle"
-                                }}>
-                                  {srNo}
-                                </td>
-                                <td rowSpan={totalRows} style={{
-                                  border: "1px solid #000000",
-                                  padding: "6px",
-                                  fontWeight: "bold",
-                                  verticalAlign: "middle"
-                                }}>
-                                  {form.name}
-                                </td>
-                              </>
-                            )}
-                            {!filterDivision && isFirstDivRow && (
-                              <td rowSpan={entries.length} style={{
-                                border: "1px solid #000000",
-                                padding: "6px",
-                                textAlign: "center",
-                                fontWeight: "bold",
-                                verticalAlign: "middle"
-                              }}>
-                                {div}
-                              </td>
-                            )}
-                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
-                              {failTimeStr}
-                            </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
-                              {rtTimeStr}
-                            </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
-                              {durationStr}
-                            </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px", fontWeight: hasFault ? "bold" : "normal" }}>
-                              {faultySec}
-                            </td>
-                            <td style={{ border: "1px solid #000000", padding: "6px" }}>
-                              {actionRemarks}
-                            </td>
-                          </tr>
-                        );
+                        return {
+                          div,
+                          entries,
+                          hasFaults: faultEntries.length > 0,
+                        };
                       });
+
+                      const SECR_CONSOLIDATED_FORMS = [
+                        "Control & ICMS Position",
+                        "FOIS",
+                        "Hotline",
+                        "Video Conferencing with Divisions",
+                        "Railway Board Video Phones",
+                        "CFTM Conference",
+                        "Railnet / Internet",
+                        "PRS/UTS",
+                        "Cable Cut (OFC & Quad)",
+                        "Temporary Joints",
+                        "Low Insulation",
+                        "Passenger Amenities",
+                        "Exchange",
+                        "Rail Madad",
+                      ];
+                      const SECR_CONSOLIDATED_CODES = [
+                        "SECR/TEL/ICMS-01",
+                        "SECR/TEL/FOIS-02",
+                        "SECR/TEL/HOT-03",
+                        "SECR/TEL/VC-04",
+                        "SECR/TEL/VPHONE-05",
+                        "SECR/TEL/CONF-06",
+                        "SECR/TEL/NET-08",
+                        "SECR/TEL/PRSUTS-11",
+                        "SECR/TEL/CUT-13",
+                        "SECR/TEL/JNT-14",
+                        "SECR/TEL/INS-15",
+                        "SECR/TEL/PA-16",
+                        "SECR/TEL/EX-ALL",
+                        "SECR/TEL/MAD-07",
+                      ];
+
+                      const isConsolidatedForm = SECR_CONSOLIDATED_FORMS.includes(form.name) || SECR_CONSOLIDATED_CODES.includes(form.systemCode);
+                      const isWifiForm = form.name === "Wi-Fi" || form.systemCode === "SECR/TEL/WIFI-09";
+
+                      if (isWifiForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
+                        divisionRenderData = DIVISIONS.map((div) => {
+                          const map = divisionMaps[div] || {};
+                          const formEntries = map[form.name] || map[form.systemCode] || [];
+                          const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                          const faultEntries = activeEntries.filter((e: any) => {
+                            const s = (e.status || "").toUpperCase();
+                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                          });
+
+                          return {
+                            div,
+                            entries: [{ isWifiSummary: true, faultCount: faultEntries.length }],
+                            hasFaults: faultEntries.length > 0,
+                          };
+                        });
+                      } else if (isConsolidatedForm && isSuperAdminOrViewer && !filterDivision && DIVISIONS.length === 3) {
+                        const allDivisionsAllOk = divisionRenderData.every((d) => !d.hasFaults);
+                        if (allDivisionsAllOk) {
+                          divisionRenderData = [
+                            {
+                              div: "SECR",
+                              entries: [{ isPlaceholder: true }],
+                              hasFaults: false,
+                            },
+                          ];
+                        }
+                      }
+
+                      const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
+                      let formRowIndex = 0;
+
+                      return (
+                        <React.Fragment key={form.systemCode}>
+                          {divisionRenderData.map((divData, divIndex) => {
+                            const { div, entries } = divData;
+
+                            return entries.map((entry, entryIndex) => {
+                              const isFirstFormRow = formRowIndex === 0;
+                              const isFirstDivRow = entryIndex === 0;
+                              formRowIndex++;
+
+                              let failTimeStr = "-";
+                              let rtTimeStr = "-";
+                              let durationStr = "-";
+                              let faultySec = "-";
+                              let actionRemarks = "-";
+
+                              const hasFault = !entry.isPlaceholder &&
+                                !entry.isWifiSummary &&
+                                !entry.rectificationTime &&
+                                entry.status !== "All Ok" &&
+                                entry.status !== "RECTIFIED" &&
+                                entry.reason !== "All OK" &&
+                                !(entry.formData && entry.formData.actionType === "OK");
+
+                              if (entry.isWifiSummary) {
+                                failTimeStr = "";
+                                rtTimeStr = "";
+                                durationStr = "";
+                                faultySec = "";
+                                actionRemarks = `Faults: ${entry.faultCount}`;
+                              } else if (!entry.isPlaceholder) {
+                                if (isWtRepair) {
+                                  const fd = entry.formData || {};
+                                  const pending = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0) - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
+                                  failTimeStr = `Opening Def: ${fd.openingDefective ?? 0} | Recv: ${fd.receivedFromUser ?? 0}`;
+                                  rtTimeStr = `Repaired: ${fd.repairedFromFirm ?? 0} | Sent: ${fd.sentToFirm ?? 0}`;
+                                  durationStr = `Pend: ${pending}`;
+                                  faultySec = `Cond: ${fd.setsCondemned ?? 0}`;
+                                  actionRemarks = entry.remarks || "WT Repairing logged.";
+                                } else if (isWtTest) {
+                                  const fd = entry.formData || {};
+                                  failTimeStr = `To Test: ${fd.toBeTestedCount ?? 0}`;
+                                  rtTimeStr = `Tested: ${fd.testedCount ?? 0}`;
+                                  durationStr = `Bal: ${fd.balanceWalkieTalkies ?? 0}`;
+                                  faultySec = fd.makeModel || "WT Testing";
+                                  actionRemarks = entry.remarks || "WT Testing logged.";
+                                } else if (isJoints) {
+                                  const fd = entry.formData || {};
+                                  failTimeStr = formatTime(fd.dateTime) || "-";
+                                  rtTimeStr = formatTime(fd.rectifiedDateTime) || "-";
+                                  durationStr = getDurationText({ failureTime: fd.dateTime, rectificationTime: fd.rectifiedDateTime });
+                                  faultySec = actualLocation(entry);
+                                  actionRemarks = fd.actionPlan || entry.remarks || "Joints logged.";
+                                } else if (isInsulation) {
+                                  const fd = entry.formData || {};
+                                  failTimeStr = formatTime(entry.failureTime) || "-";
+                                  rtTimeStr = formatTime(entry.rectificationTime) || "-";
+                                  durationStr = getDurationText(entry);
+                                  faultySec = actualLocation(entry);
+                                  actionRemarks = fd.actionPlanTdc || entry.remarks || "Insulation faults logged.";
+                                } else {
+                                  failTimeStr = formatTime(entry.failureTime) || "-";
+                                  rtTimeStr = formatTime(entry.rectificationTime) || "-";
+                                  durationStr = getDurationText(entry);
+
+                                  const codeOrName = entry.stationCode || entry.stationName || entry.formData?.stationCode || entry.formData?.stationName;
+                                  if (codeOrName) {
+                                    const sList = stationsQuery.data?.data || [];
+                                    const found = sList.find(
+                                      (s: any) =>
+                                        String(s.code).toLowerCase() === codeOrName.toLowerCase() ||
+                                        String(s.name).toLowerCase() === codeOrName.toLowerCase()
+                                    );
+                                    faultySec = found ? `${found.name}/${found.code}` : codeOrName;
+                                  } else if (entry.section || entry.formData?.section) {
+                                    faultySec = entry.section || entry.formData?.section;
+                                  } else if (entry.formData?.majorSection) {
+                                    faultySec = entry.formData.majorSection;
+                                  } else if (entry.formData?.exchangeName) {
+                                    faultySec = entry.formData.exchangeName;
+                                  }
+
+                                  actionRemarks = entry.remarks || entry.reason || "OK";
+                                  if (actionRemarks === "No fault reported.") {
+                                    actionRemarks = "-";
+                                  }
+                                }
+                              }
+
+                              if (!hasFault) {
+                                if (failTimeStr === "-") failTimeStr = "";
+                                if (rtTimeStr === "-") rtTimeStr = "";
+                                if (durationStr === "-") durationStr = "";
+                                if (faultySec === "-") faultySec = "";
+                                if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok") {
+                                  actionRemarks = "All OK";
+                                }
+                              }
+
+                              return (
+                                <tr key={`${div}-${entry.id || entryIndex}`} style={{
+                                  borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
+                                }}>
+                                  {isFirstFormRow && (
+                                    <>
+                                      <td rowSpan={totalRows} style={{
+                                        border: "1px solid #000000",
+                                        padding: "5px",
+                                        textAlign: "center",
+                                        fontWeight: "bold",
+                                        verticalAlign: "middle"
+                                      }}>
+                                        {srNo}
+                                      </td>
+                                      <td rowSpan={totalRows} style={{
+                                        border: "1px solid #000000",
+                                        padding: "5px",
+                                        fontWeight: "bold",
+                                        verticalAlign: "middle"
+                                      }}>
+                                        {form.name}
+                                      </td>
+                                    </>
+                                  )}
+                                  {!filterDivision && isFirstDivRow && (
+                                    <td rowSpan={entries.length} style={{
+                                      border: "1px solid #000000",
+                                      padding: "5px",
+                                      textAlign: "center",
+                                      fontWeight: "bold",
+                                      verticalAlign: "middle"
+                                    }}>
+                                      {div}
+                                    </td>
+                                  )}
+                                  <td style={{ border: "1px solid #000000", padding: "5px" }}>
+                                    {failTimeStr}
+                                  </td>
+                                  <td style={{ border: "1px solid #000000", padding: "5px" }}>
+                                    {rtTimeStr}
+                                  </td>
+                                  <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                    {durationStr}
+                                  </td>
+                                  <td style={{ border: "1px solid #000000", padding: "5px", fontWeight: hasFault ? "bold" : "normal" }}>
+                                    {faultySec}
+                                  </td>
+                                  <td style={{ border: "1px solid #000000", padding: "5px" }}>
+                                    {actionRemarks}
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          })}
+                        </React.Fragment>
+                      );
                     })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                  </tbody>
+                </table>
+
+                {/* Dedicated Walkie-Talkie Section Table for Super Admin / Viewer Print Reports */}
+                {wtForms.length > 0 && (
+                  <div style={{ marginTop: "20px" }}>
+                    <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px" }}>
+                      WALKIE-TALKIE TESTING POSITION
+                    </div>
+                    <table style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: "11px",
+                      lineHeight: "1.3",
+                      tableLayout: "fixed"
+                    }}>
+                      <thead>
+                        <tr style={{ background: "#f8fafc" }}>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "5%", textAlign: "center" }}>Sr. No.</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Division</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "47%", textAlign: "left" }}>Lobby</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Total Sets</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Sets Tested</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {wtForms.map((form, wtIdx) => {
+                          const srNo = mainForms.length + wtIdx + 1;
+                          const isWtRepair = form.name === "Walkie-Talkie Repairing";
+                          const isWtTest = form.name === "Walkie-Talkie Testing";
+
+                          let divisionRenderData = DIVISIONS.map((div) => {
+                            const map = divisionMaps[div] || {};
+                            const formEntries = map[form.name] || map[form.systemCode] || [];
+                            const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                            return {
+                              div,
+                              entries: activeEntries.length > 0 ? activeEntries : [{ isPlaceholder: true }],
+                            };
+                          });
+
+                          const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
+                          let formRowIndex = 0;
+
+                          return (
+                            <React.Fragment key={form.systemCode}>
+                              {divisionRenderData.map((divData, divIndex) => {
+                                const { div, entries } = divData;
+
+                                return entries.map((entry, entryIndex) => {
+                                  const isFirstFormRow = formRowIndex === 0;
+                                  const isFirstDivRow = entryIndex === 0;
+                                  formRowIndex++;
+
+                                  let lobbyStr = "-";
+                                  let totalSetsStr = "0";
+                                  let testedSetsStr = "0";
+                                  let balanceStr = "0";
+
+                                  if (!entry.isPlaceholder) {
+                                    const fd = entry.formData || {};
+                                    if (isWtTest) {
+                                      lobbyStr = fd.stationLobby || fd.lobbyName || fd.stationCode || entry.stationLobby || entry.stationCode || entry.stationName || "-";
+                                      totalSetsStr = String(fd.toBeTestedCount ?? fd.totalSets ?? 0);
+                                      testedSetsStr = String(fd.testedCount ?? 0);
+                                      const bal = fd.balanceWalkieTalkies ?? (Number(totalSetsStr) - Number(testedSetsStr));
+                                      balanceStr = String(bal < 0 ? 0 : bal);
+                                    } else if (isWtRepair) {
+                                      lobbyStr = fd.lobbyName || fd.stationLobby || fd.stationCode || entry.stationCode || entry.stationName || "-";
+                                      const tot = Number(fd.openingDefective || 0) + Number(fd.receivedFromUser || 0);
+                                      totalSetsStr = String(tot);
+                                      testedSetsStr = String(fd.repairedFromFirm || 0);
+                                      const bal = tot - Number(fd.returnedToUser || 0) - Number(fd.setsCondemned || 0);
+                                      balanceStr = String(bal < 0 ? 0 : bal);
+                                    }
+                                  }
+
+                                  return (
+                                    <tr key={`${div}-${entry.id || entryIndex}`} style={{
+                                      borderBottom: (divIndex === DIVISIONS.length - 1 && entryIndex === entries.length - 1) ? "1.5px solid #000000" : "1px solid #cbd5e1"
+                                    }}>
+                                      {isFirstFormRow && (
+                                        <td rowSpan={totalRows} style={{
+                                          border: "1px solid #000000",
+                                          padding: "5px",
+                                          textAlign: "center",
+                                          fontWeight: "bold",
+                                          verticalAlign: "middle"
+                                        }}>
+                                          {srNo}
+                                        </td>
+                                      )}
+                                      {!filterDivision && isFirstDivRow && (
+                                        <td rowSpan={entries.length} style={{
+                                          border: "1px solid #000000",
+                                          padding: "5px",
+                                          textAlign: "center",
+                                          fontWeight: "bold",
+                                          verticalAlign: "middle"
+                                        }}>
+                                          {div}
+                                        </td>
+                                      )}
+                                      <td style={{ border: "1px solid #000000", padding: "5px" }}>
+                                        {lobbyStr}
+                                      </td>
+                                      <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                        {totalSetsStr}
+                                      </td>
+                                      <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                        {testedSetsStr}
+                                      </td>
+                                      <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                        {balanceStr}
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Footer Area */}
           <div style={{ marginTop: "30px", borderTop: "1px solid #000000", paddingTop: "12px", display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#475569" }}>
-            <span>SECR Daily  System</span>
+            <span>SECR Daily Position System</span>
             <span>Generated on {formatDateTime24(new Date(), true)} IST</span>
           </div>
         </div>
