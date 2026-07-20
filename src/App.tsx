@@ -3057,10 +3057,17 @@ function CategoryFaultsPageView({
     lowerCat === "walkie-talkies" ||
     lowerCat === "walkie talkie" ||
     lowerCat === "walkie-talkie active faults" ||
-    lowerCat === "walkie-talkie status";
+    lowerCat === "walkie-talkie status" ||
+    lowerCat === "walkie-talkie-tested-today" ||
+    lowerCat === "walkie-talkie-faults-today";
   const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status";
+  const isTodayOnly = lowerCat === "walkie-talkie-tested-today" || lowerCat === "walkie-talkie-faults-today";
 
-  const [wtTab, setWtTab] = useState<"faults" | "tested" | "healthy">("faults");
+  const [wtTab, setWtTab] = useState<"faults" | "tested" | "healthy">(() => {
+    if (lowerCat === "walkie-talkie-tested-today") return "tested";
+    if (lowerCat === "walkie-talkie-faults-today") return "faults";
+    return "faults";
+  });
 
   const todayStr = toDateValue(new Date());
 
@@ -3079,7 +3086,9 @@ function CategoryFaultsPageView({
         lowerCat === "reported today" ||
         lowerCat === "walkie-talkie" ||
         lowerCat === "walkie-talkies" ||
-        lowerCat === "walkie talkie"
+        lowerCat === "walkie talkie" ||
+        lowerCat === "walkie-talkie-tested-today" ||
+        lowerCat === "walkie-talkie-faults-today"
       ) {
         params.date = todayStr;
       } else {
@@ -3199,6 +3208,11 @@ function CategoryFaultsPageView({
       const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       if (isWalkieTalkie) {
         if (!isWT) return false;
+        if (isTodayOnly) {
+          const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
+          const isToday = parsed ? toDateValue(parsed) === todayStr : false;
+          if (!isToday) return false;
+        }
         if (wtTab === "faults") {
           if (isRecordAllOk(r)) return false;
           return !r.rectificationTime;
@@ -3363,6 +3377,10 @@ function CategoryFaultsPageView({
       if (!matchesWT) return false;
       if (isRecordAllOk(r)) return false;
       if (r.rectificationTime) return false;
+      if (isTodayOnly) {
+        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
+        if (!parsed || toDateValue(parsed) !== todayStr) return false;
+      }
       return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
     }).length;
 
@@ -3371,6 +3389,10 @@ function CategoryFaultsPageView({
     const wtLogs = allLogs.filter((r: any) => {
       const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       if (!matchesWT) return false;
+      if (isTodayOnly) {
+        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
+        if (!parsed || toDateValue(parsed) !== todayStr) return false;
+      }
       return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
     });
 
@@ -3387,7 +3409,7 @@ function CategoryFaultsPageView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults", "walkie-talkie active faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults", "walkie-talkie active faults", "walkie-talkie-tested-today", "walkie-talkie-faults-today"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
             {(() => {
@@ -3395,6 +3417,8 @@ function CategoryFaultsPageView({
               if (lower === "active faults") return "Active Faults";
               if (lower === "walkie-talkie active faults") return "Walkie-Talkie — Active Faults";
               if (lower === "walkie-talkie status") return `Walkie-Talkie Status — ${selectedDivision ? `${selectedDivision} Division` : "All Divisions"}`;
+              if (lower === "walkie-talkie-tested-today") return `Walkie-Talkie — Today's Tested (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
+              if (lower === "walkie-talkie-faults-today") return `Walkie-Talkie — Today's Faults (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
               if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
               return `${categoryName} Faults`;
@@ -3455,7 +3479,7 @@ function CategoryFaultsPageView({
               marginBottom: "-11px"
             }}
           >
-            Faults Report ({stats.faulty})
+            {isTodayOnly ? `Today's Faults (${stats.faulty})` : `Faults Report (${stats.faulty})`}
           </button>
           <button
             onClick={() => setWtTab("healthy")}
@@ -3472,7 +3496,7 @@ function CategoryFaultsPageView({
               marginBottom: "-11px"
             }}
           >
-            Healthy (All OK) ({stats.healthy})
+            {isTodayOnly ? `Today's Healthy (${stats.healthy})` : `Healthy (All OK) (${stats.healthy})`}
           </button>
           <button
             onClick={() => setWtTab("tested")}
@@ -3489,7 +3513,7 @@ function CategoryFaultsPageView({
               marginBottom: "-11px"
             }}
           >
-            Overall Tested Data ({stats.tested})
+            {isTodayOnly ? `Today's Tested (${stats.tested})` : `Overall Tested Data (${stats.tested})`}
           </button>
         </div>
       )}
@@ -4260,7 +4284,7 @@ function WalkieTalkieTestedTodayPanel({
     return (
       <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested Today</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
           <button
             onClick={() => onCategoryClick?.("Walkie-Talkie")}
             style={{
@@ -4294,7 +4318,29 @@ function WalkieTalkieTestedTodayPanel({
           {/* Styled Stats Box */}
           <div style={{ width: "100%", display: "flex", gap: 10 }}>
             {/* Testing Stats Card */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, textAlign: "center" }}>
+            <div
+              onClick={() => onCategoryClick?.("walkie-talkie-tested-today", div.division)}
+              style={{
+                flex: 1,
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: 12,
+                textAlign: "center",
+                cursor: "pointer",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
+                e.currentTarget.style.borderColor = color;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.borderColor = "#e2e8f0";
+              }}
+            >
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Tested Today</div>
               {isLoading ? (
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
@@ -4319,7 +4365,33 @@ function WalkieTalkieTestedTodayPanel({
             </div>
 
             {/* Faulty logs today Card */}
-            <div style={{ flex: 1, background: faulty > 0 ? "#fff5f5" : "#f0fdf4", border: faulty > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
+            <div
+              onClick={() => onCategoryClick?.("walkie-talkie-faults-today", div.division)}
+              style={{
+                flex: 1,
+                background: faulty > 0 ? "#fff5f5" : "#f0fdf4",
+                border: faulty > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7",
+                borderRadius: 8,
+                padding: 12,
+                textAlign: "center",
+                cursor: "pointer",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
+                if (faulty > 0) {
+                  e.currentTarget.style.borderColor = "#fca5a5";
+                } else {
+                  e.currentTarget.style.borderColor = "#86efac";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.borderColor = faulty > 0 ? "#fee2e2" : "#dcfce7";
+              }}
+            >
               <div style={{ fontSize: 11, fontWeight: 700, color: faulty > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Faults Today</div>
               {isLoading ? (
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
@@ -4342,7 +4414,7 @@ function WalkieTalkieTestedTodayPanel({
   return (
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested Today</h3>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
         
         <button
           onClick={() => onCategoryClick?.("Walkie-Talkie")}
