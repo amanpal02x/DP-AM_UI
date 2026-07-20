@@ -4551,8 +4551,8 @@ function WalkieTalkieDivisionPanel({
   const allLogs = allLogsQuery.data?.data || [];
   const lobbies = lobbiesQuery.data?.data || lobbiesQuery.data || [];
 
-  // Cumulative tested counts from ALL daily position walkie-talkie submissions (all dates)
-  const allTimeDivisionStats = useMemo(() => {
+  // Today's tested counts from walkie-talkie daily position submissions
+  const todayDivisionStats = useMemo(() => {
     const stats: Record<string, number> = {
       Raipur: 0,
       Bilaspur: 0,
@@ -4560,12 +4560,17 @@ function WalkieTalkieDivisionPanel({
       Others: 0
     };
 
+    const todayStr = toDateValue(new Date());
+
     allLogs.forEach((r: any) => {
       if (r.status === "DRAFT") return;
       const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       if (!isWalkieTalkie) return;
 
       const divNorm = normalizeDiv(r.division);
+      const logDate = r.date ? toDateValue(new Date(r.date)) : (r.createdAt ? toDateValue(new Date(r.createdAt)) : "");
+      if (logDate !== todayStr) return;
+
       const testedCount = Number(r.formData?.testedCount || 0);
       if (!stats[divNorm]) stats[divNorm] = 0;
       stats[divNorm] += testedCount;
@@ -4605,11 +4610,9 @@ function WalkieTalkieDivisionPanel({
     const div = divisions[0];
     const total = div.testing?.total ?? 0;
     const divNorm = normalizeDiv(div.division);
-    const formTested = allTimeDivisionStats[divNorm] || 0;
-    const lobbyTested = lobbyDivisionStats[divNorm] || 0;
-    const maxFormOrLobby = Math.max(formTested, lobbyTested);
+    const todayTested = todayDivisionStats[divNorm] || 0;
     const pendingRepair = getActiveFaultsCount(div.division);
-    const rawTested = maxFormOrLobby > pendingRepair ? Math.min(total, maxFormOrLobby) : total;
+    const rawTested = Math.min(total, todayTested);
     const healthy = Math.max(0, rawTested - pendingRepair);
     const notTested = Math.max(0, total - (healthy + pendingRepair));
     const color = divColors[div.division] || "#94a3b8";
@@ -4727,14 +4730,8 @@ function WalkieTalkieDivisionPanel({
 
   const calcDivTested = (divObj: any, divName: string) => {
     const total = divObj?.testing?.total ?? 0;
-    const fTested = allTimeDivisionStats[divName] || 0;
-    const lTested = lobbyDivisionStats[divName] || 0;
-    const maxFormOrLobby = Math.max(fTested, lTested);
-    const pendingRepair = getActiveFaultsCount(divName);
-    if (maxFormOrLobby > pendingRepair) {
-      return Math.min(total, maxFormOrLobby);
-    }
-    return total;
+    const todayTested = todayDivisionStats[divName] || 0;
+    return Math.min(total, todayTested);
   };
 
   const totalR = RaipurDiv?.testing?.total ?? 0;

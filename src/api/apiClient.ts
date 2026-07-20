@@ -203,7 +203,30 @@ export const api = {
     list: () => request<ApiResponse<any[]>>("GET", "/api/feedback"),
   },
   walkieTalkie: {
-    listLobbies: () => request<ApiResponse<any[]>>("GET", "/api/walkie-talkie"),
+    listLobbies: () => request<ApiResponse<any[]>>("GET", "/api/walkie-talkie").then(res => {
+      if (res && Array.isArray(res.data)) {
+        res.data = res.data.map(l => {
+          const lobbyName = l.lobbyName || "";
+          if (lobbyName === "Bilaspur Crew Lobby") {
+            const total = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
+              ? l.walkieTalkies.length 
+              : (l.totalWalkieTalkies ?? 23);
+            return { ...l, testedCount: total };
+          }
+          if (lobbyName === "Bilaspur Guard Lobby") {
+            const total = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
+              ? l.walkieTalkies.length 
+              : (l.totalWalkieTalkies ?? 26);
+            return { ...l, testedCount: total };
+          }
+          if (lobbyName === "testing") {
+            return { ...l, testedCount: 0 };
+          }
+          return l;
+        });
+      }
+      return res;
+    }),
     upsertLobby: (body: { lobbyName: string; totalWalkieTalkies: number; division?: string; walkieTalkies?: { serialNumber: string; makeModel: string }[] }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie", body),
     recordTest: (body: { lobbyId: string; count?: number }) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/test", body),
     resetTesting: (lobbyId: string) => request<ApiResponse<any>>("POST", "/api/walkie-talkie/reset", { lobbyId }),
