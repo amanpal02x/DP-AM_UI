@@ -2660,7 +2660,7 @@ function DailyPositionHighPriorityFaultsPanel({
 
   const activeFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-active-faults", userDivision],
-    queryFn: () => api.dailyPosition.list({ division: userDivision || "", isFaulty: "true", limit: 500 }),
+    queryFn: () => api.dailyPosition.activeFaults({ division: userDivision || "" }),
   });
 
   const queryClient = useQueryClient();
@@ -3086,12 +3086,17 @@ function CategoryFaultsPageView({
       const params: any = { limit: 500 };
       if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
         params.isResolved = "true";
+        return api.dailyPosition.list(params);
       } else if (lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status") {
         // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
         params.isFaulty = "true";
+        return api.dailyPosition.list(params);
       } else if (lowerCat === "wi-fi") {
         params.formType = "Wi-Fi";
         params.isFaulty = "true";
+        return api.dailyPosition.list(params);
+      } else if (lowerCat === "active faults") {
+        return api.dailyPosition.activeFaults(params);
       } else if (
         lowerCat === "faults today" ||
         lowerCat === "faults reported today" ||
@@ -3103,11 +3108,11 @@ function CategoryFaultsPageView({
         lowerCat === "walkie-talkie-faults-today"
       ) {
         params.date = todayStr;
+        return api.dailyPosition.list(params);
       } else {
-        params.isFaulty = "true";
         params.category = categoryName;
+        return api.dailyPosition.activeFaults(params);
       }
-      return api.dailyPosition.list(params);
     },
   });
 
@@ -4917,7 +4922,7 @@ function DailyPositionDashboardView({
 
   const activeFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-active-faults", userDivision],
-    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", isFaulty: "true", limit: 500 }),
+    queryFn: () => api.dailyPosition.activeFaults({ division: (userDivision === "HQ" ? "" : userDivision) || "" }),
     staleTime: 30 * 1000,
   });
 

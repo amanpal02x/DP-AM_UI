@@ -39,7 +39,8 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
 
   const activeFaultsCount = activeFaultsList.filter((r: any) => {
     const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-    return !isWifi;
+    const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+    return !isWifi && !isWT;
   }).length;
 
   // KPI counts come directly from backend summary (efficient DB COUNT queries)
@@ -210,13 +211,14 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
   // Division submissions today come from backend
   const dailyPositionByDivision = stats.dailyPositionByDivision || [];
 
-  // Active faults by division (excluding Wi-Fi)
+  // Active faults by division (excluding Wi-Fi and Walkie-Talkie)
   const activeDivCounts: Record<string, number> = targetDiv
     ? { [targetDiv]: 0 }
     : { Raipur: 0, Bilaspur: 0, Nagpur: 0 };
   for (const r of activeFaultsList) {
     const isWifi = (r.formType || "").toLowerCase() === "wi-fi";
-    if (isWifi) continue;
+    const isWT = (r.formType || "").toLowerCase().includes("walkie-talkie");
+    if (isWifi || isWT) continue;
     const normalized = normalizeDivName(r.division);
     if (targetDiv && normalized !== targetDiv) continue;
     activeDivCounts[normalized] = (activeDivCounts[normalized] || 0) + 1;
