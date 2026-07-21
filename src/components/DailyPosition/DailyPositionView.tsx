@@ -4687,7 +4687,13 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       setValue={setValue}
                       metadata={metadata}
                       selectedDivision={selectedDivision}
-                      readOnly={!canFill || (!isFaultyMode && !editingRecordId) || (isCompletedToday && !editingRecordId) || (selectedForm?.name === "Walkie-Talkie Testing" && !values.stationLobby)}
+                      readOnly={
+                        !canFill || 
+                        (isCompletedToday && !editingRecordId) || 
+                        (selectedForm?.name === "Walkie-Talkie Testing" 
+                          ? !values.stationLobby 
+                          : (!isFaultyMode && !editingRecordId))
+                      }
                       formName={selectedForm.name}
                       records={records}
                     />
@@ -5107,7 +5113,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         type="button" 
                         onClick={() => {
                           if (isDisabled) return;
-                          if (!isFaultyMode && !editingRecordId) {
+                          if (!isFaultyMode && !editingRecordId && selectedForm?.name !== "Walkie-Talkie Testing") {
                             setIsFaultyMode(true);
                             setTimeout(() => {
                               const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
