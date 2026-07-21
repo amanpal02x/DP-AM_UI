@@ -4843,7 +4843,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       onClick={handleAddRecord}
                       disabled={isCompletedToday || !!editingRecordId || isAddingRecord}
                       style={{
-                        background: "#ef4444",
+                        background: selectedForm?.name === "Walkie-Talkie Testing" ? "var(--green)" : "#ef4444",
                         color: "#ffffff",
                         border: "none",
                         fontWeight: 600,
@@ -4854,7 +4854,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "5px",
-                        boxShadow: "0 1px 3px rgba(239,68,68,0.25)",
+                        boxShadow: selectedForm?.name === "Walkie-Talkie Testing" ? "0 1px 3px rgba(16,185,129,0.25)" : "0 1px 3px rgba(239,68,68,0.25)",
                         cursor: (isCompletedToday || editingRecordId || isAddingRecord) ? "not-allowed" : "pointer",
                         opacity: (isCompletedToday || editingRecordId || isAddingRecord) ? 0.6 : 1,
                         transition: "all 0.15s ease-in-out"
@@ -4867,8 +4867,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                         </>
                       ) : (
                         <>
-                          <AlertTriangle size={14} />
-                          Add Faulty
+                          {selectedForm?.name === "Walkie-Talkie Testing" ? <Plus size={14} /> : <AlertTriangle size={14} />}
+                          {selectedForm?.name === "Walkie-Talkie Testing" ? "Add Record" : "Add Faulty"}
                         </>
                       )}
                     </button>
