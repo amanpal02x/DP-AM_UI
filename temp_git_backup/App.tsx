@@ -5,7 +5,6 @@ import { create } from "zustand";
 import bgSketch from "./assets/bg-sketch.png";
 import irLogo from "./assets/ir-logo.png";
 import secrHq from "./assets/secr_hq.jpg";
-import { supabase } from "./utils/supabaseClient";
 import {
   AlertTriangle,
   BarChart3,
@@ -170,7 +169,7 @@ const TELECOM_ASSET_CHECKS = [
   { key: "hasTrainIndicationBoard", label: "Train Indication Board" },
   { key: "hasDigitalDisplayHeritage", label: "Heritage Digital Display" },
   { key: "hasAtAGlanceBoard", label: "At A Glance Board" },
-  { key: "hasCctvDe", label: "CCTV DNE" }
+  { key: "hasCctvDe", label: "CCTV DE" }
 ];
 
 const normalizeAssetText = (value: any) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -393,34 +392,6 @@ const normalizeDivision = (div: any): string => {
   return String(div);
 };
 
-const isRecordAllOk = (r: any): boolean => {
-  if (!r) return true;
-  const status = (r.status || "").toUpperCase();
-  const reason = (r.reason || "").toUpperCase();
-  const actionType = (r.formData?.actionType || "").toUpperCase();
-  const reportType = (r.formData?.reportType || "").toUpperCase();
-  const formType = (r.formType || r.name || "").toUpperCase();
-
-  if (status === "ALL OK" || status === "RECTIFIED" || status === "OPERATIONAL") return true;
-  if (reason === "ALL OK") return true;
-  if (actionType === "OK") return true;
-  if (formType === "WALKIE-TALKIE TESTING" && reportType === "HEALTHY") return true;
-
-  return false;
-};
-
-const parseSafeDate = (dateStr?: string | Date | null): Date | null => {
-  if (!dateStr) return null;
-  if (dateStr instanceof Date) return dateStr;
-  const s = String(dateStr).trim();
-  if (!s) return null;
-  const hasOffset = s.includes("Z") || /\+\d{2}:?\d{2}$/.test(s) || /-\d{2}:?\d{2}$/.test(s);
-  const formatted = s.includes(" ") && !s.includes("T") ? s.replace(" ", "T") : s;
-  const resolvedStr = hasOffset ? formatted : `${formatted}+05:30`;
-  const d = new Date(resolvedStr);
-  return Number.isNaN(d.getTime()) ? null : d;
-};
-
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
 import { getDashboardSummary } from "./api/dashboardApi";
 import { formatDate24, formatDateTime24, formatTime24, shiftDateText, toDateValue, toLocalDateTimeValue, toUTCFromISTString } from "./utils/dateTime";
@@ -576,18 +547,9 @@ export const useAppStore = create<AppState>((set) => ({
   setDpHistoryCategoryFilter: (dpHistoryCategoryFilter) => set({ dpHistoryCategoryFilter }),
   setDpHistoryFormTypeFilter: (dpHistoryFormTypeFilter) => set({ dpHistoryFormTypeFilter }),
   logout: () => {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0a0d14;color:#ffffff;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui, -apple-system, sans-serif;font-size:16px;font-weight:600;";
-    overlay.innerText = "Logging out...";
-    document.body.appendChild(overlay);
-
     setAuthToken(null);
     setCachedUser(null);
     set({ token: null, user: null, role: "VIEWER", activeNav: "Daily Position", division: "Raipur", assetStatusFilter: "", dpHistoryFilter: "date", dpHistoryCategoryFilter: "", dpHistoryFormTypeFilter: "" });
-    // Sign out from Supabase to clear cookies and redirect to the central portal home
-    supabase.auth.signOut().finally(() => {
-      window.location.href = 'https://secrtelecom.com/';
-    });
   },
   dpSelectedCategory: "Communication & Voice Circuits",
   dpSelectedFormName: "Control & ICMS Position",
@@ -1105,19 +1067,7 @@ function App() {
   const [panelItemId, setPanelItemId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [viewCategoryFaults, setViewCategoryFaults] = useState<{ categoryName: string; divisionName?: string } | null>(null);
-
-  // Fetch maintenance status
-  const maintenanceQuery = useQuery({
-    queryKey: ["maintenance-status"],
-    queryFn: async () => {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://dp-am-backend.onrender.com";
-      const res = await fetch(`${baseUrl}/api/maintenance`);
-      if (!res.ok) throw new Error("Failed to fetch maintenance status");
-      return res.json();
-    },
-    refetchInterval: 30000, // Poll every 30 seconds
-  });
+  const [viewCategoryFaults, setViewCategoryFaults] = useState<string | null>(null);
 
   // Reset category faults page view when activeNav changes
   useEffect(() => {
@@ -1125,13 +1075,6 @@ function App() {
     if (activeNav === "Walkie Talkie Testing") {
       useAppStore.getState().setDpSelectedCategory("Testing & Maintenance");
       useAppStore.getState().setDpSelectedFormName("Walkie-Talkie Testing");
-    } else if (activeNav === "DP Form") {
-      const state = useAppStore.getState();
-      if (state.dpSelectedCategory === "Testing & Maintenance") {
-        state.setDpSelectedCategory("Communication & Voice Circuits");
-        state.setDpSelectedFormName("");
-        state.setDpOpenCategory("Communication & Voice Circuits");
-      }
     }
   }, [activeNav]);
 
@@ -1235,7 +1178,7 @@ function App() {
   const stationsQuery = useQuery({
     queryKey: ["stations-list"],
     queryFn: () => api.stations.list(),
-    enabled: !!token && ["Master List", "Assets", "LC Gate", "Daily Position"].includes(activeNav),
+    enabled: !!token && ["Master List", "Assets", "LC Gate"].includes(activeNav),
     staleTime: 5 * 60 * 1000,
     placeholderData: previousData => previousData,
   });
@@ -1314,138 +1257,7 @@ function App() {
     );
   }
 
-  if (token && maintenanceQuery.data?.maintenance) {
-    return (
-      <div className="maintenance-fullscreen-wrapper" style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 99999,
-        fontFamily: "'Inter', sans-serif",
-        padding: "20px",
-        textAlign: "center"
-      }}>
-        <style>{`
-          @keyframes maintenancePulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          @keyframes maintenanceSpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          .animate-pulse-custom {
-            animation: maintenancePulse 2s infinite ease-in-out;
-          }
-          .animate-spin-custom {
-            animation: maintenanceSpin 8s infinite linear;
-          }
-        `}</style>
-        <div style={{
-          background: "rgba(255, 255, 255, 0.05)",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "24px",
-          padding: "50px 40px",
-          maxWidth: "550px",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center"
-        }}>
-          <div className="animate-pulse-custom" style={{
-            width: "80px",
-            height: "80px",
-            background: "rgba(245, 158, 11, 0.15)",
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            marginBottom: "28px",
-            boxShadow: "0 0 20px rgba(245, 158, 11, 0.2)"
-          }}>
-            <Wrench size={40} className="animate-spin-custom" style={{ color: "#f59e0b" }} />
-          </div>
-          <h1 style={{
-            fontSize: "28px",
-            fontWeight: 800,
-            marginBottom: "16px",
-            letterSpacing: "-0.025em",
-            background: "linear-gradient(to right, #f59e0b, #facc15)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            margin: "0 0 16px 0"
-          }}>
-            System Under Maintenance
-          </h1>
-          <p style={{
-            fontSize: "15px",
-            color: "#94a3b8",
-            lineHeight: 1.6,
-            marginBottom: "32px",
-            fontWeight: 500,
-            margin: "0 0 32px 0"
-          }}>
-            {maintenanceQuery.data?.message || "The server is currently undergoing scheduled maintenance. Please try again shortly."}
-          </p>
-          <div style={{
-            fontSize: "12px",
-            color: "#64748b",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(255, 255, 255, 0.02)",
-            padding: "8px 16px",
-            borderRadius: "50px",
-            border: "1px solid rgba(255, 255, 255, 0.05)"
-          }}>
-            <div style={{
-              width: "6px",
-              height: "6px",
-              background: "#10b981",
-              borderRadius: "50%",
-              animation: "maintenancePulse 1.5s infinite"
-            }} />
-            Checking status in background...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const isForbidden = profileQuery.error && ((profileQuery.error as any).status === 403 || profileQuery.error.message?.includes("403"));
-  if (isForbidden) {
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', width: '100vw', background: '#0a0d14', color: '#ffffff',
-        fontFamily: 'system-ui, -apple-system, sans-serif', padding: '20px', textAlign: 'center', gap: '16px'
-      }}>
-        <p style={{ fontSize: '15px', color: '#94a3b8', margin: 0 }}>
-          Access denied for DPDA (Daily Position). Please contact your administrator to gain access.
-        </p>
-        <button
-          onClick={() => window.location.href = "https://secrtelecom.com"}
-          style={{
-            background: '#0076c0', color: '#fff', border: 'none', padding: '10px 22px',
-            borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px'
-          }}
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
-
-  const isProfileLoading = profileQuery.isLoading || (["Asset Dashboard", "Daily Position"].includes(activeNav) && dashboardLoading);
+  const isProfileLoading = !useAppStore.getState().user && profileQuery.isLoading;
   if (isProfileLoading) {
     return (
       <div className="app-loading-container">
@@ -1493,8 +1305,7 @@ function App() {
         <Suspense fallback={<div className="module-loading-skeleton" aria-label="Loading module" />}>
           {viewCategoryFaults ? (
             <CategoryFaultsPageView
-              categoryName={viewCategoryFaults.categoryName}
-              initialDivision={viewCategoryFaults.divisionName}
+              categoryName={viewCategoryFaults}
               onBack={() => setViewCategoryFaults(null)}
               queries={queries}
               showToast={showToast}
@@ -1514,7 +1325,7 @@ function App() {
             )
           ) : activeNav === "Daily Position" ? (
             dashboardData ? (
-              <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={(category: string, division?: string) => setViewCategoryFaults({ categoryName: category, divisionName: division })} />
+              <DailyPositionDashboardView data={dashboardData} openPanel={openPanel} queries={queries} showToast={showToast} onCategoryClick={setViewCategoryFaults} />
             ) : (
               <div className="dashboard-loading-grid" aria-label="Loading daily position dashboard">
                 {Array.from({ length: 8 }).map((_, index) => <span key={index} />)}
@@ -1852,7 +1663,6 @@ function SidebarDailyPositionAccordion() {
                         alignItems: "center"
                       }}
                       onClick={() => {
-                        setDpSelectedCategory(category);
                         setDpSelectedFormName(form.name);
                       }}
                     >
@@ -2651,7 +2461,7 @@ function DailyPositionHighPriorityFaultsPanel({
   userDivision: string;
   showToast: (msg: string) => void;
   queries: any;
-  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
+  onCategoryClick?: (categoryName: string) => void;
 }) {
   const { role, setActiveNav, setDpHistoryFilter, setDpHistoryCategoryFilter } = useAppStore();
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -2723,8 +2533,9 @@ function DailyPositionHighPriorityFaultsPanel({
     const rawRecords = activeFaultsQuery.data?.data || [];
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      return !isRecordAllOk(r) && !isWifi;
+      return !isAllOk && !isWifi;
     });
 
     // Sort by priority weight first (High=1, Median=2, Low=3), then by failureTime ascending (oldest first)
@@ -3051,85 +2862,31 @@ function CategoryFaultsPageView({
   categoryName,
   onBack,
   queries,
-  showToast,
-  initialDivision
+  showToast
 }: {
   categoryName: string;
   onBack: () => void;
   queries?: any;
   showToast?: (msg: string) => void;
-  initialDivision?: string;
 }) {
-  const lowerCat = categoryName.toLowerCase();
-  const isWalkieTalkie =
-    lowerCat === "walkie-talkie" ||
-    lowerCat === "walkie-talkies" ||
-    lowerCat === "walkie talkie" ||
-    lowerCat === "walkie-talkie active faults" ||
-    lowerCat === "walkie-talkie status" ||
-    lowerCat === "walkie-talkie-tested-today" ||
-    lowerCat === "walkie-talkie-faults-today";
-  const isWalkieTalkieActiveFaults = lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status";
-  const isTodayOnly = lowerCat === "walkie-talkie-tested-today" || lowerCat === "walkie-talkie-faults-today";
-
-  const [wtTab, setWtTab] = useState<"faults" | "tested" | "healthy">(() => {
-    if (lowerCat === "walkie-talkie-tested-today") return "tested";
-    if (lowerCat === "walkie-talkie-faults-today") return "faults";
-    return "faults";
-  });
-
-  const todayStr = toDateValue(new Date());
+  const isTodayQuery = categoryName.toLowerCase().includes("today") || categoryName.toLowerCase().includes("resolved");
 
   const faultsQuery = useQuery({
     queryKey: ["daily-position-category-active-faults", categoryName],
     queryFn: () => {
       const params: any = { limit: 500 };
-      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
-        params.isResolved = "true";
-      } else if (lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status") {
-        // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
+      if (!isTodayQuery) {
         params.isFaulty = "true";
-      } else if (lowerCat === "wi-fi") {
-        params.formType = "Wi-Fi";
-        params.isFaulty = "true";
-      } else if (
-        lowerCat === "faults today" ||
-        lowerCat === "faults reported today" ||
-        lowerCat === "reported today" ||
-        lowerCat === "walkie-talkie" ||
-        lowerCat === "walkie-talkies" ||
-        lowerCat === "walkie talkie" ||
-        lowerCat === "walkie-talkie-tested-today" ||
-        lowerCat === "walkie-talkie-faults-today"
-      ) {
-        params.date = todayStr;
-      } else {
-        params.isFaulty = "true";
-        params.category = categoryName;
       }
       return api.dailyPosition.list(params);
     },
-  });
-
-  const allLogsQuery = useQuery({
-    queryKey: ["daily-position-all-walkie-talkie-logs-detail"],
-    queryFn: () => api.dailyPosition.list({ limit: 1000 }),
-    staleTime: 30 * 1000,
-    enabled: isWalkieTalkie,
-  });
-
-  const { data: dashboardSummary } = useQuery({
-    queryKey: ["dashboard-summary", ""],
-    queryFn: () => getDashboardSummary(""),
-    staleTime: 5 * 60_000,
-    enabled: isWalkieTalkie,
   });
 
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
 
-  const [selectedDivision, setSelectedDivision] = useState(initialDivision || "");
+  const [selectedDivision, setSelectedDivision] = useState("");
   const [selectedStation, setSelectedStation] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -3207,90 +2964,46 @@ function CategoryFaultsPageView({
     }
   });
 
-  const rawRecords = useMemo(() => {
-    if (isWalkieTalkie && (wtTab === "tested" || wtTab === "healthy")) {
-      return allLogsQuery.data?.data || [];
+  const todayStr = toDateValue(new Date());
+
+  const records = (faultsQuery.data?.data || []).filter((r: any) => {
+    if (r.status === "DRAFT") return false;
+    const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
+    if (isAllOk) return false;
+
+    const lowerCat = categoryName.toLowerCase();
+
+    // 1. Active Faults
+    if (lowerCat === "active faults") {
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return !isWifi && !r.rectificationTime; // Must be active
     }
-    return faultsQuery.data?.data || [];
-  }, [isWalkieTalkie, wtTab, faultsQuery.data, allLogsQuery.data]);
 
-  const records = useMemo(() => {
-    return rawRecords.filter((r: any) => {
-      if (r.status === "DRAFT") return false;
+    // 2. Wi-Fi Faults
+    if (lowerCat === "wi-fi") {
+      const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
+      return isWifi && !r.rectificationTime; // Must be active
+    }
 
-      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (isWalkieTalkie) {
-        if (!isWT) return false;
-        if (isTodayOnly) {
-          const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
-          const isToday = parsed ? toDateValue(parsed) === todayStr : false;
-          if (!isToday) return false;
-        }
-        if (wtTab === "faults") {
-          if (isRecordAllOk(r)) return false;
-          return !r.rectificationTime;
-        }
-        if (wtTab === "healthy") {
-          return isRecordAllOk(r);
-        }
-        return true;
-      }
+    // 3. Faults Reported Today
+    if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
+      const isTodayVal = r.failureTime && toDateValue(new Date(r.failureTime)) === todayStr;
+      return isTodayVal;
+    }
 
-      const lowerCat = categoryName.toLowerCase();
+    // 4. Faults Resolved Today
+    if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+      const isResolvedToday = r.rectificationTime && toDateValue(new Date(r.rectificationTime)) === todayStr;
+      return isResolvedToday;
+    }
 
-      // 1. Active Faults
-      if (lowerCat === "active faults") {
-        if (isRecordAllOk(r)) return false;
-        const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-        return !isWifi && !isWT && !r.rectificationTime; // Must be active
-      }
+    // 5. Walkie-Talkie Records
+    if (lowerCat === "walkie-talkie" || lowerCat === "walkie-talkies" || lowerCat === "walkie talkie") {
+      return (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+    }
 
-      // 2. Wi-Fi Faults
-      if (lowerCat === "wi-fi") {
-        if (isRecordAllOk(r)) return false;
-        const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-        return isWifi && !r.rectificationTime; // Must be active
-      }
-
-      // 3. Faults Reported Today
-      if (lowerCat === "faults today" || lowerCat === "faults reported today" || lowerCat === "reported today") {
-        if (isWT) {
-          if (isRecordAllOk(r)) return false;
-          const parsed = parseSafeDate(r.date || r.createdAt);
-          return parsed ? toDateValue(parsed) === todayStr : false;
-        }
-        const parsed = parseSafeDate(r.failureTime);
-        return parsed ? toDateValue(parsed) === todayStr : false;
-      }
-
-      // 4. Faults Resolved Today
-      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
-        const parsed = parseSafeDate(r.rectificationTime);
-        return parsed ? toDateValue(parsed) === todayStr : false;
-      }
-
-      // 5. Walkie-Talkie Active Faults (all unresolved WT faults, across all days)
-      if (lowerCat === "walkie-talkie active faults") {
-        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-        if (!matchesWT) return false;
-        if (isRecordAllOk(r)) return false;
-        return !r.rectificationTime; // Only unresolved (still active)
-      }
-
-      // For other categories, they represent active faults of that category, so we exclude all OK ones.
-      if (isRecordAllOk(r) && !isWT) return false;
-
-      // 6. Walkie-Talkie Today Records
-      if (isWT) {
-        const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-        if (!matchesWT) return false;
-        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
-        return parsed ? toDateValue(parsed) === todayStr : false;
-      }
-
-      return r.category?.toLowerCase() === categoryName?.toLowerCase() && !r.rectificationTime;
-    });
-  }, [rawRecords, isWalkieTalkie, wtTab, categoryName, todayStr]);
+    return r.category?.toLowerCase() === categoryName?.toLowerCase();
+  });
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a: any, b: any) => {
@@ -3359,79 +3072,18 @@ function CategoryFaultsPageView({
     return Number.isNaN(date.getTime()) ? dateStr : formatDateTime24(date);
   };
 
-  const normalizeDiv = (divName?: string) => {
-    if (!divName) return "Others";
-    const l = divName.toLowerCase();
-    if (l.includes("raipur") || l === "r") return "Raipur";
-    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
-    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
-    return "Others";
-  };
-
-  const stats = useMemo(() => {
-    const defaultStats = { total: 0, tested: 0, healthy: 0, faulty: 0, notTested: 0 };
-    if (!isWalkieTalkie || !dashboardSummary) return defaultStats;
-
-    const divisions = dashboardSummary.walkieTalkieDivisions || [];
-    const targetDivNorm = selectedDivision ? normalizeDiv(selectedDivision) : "";
-
-    // Calculate total sets from dashboard summary
-    let total = 0;
-    divisions.forEach((d: any) => {
-      const divNorm = normalizeDiv(d.division);
-      if (targetDivNorm && divNorm !== targetDivNorm) return;
-      total += d.testing?.total ?? 0;
-    });
-
-    // Count actual active faults from faultsQuery data
-    const activeFaultsList = faultsQuery.data?.data || [];
-    const faulty = activeFaultsList.filter((r: any) => {
-      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!matchesWT) return false;
-      if (isRecordAllOk(r)) return false;
-      if (r.rectificationTime) return false;
-      if (isTodayOnly) {
-        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
-        if (!parsed || toDateValue(parsed) !== todayStr) return false;
-      }
-      return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
-    }).length;
-
-    // Count healthy and tested sets from allLogsQuery data
-    const allLogs = allLogsQuery.data?.data || [];
-    const wtLogs = allLogs.filter((r: any) => {
-      const matchesWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!matchesWT) return false;
-      if (isTodayOnly) {
-        const parsed = parseSafeDate(r.date || r.failureTime || r.createdAt);
-        if (!parsed || toDateValue(parsed) !== todayStr) return false;
-      }
-      return !targetDivNorm || normalizeDiv(r.division) === targetDivNorm;
-    });
-
-    const healthy = wtLogs.filter((r: any) => isRecordAllOk(r)).length;
-    const tested = wtLogs.length;
-    const notTested = Math.max(0, total - tested);
-
-    return { total, tested, healthy, faulty, notTested };
-  }, [isWalkieTalkie, dashboardSummary, faultsQuery.data, allLogsQuery.data, selectedDivision]);
-
   return (
     <article className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "500px", padding: "24px" }}>
       {/* Page Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults", "walkie-talkie active faults", "walkie-talkie-tested-today", "walkie-talkie-faults-today"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
             {(() => {
               const lower = categoryName.toLowerCase();
               if (lower === "active faults") return "Active Faults";
-              if (lower === "walkie-talkie active faults") return "Walkie-Talkie — Active Faults";
-              if (lower === "walkie-talkie status") return `Walkie-Talkie Status — ${selectedDivision ? `${selectedDivision} Division` : "All Divisions"}`;
-              if (lower === "walkie-talkie-tested-today") return `Walkie-Talkie — Today's Tested (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
-              if (lower === "walkie-talkie-faults-today") return `Walkie-Talkie — Today's Faults (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
               if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
               return `${categoryName} Faults`;
@@ -3440,96 +3092,15 @@ function CategoryFaultsPageView({
           <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--muted)" }}>
             {faultsQuery.isLoading
               ? "Loading faults..."
-              : isWalkieTalkie
-                ? `Tested: ${stats.tested}/${stats.total} (${stats.total > 0 ? Math.round((stats.tested / stats.total) * 100) : 0}%) | Faults: ${stats.faulty}F`
-                : categoryName.toLowerCase().includes("resolved")
-                  ? `${records.length} resolved faults found`
-                  : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
+              : categoryName.toLowerCase().includes("resolved")
+                ? `${records.length} resolved faults found`
+                : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
           </p>
         </div>
         <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
           ← Back
         </button>
       </div>
-
-      {/* Walkie-Talkie KPI Cards */}
-      {isWalkieTalkie && dashboardSummary && (
-        <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 150px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Total sets</div>
-            <strong style={{ fontSize: "22px", color: "var(--navy)", fontWeight: 800 }}>{stats.total}</strong>
-          </div>
-          <div style={{ flex: "1 1 150px", background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Healthy (Tested)</div>
-            <strong style={{ fontSize: "22px", color: "#15803d", fontWeight: 800 }}>{stats.healthy}</strong>
-          </div>
-          <div style={{ flex: "1 1 150px", background: "#fff5f5", border: "1px solid #fee2e2", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Active Faults</div>
-            <strong style={{ fontSize: "22px", color: "#b91c1c", fontWeight: 800 }}>{stats.faulty}</strong>
-          </div>
-          <div style={{ flex: "1 1 150px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Not Tested</div>
-            <strong style={{ fontSize: "22px", color: "#64748b", fontWeight: 800 }}>{stats.notTested}</strong>
-          </div>
-        </div>
-      )}
-
-      {/* Walkie-Talkie Tabs */}
-      {isWalkieTalkie && (
-        <div style={{ display: "flex", gap: "10px", marginBottom: "16px", borderBottom: "2px solid #e2e8f0", paddingBottom: "8px" }}>
-          <button
-            onClick={() => setWtTab("faults")}
-            style={{
-              background: "none",
-              border: "none",
-              padding: "8px 16px",
-              fontSize: "14px",
-              fontWeight: 700,
-              color: wtTab === "faults" ? "#ef4444" : "#64748b",
-              borderBottom: wtTab === "faults" ? "3px solid #ef4444" : "3px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              marginBottom: "-11px"
-            }}
-          >
-            {isTodayOnly ? `Today's Faults (${stats.faulty})` : `Faults Report (${stats.faulty})`}
-          </button>
-          <button
-            onClick={() => setWtTab("healthy")}
-            style={{
-              background: "none",
-              border: "none",
-              padding: "8px 16px",
-              fontSize: "14px",
-              fontWeight: 700,
-              color: wtTab === "healthy" ? "#10b981" : "#64748b",
-              borderBottom: wtTab === "healthy" ? "3px solid #10b981" : "3px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              marginBottom: "-11px"
-            }}
-          >
-            {isTodayOnly ? `Today's Healthy (${stats.healthy})` : `Healthy (All OK) (${stats.healthy})`}
-          </button>
-          <button
-            onClick={() => setWtTab("tested")}
-            style={{
-              background: "none",
-              border: "none",
-              padding: "8px 16px",
-              fontSize: "14px",
-              fontWeight: 700,
-              color: wtTab === "tested" ? "var(--blue)" : "#64748b",
-              borderBottom: wtTab === "tested" ? "3px solid var(--blue)" : "3px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              marginBottom: "-11px"
-            }}
-          >
-            {isTodayOnly ? `Today's Tested (${stats.tested})` : `Overall Tested Data (${stats.tested})`}
-          </button>
-        </div>
-      )}
 
       {/* Page Body */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
@@ -3540,15 +3111,7 @@ function CategoryFaultsPageView({
           </div>
         ) : records.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
-            {isWalkieTalkie
-              ? wtTab === "faults"
-                ? "No active faults found for Walkie-Talkie."
-                : wtTab === "healthy"
-                  ? "No healthy (All OK) Walkie-Talkie records found."
-                  : "No Walkie-Talkie testing records found."
-              : categoryName.toLowerCase().includes("resolved")
-                ? "No resolved faults found."
-                : `No active faults found for ${categoryName}.`}
+            {categoryName.toLowerCase().includes("resolved") ? "No resolved faults found." : `No active faults found for ${categoryName}.`}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
@@ -3630,7 +3193,6 @@ function CategoryFaultsPageView({
                       <th>Circuit Name</th>
                       <th>Failure Time</th>
                       <th>Rectification Time</th>
-                      {isWalkieTalkie && <th>Make / Model / Serial No.</th>}
                       <th>Duration</th>
                       <th>Remarks</th>
                     </tr>
@@ -3648,9 +3210,7 @@ function CategoryFaultsPageView({
                         </td>
                         <td>{formatDateTime(record.failureTime)}</td>
                         <td>
-                          {isRecordAllOk(record) ? (
-                            "-"
-                          ) : record.rectificationTime ? (
+                          {record.rectificationTime ? (
                             formatDateTime(record.rectificationTime)
                           ) : (
                             <button
@@ -3679,13 +3239,8 @@ function CategoryFaultsPageView({
                             </button>
                           )}
                         </td>
-                        {isWalkieTalkie && (
-                          <td>
-                            {record.formData?.makeModel || "-"} / {record.formData?.serialNo || "-"}
-                          </td>
-                        )}
                         <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
-                          {isRecordAllOk(record) ? "-" : getDurationText(record.failureTime, record.rectificationTime)}
+                          {getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -3833,9 +3388,9 @@ function DailyPositionCategoryPanel({
   onCategoryClick
 }: {
   categoryData: any[];
-  onCategoryClick: (categoryName: string, divisionName?: string) => void;
+  onCategoryClick: (categoryName: string) => void;
 }) {
-  const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log" && cat !== "Network & Internet" && cat !== "Testing & Maintenance");
+  const displayedCategories = DAILY_POSITION_CATEGORIES.filter(cat => cat !== "Daily Log" && cat !== "Daily Position Log");
   const total = categoryData.reduce((acc, curr) => acc + curr.value, 0) || 1;
 
   const displayData = displayedCategories.map((cat, idx) => {
@@ -4202,316 +3757,6 @@ function DailyPositionTrendsPanel({
   );
 }
 
-function WalkieTalkieTestedTodayPanel({
-  summary,
-  onCategoryClick
-}: {
-  summary?: any;
-  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
-}) {
-  const { division: userDivision, role } = useAppStore();
-  const todayStr = toDateValue();
-
-  const todayLogsQuery = useQuery({
-    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
-    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
-    staleTime: 30 * 1000,
-  });
-
-  const normalizeDiv = (divName?: string) => {
-    if (!divName) return "Others";
-    const l = divName.toLowerCase();
-    if (l.includes("raipur") || l === "r") return "Raipur";
-    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
-    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
-    return "Others";
-  };
-
-  const isMultiDivViewer = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
-  const normalizedUserDiv = userDivision ? normalizeDiv(userDivision) : null;
-  const allDivisions = summary?.walkieTalkieDivisions || [];
-
-  const divisions = isMultiDivViewer || !normalizedUserDiv
-    ? allDivisions
-    : allDivisions.filter((d: any) => normalizeDiv(d.division) === normalizedUserDiv);
-
-  // Group today's logs and sum up testedCount and faultyCount
-  const todayLogs = todayLogsQuery.data?.data || [];
-
-  const divisionStats = useMemo(() => {
-    const stats: Record<string, { tested: number; faulty: number }> = {
-      Raipur: { tested: 0, faulty: 0 },
-      Bilaspur: { tested: 0, faulty: 0 },
-      Nagpur: { tested: 0, faulty: 0 },
-      Others: { tested: 0, faulty: 0 }
-    };
-
-    todayLogs.forEach((r: any) => {
-      if (r.status === "DRAFT") return;
-      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!isWalkieTalkie) return;
-
-      const divNorm = normalizeDiv(r.division);
-      const testedCount = Number(r.formData?.testedCount || 0);
-      const isFaulty = !isRecordAllOk(r);
-
-      if (!stats[divNorm]) {
-        stats[divNorm] = { tested: 0, faulty: 0 };
-      }
-      stats[divNorm].tested += testedCount;
-      if (isFaulty) {
-        stats[divNorm].faulty++;
-      }
-    });
-
-    return stats;
-  }, [todayLogs]);
-
-  const totalTestedAll = divisions.reduce((sum: number, d: any) => {
-    const divNorm = normalizeDiv(d.division);
-    return sum + (divisionStats[divNorm]?.tested || 0);
-  }, 0);
-
-  const totalFaultyAll = divisions.reduce((sum: number, d: any) => {
-    const divNorm = normalizeDiv(d.division);
-    return sum + (divisionStats[divNorm]?.faulty || 0);
-  }, 0);
-
-  const divColors: Record<string, string> = {
-    Raipur: "#f97316",   // Orange
-    Bilaspur: "#3b82f6", // Blue
-    Nagpur: "#f5b51b"    // Yellow
-  };
-
-  const isLoading = todayLogsQuery.isLoading;
-
-  if (divisions.length === 1) {
-    const div = divisions[0];
-    const divNorm = normalizeDiv(div.division);
-    const tested = divisionStats[divNorm]?.tested || 0;
-    const total = div.testing?.total ?? 0;
-    const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
-    const faulty = divisionStats[divNorm]?.faulty || 0;
-    const color = divColors[div.division] || "#94a3b8";
-
-    return (
-      <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
-          <button
-            onClick={() => onCategoryClick?.("Walkie-Talkie")}
-            style={{
-              background: totalFaultyAll > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
-              color: totalFaultyAll > 0 ? "#ef4444" : "#10b981",
-              border: "none",
-              borderRadius: 12,
-              padding: "4px 10px",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              transition: "all 0.2s ease"
-            }}
-            className="wt-kpi-badge"
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalFaultyAll > 0 ? "#ef4444" : "#10b981" }} />
-            Faults Reported: {totalFaultyAll}
-          </button>
-        </div>
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "10px 0" }}>
-          {/* Large Division Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
-            <strong style={{ fontSize: 15, color: "#1e293b", fontWeight: 800 }}>{div.division} Division</strong>
-          </div>
-
-          {/* Styled Stats Box */}
-          <div style={{ width: "100%", display: "flex", gap: 10 }}>
-            {/* Testing Stats Card */}
-            <div
-              onClick={() => onCategoryClick?.("walkie-talkie-tested-today", div.division)}
-              style={{
-                flex: 1,
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                padding: 12,
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-                e.currentTarget.style.borderColor = color;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = "#e2e8f0";
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Tested Today</div>
-              {isLoading ? (
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
-              ) : (
-                <>
-                  <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{tested} sets</strong>
-                  <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>
-                    <span style={{ color: "#10b981" }}>Healthy: {Math.max(0, tested - faulty)}</span> &nbsp;|&nbsp; <span style={{ color: "#ef4444" }}>Faulty: {faulty}</span>
-                  </div>
-                  <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8, display: "flex" }}>
-                    {tested > 0 ? (
-                      <>
-                        <div style={{ width: `${((Math.max(0, tested - faulty)) / tested) * 100}%`, height: "100%", background: color }} />
-                        <div style={{ width: `${(faulty / tested) * 100}%`, height: "100%", background: "#ef4444" }} />
-                      </>
-                    ) : (
-                      <div style={{ width: "0%", height: "100%", background: "#cbd5e1" }} />
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Faulty logs today Card */}
-            <div
-              onClick={() => onCategoryClick?.("walkie-talkie-faults-today", div.division)}
-              style={{
-                flex: 1,
-                background: faulty > 0 ? "#fff5f5" : "#f0fdf4",
-                border: faulty > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7",
-                borderRadius: 8,
-                padding: 12,
-                textAlign: "center",
-                cursor: "pointer",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-                if (faulty > 0) {
-                  e.currentTarget.style.borderColor = "#fca5a5";
-                } else {
-                  e.currentTarget.style.borderColor = "#86efac";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = faulty > 0 ? "#fee2e2" : "#dcfce7";
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, color: faulty > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Faults Today</div>
-              {isLoading ? (
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Loading...</div>
-              ) : (
-                <>
-                  <strong style={{ fontSize: 22, fontWeight: 800, color: faulty > 0 ? "#b91c1c" : "#14532d" }}>{faulty}</strong>
-                  <div style={{ fontSize: 12, color: faulty > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{faulty > 0 ? "Faulty Logs Today" : "No Faults Today"}</div>
-                  <div style={{ height: 4, background: faulty > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
-                    <div style={{ width: faulty > 0 ? "100%" : "0%", height: "100%", background: faulty > 0 ? "#ef4444" : "#10b981" }} />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </article>
-    );
-  }
-
-  return (
-    <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
-
-        <button
-          onClick={() => onCategoryClick?.("Walkie-Talkie")}
-          style={{
-            background: totalFaultyAll > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
-            color: totalFaultyAll > 0 ? "#ef4444" : "#10b981",
-            border: "none",
-            borderRadius: 12,
-            padding: "4px 10px",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            transition: "all 0.2s ease"
-          }}
-          className="wt-kpi-badge"
-        >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: totalFaultyAll > 0 ? "#ef4444" : "#10b981" }} />
-          Faults Reported: {totalFaultyAll}
-        </button>
-      </div>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "center" }}>
-        {isLoading ? (
-          <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>Loading daily stats...</div>
-        ) : (
-          divisions.map((div: any) => {
-            const divNorm = normalizeDiv(div.division);
-            const tested = divisionStats[divNorm]?.tested || 0;
-            const total = div.testing?.total ?? 0;
-            const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
-            const faulty = divisionStats[divNorm]?.faulty || 0;
-
-            return (
-              <div
-                key={div.division}
-                onClick={() => onCategoryClick?.("Walkie-Talkie", div.division)}
-                className="walkie-talkie-div-row"
-                style={{ display: "flex", flexDirection: "column", gap: 5 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>
-                      Tested: {tested} &nbsp;|&nbsp; <span style={{ color: "#10b981", fontWeight: 700 }}>Healthy: {Math.max(0, tested - faulty)}</span> &nbsp;|&nbsp; <span style={{ color: "#ef4444", fontWeight: 700 }}>Faulty: {faulty}</span>
-                    </span>
-                  </div>
-                </div>
-                <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", display: "flex" }}>
-                  {tested > 0 ? (
-                    <>
-                      <div
-                        style={{
-                          width: `${((Math.max(0, tested - faulty)) / tested) * 100}%`,
-                          height: "100%",
-                          background: divColors[div.division] || "#64748b",
-                        }}
-                      />
-                      <div
-                        style={{
-                          width: `${(faulty / tested) * 100}%`,
-                          height: "100%",
-                          background: "#ef4444",
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <div style={{ width: "0%", height: "100%", background: "#e2e8f0" }} />
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </article>
-  );
-}
-
 function WalkieTalkieDivisionPanel({
   summary,
   activeCounts = {},
@@ -4519,23 +3764,9 @@ function WalkieTalkieDivisionPanel({
 }: {
   summary?: any;
   activeCounts?: Record<string, number>;
-  onCategoryClick?: (categoryName: string, divisionName?: string) => void;
+  onCategoryClick?: (categoryName: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
-
-  // Fetch ALL walkie-talkie daily position logs (no date filter) to get cumulative tested counts
-  const allLogsQuery = useQuery({
-    queryKey: ["walkie-talkie-all-logs-summary"],
-    queryFn: () => api.dailyPosition.list({ limit: 5000 }),
-    staleTime: 2 * 60 * 1000, // 2 min cache
-  });
-
-  // Fetch Walkie-Talkie lobbies to get live lobby tested counts
-  const lobbiesQuery = useQuery({
-    queryKey: ["walkie-talkie-lobbies-summary"],
-    queryFn: () => api.walkieTalkie.listLobbies(),
-    staleTime: 60 * 1000,
-  });
 
   const normalizeDiv = (divName?: string) => {
     if (!divName) return "Others";
@@ -4561,58 +3792,6 @@ function WalkieTalkieDivisionPanel({
 
   const totalDefective = divisions.reduce((sum: number, d: any) => sum + getActiveFaultsCount(d.division), 0);
 
-  const allLogs = allLogsQuery.data?.data || [];
-  const lobbies = lobbiesQuery.data?.data || lobbiesQuery.data || [];
-
-  // Today's tested counts from walkie-talkie daily position submissions
-  const todayDivisionStats = useMemo(() => {
-    const stats: Record<string, number> = {
-      Raipur: 0,
-      Bilaspur: 0,
-      Nagpur: 0,
-      Others: 0
-    };
-
-    const todayStr = toDateValue(new Date());
-
-    allLogs.forEach((r: any) => {
-      if (r.status === "DRAFT") return;
-      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!isWalkieTalkie) return;
-
-      const divNorm = normalizeDiv(r.division);
-      const logDate = r.date ? toDateValue(new Date(r.date)) : (r.createdAt ? toDateValue(new Date(r.createdAt)) : "");
-      if (logDate !== todayStr) return;
-
-      const testedCount = Number(r.formData?.testedCount || 0);
-      if (!stats[divNorm]) stats[divNorm] = 0;
-      stats[divNorm] += testedCount;
-    });
-
-    return stats;
-  }, [allLogs]);
-
-  // Tested counts from Walkie-Talkie Lobbies
-  const lobbyDivisionStats = useMemo(() => {
-    const stats: Record<string, number> = {
-      Raipur: 0,
-      Bilaspur: 0,
-      Nagpur: 0,
-      Others: 0
-    };
-
-    if (Array.isArray(lobbies)) {
-      lobbies.forEach((l: any) => {
-        const divNorm = normalizeDiv(l.division);
-        const count = Number(l.testedCount || 0);
-        if (!stats[divNorm]) stats[divNorm] = 0;
-        stats[divNorm] += count;
-      });
-    }
-
-    return stats;
-  }, [lobbies]);
-
   const divColors: Record<string, string> = {
     Raipur: "#f97316",   // Orange
     Bilaspur: "#3b82f6", // Blue
@@ -4621,27 +3800,18 @@ function WalkieTalkieDivisionPanel({
 
   if (divisions.length === 1) {
     const div = divisions[0];
+    const tested = div.testing?.tested ?? 0;
     const total = div.testing?.total ?? 0;
-    const divNorm = normalizeDiv(div.division);
-    const todayTested = todayDivisionStats[divNorm] || 0;
+    const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
     const pendingRepair = getActiveFaultsCount(div.division);
-    const rawTested = Math.min(total, todayTested);
-    const healthy = Math.max(0, rawTested - pendingRepair);
-    const notTested = Math.max(0, total - (healthy + pendingRepair));
     const color = divColors[div.division] || "#94a3b8";
-
-    const pieData = [
-      { name: "Healthy (Tested)", value: healthy, color: color },
-      { name: "Active Faulty", value: pendingRepair, color: "#ef4444" },
-      { name: "Not Tested", value: notTested, color: "#cbd5e1" }
-    ].filter(item => item.value > 0);
 
     return (
       <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
           <button
-            onClick={() => onCategoryClick?.("Walkie-Talkie Active Faults")}
+            onClick={() => onCategoryClick?.("Walkie-Talkie")}
             style={{
               background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
               color: totalDefective > 0 ? "#ef4444" : "#10b981",
@@ -4663,71 +3833,32 @@ function WalkieTalkieDivisionPanel({
           </button>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: 20 }}>
-          {/* Pie Chart */}
-          <div style={{ width: 120, height: 120, flexShrink: 0, position: "relative" }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart style={{ outline: 'none' }}>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={36}
-                  outerRadius={54}
-                  paddingAngle={3}
-                  dataKey="value"
-                  style={{ outline: 'none' }}
-                >
-                  {pieData.map((entry, idx) => (
-                    <Cell key={`cell-${idx}`} fill={entry.color} style={{ outline: 'none' }} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name) => [`${value} Sets`, name]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{
-              position: "absolute",
-              top: "54%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              textAlign: "center",
-              pointerEvents: "none"
-            }}>
-              <strong style={{ fontSize: 18, color: "var(--navy)", display: "block", lineHeight: 1 }}>{total}</strong>
-              <span style={{ fontSize: 8, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total</span>
-            </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", alignItems: "center", gap: 14, padding: "10px 0" }}>
+          {/* Large Division Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 20, background: `${color}15` }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
+            <strong style={{ fontSize: 15, color: "#1e293b", fontWeight: 800 }}>{div.division} Division</strong>
           </div>
 
-          {/* Details Legend */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px", borderRadius: 12, background: `${color}15`, alignSelf: "flex-start", marginBottom: 2 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
-              <strong style={{ fontSize: 13, color: "#1e293b", fontWeight: 700 }}>{div.division} Division</strong>
+          {/* Styled Stats Box */}
+          <div style={{ width: "100%", display: "flex", gap: 10 }}>
+            {/* Testing Stats Card */}
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Testing Progress</div>
+              <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--navy)" }}>{testPercent}%</strong>
+              <div style={{ fontSize: 12, color: "#475569", marginTop: 2, fontWeight: 600 }}>{tested} of {total} sets</div>
+              <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                <div style={{ width: `${testPercent}%`, height: "100%", background: color }} />
+              </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
-                  Healthy (Tested):
-                </span>
-                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{healthy} sets</strong>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
-                  Faulty (Active):
-                </span>
-                <strong style={{ color: pendingRepair > 0 ? "#b91c1c" : "var(--navy)", fontWeight: 750 }}>{pendingRepair} sets</strong>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#cbd5e1" }} />
-                  Not Tested:
-                </span>
-                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{notTested} sets</strong>
+            {/* Active Faults Card */}
+            <div style={{ flex: 1, background: pendingRepair > 0 ? "#fff5f5" : "#f0fdf4", border: pendingRepair > 0 ? "1px solid #fee2e2" : "1px solid #dcfce7", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: pendingRepair > 0 ? "#ef4444" : "#10b981", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Active Faults</div>
+              <strong style={{ fontSize: 22, fontWeight: 800, color: pendingRepair > 0 ? "#b91c1c" : "#14532d" }}>{pendingRepair}</strong>
+              <div style={{ fontSize: 12, color: pendingRepair > 0 ? "#7f1d1d" : "#15803d", marginTop: 2, fontWeight: 600 }}>{pendingRepair > 0 ? "Faulty Logs Found" : "All Healthy"}</div>
+              <div style={{ height: 4, background: pendingRepair > 0 ? "#fee2e2" : "#dcfce7", borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
+                <div style={{ width: pendingRepair > 0 ? "100%" : "0%", height: "100%", background: pendingRepair > 0 ? "#ef4444" : "#10b981" }} />
               </div>
             </div>
           </div>
@@ -4736,56 +3867,13 @@ function WalkieTalkieDivisionPanel({
     );
   }
 
-  // Sum tested healthy sets per division (cumulative from all daily position submissions and lobbies)
-  const RaipurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Raipur");
-  const BilaspurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Bilaspur");
-  const NagpurDiv = allDivisions.find((d: any) => normalizeDiv(d.division) === "Nagpur");
-
-  const calcDivTested = (divObj: any, divName: string) => {
-    const total = divObj?.testing?.total ?? 0;
-    const todayTested = todayDivisionStats[divName] || 0;
-    return Math.min(total, todayTested);
-  };
-
-  const totalR = RaipurDiv?.testing?.total ?? 0;
-  const testedR = calcDivTested(RaipurDiv, "Raipur");
-  const pendingR = getActiveFaultsCount("Raipur");
-  const healthyR = Math.max(0, testedR - pendingR);
-
-  const totalB = BilaspurDiv?.testing?.total ?? 0;
-  const testedB = calcDivTested(BilaspurDiv, "Bilaspur");
-  const pendingB = getActiveFaultsCount("Bilaspur");
-  const healthyB = Math.max(0, testedB - pendingB);
-
-  const totalN = NagpurDiv?.testing?.total ?? 0;
-  const testedN = calcDivTested(NagpurDiv, "Nagpur");
-  const pendingN = getActiveFaultsCount("Nagpur");
-  const healthyN = Math.max(0, testedN - pendingN);
-
-  const totalSum = divisions.reduce((sum: number, d: any) => sum + (d.testing?.total ?? 0), 0);
-
-  const testedSum = divisions.reduce((sum: number, d: any) => {
-    const divNorm = normalizeDiv(d.division);
-    return sum + calcDivTested(d, divNorm);
-  }, 0);
-
-  const notTestedSum = Math.max(0, totalSum - testedSum);
-
-  const pieData = [
-    { name: "Raipur (Healthy)", value: healthyR, color: "#f97316" },
-    { name: "Bilaspur (Healthy)", value: healthyB, color: "#3b82f6" },
-    { name: "Nagpur (Healthy)", value: healthyN, color: "#f5b51b" },
-    { name: "Active Faults", value: totalDefective, color: "#ef4444" },
-    { name: "Not Tested", value: notTestedSum, color: "#cbd5e1" }
-  ].filter(item => item.value > 0);
-
   return (
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Status</h3>
 
         <button
-          onClick={() => onCategoryClick?.("Walkie-Talkie Active Faults")}
+          onClick={() => onCategoryClick?.("Walkie-Talkie")}
           style={{
             background: totalDefective > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
             color: totalDefective > 0 ? "#ef4444" : "#10b981",
@@ -4807,87 +3895,44 @@ function WalkieTalkieDivisionPanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: 20 }}>
-        {/* Pie Chart */}
-        <div style={{ width: 120, height: 120, flexShrink: 0, position: "relative" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart style={{ outline: 'none' }}>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={36}
-                outerRadius={54}
-                paddingAngle={3}
-                dataKey="value"
-                style={{ outline: 'none' }}
-              >
-                {pieData.map((entry, idx) => (
-                  <Cell key={`cell-${idx}`} fill={entry.color} style={{ outline: 'none' }} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value, name) => [`${value} Sets`, name]} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{
-            position: "absolute",
-            top: "54%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            textAlign: "center",
-            pointerEvents: "none"
-          }}>
-            <strong style={{ fontSize: 18, color: "var(--navy)", display: "block", lineHeight: 1 }}>{totalSum}</strong>
-            <span style={{ fontSize: 8, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>Total</span>
-          </div>
-        </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "flex-start" }}>
+        {divisions.map((div: any) => {
+          const tested = div.testing?.tested ?? 0;
+          const total = div.testing?.total ?? 0;
+          const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
+          const pendingRepair = getActiveFaultsCount(div.division);
 
-        {/* Divisions breakdown list */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, justifyContent: "center" }}>
-          {divisions.map((div: any) => {
-            const divNorm = normalizeDiv(div.division);
-            const tested = calcDivTested(div, divNorm);
-            const total = div.testing?.total ?? 0;
-            const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
-            const pendingRepair = getActiveFaultsCount(div.division);
-
-            return (
-              <div
-                key={div.division}
-                onClick={() => onCategoryClick?.("Walkie-Talkie Status", div.division)}
-                className="walkie-talkie-div-row"
-                style={{ display: "flex", flexDirection: "column", gap: 3 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 600 }}>
-                      {tested}/{total} ({testPercent}%)
-                    </span>
-                    {pendingRepair > 0 && (
-                      <span style={{
-                        background: "#fee2e2",
-                        color: "#b91c1c",
-                        fontSize: 9,
-                        fontWeight: 800,
-                        padding: "1px 4px",
-                        borderRadius: 3
-                      }}>
-                        {pendingRepair}F
-                      </span>
-                    )}
-                  </div>
+          return (
+            <div key={div.division} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
                 </div>
-                <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 2 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>
+                    Tested: {tested}/{total} ({testPercent}%)
+                  </span>
+                  {pendingRepair > 0 && (
+                    <span style={{
+                      background: "#fee2e2",
+                      color: "#b91c1c",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "2px 6px",
+                      borderRadius: 4
+                    }}>
+                      {pendingRepair} Faulty
+                    </span>
+                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
+              <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 3 }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </article>
   );
@@ -4904,26 +3949,13 @@ function DailyPositionDashboardView({
   openPanel: (title: string, itemId?: string | null) => void;
   queries: any;
   showToast: (msg: string) => void;
-  onCategoryClick: (categoryName: string, divisionName?: string) => void;
+  onCategoryClick: (categoryName: string) => void;
 }) {
   const { role, division: userDivision } = useAppStore();
-  const todayStr = toDateValue();
-
-  const todayLogsQuery = useQuery({
-    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
-    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
-    staleTime: 30 * 1000,
-  });
 
   const activeFaultsQuery = useQuery({
     queryKey: ["daily-position-dashboard-active-faults", userDivision],
     queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", isFaulty: "true", limit: 500 }),
-    staleTime: 30 * 1000,
-  });
-
-  const wifiActiveFaultsQuery = useQuery({
-    queryKey: ["daily-position-dashboard-wifi-active-faults", userDivision],
-    queryFn: () => api.dailyPosition.list({ division: (userDivision === "HQ" ? "" : userDivision) || "", formType: "Wi-Fi", isFaulty: "true", limit: 500 }),
     staleTime: 30 * 1000,
   });
 
@@ -4937,26 +3969,27 @@ function DailyPositionDashboardView({
   };
 
   const wifiFaultsCount = useMemo(() => {
-    const rawRecords = wifiActiveFaultsQuery.data?.data || [];
+    const rawRecords = activeFaultsQuery.data?.data || [];
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return isWifi && !isRecordAllOk(r) && !r.rectificationTime && matchesDiv;
+      return isWifi && !isAllOk && matchesDiv;
     });
     return filtered.length;
-  }, [wifiActiveFaultsQuery.data, userDivision]);
+  }, [activeFaultsQuery.data, userDivision]);
 
   const activeFaultsCountClient = useMemo(() => {
     const rawRecords = activeFaultsQuery.data?.data || [];
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isWT && !isRecordAllOk(r) && matchesDiv;
+      return !isWifi && !isAllOk && matchesDiv;
     });
 
     if (!activeFaultsQuery.data) {
@@ -4971,10 +4004,10 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-      const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isWifi && !isWT && !isRecordAllOk(r) && matchesDiv;
+      return !isWifi && !isAllOk && matchesDiv;
     });
 
     const counts: Record<string, number> = {
@@ -5009,9 +4042,10 @@ function DailyPositionDashboardView({
     const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
     const filtered = rawRecords.filter((r: any) => {
       if (r.status === "DRAFT") return false;
+      const isAllOk = r.reason === "All OK" || (r.formData && r.formData.actionType === "OK");
       const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
       const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return isWalkieTalkie && !isRecordAllOk(r) && matchesDiv;
+      return isWalkieTalkie && !isAllOk && matchesDiv;
     });
 
     const counts: Record<string, number> = {
@@ -5055,32 +4089,15 @@ function DailyPositionDashboardView({
       ...originalFaultsKpi,
       value: activeFaultsCountClient
     };
-
-    const stations = queries.stationsQuery?.data?.data || [];
-    const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
-    const totalWifiCount = stations.filter((s: any) => {
-      const matchesDiv = !targetDiv || normalizeDivName(s.division) === targetDiv;
-      return s.hasWifi && matchesDiv;
-    }).length;
-    const workingWifiCount = Math.max(0, totalWifiCount - wifiFaultsCount);
-
     const wifiKpi = {
       id: "wifiFaults",
-      label: "Total Wi-Fi Faults",
+      label: "Wi-Fi Faults",
       value: String(wifiFaultsCount),
+      detail: "",
       tone: "purple" as const,
       series: [0, 0, 0, 0, 0]
     };
-    const wtFaultsToday = (todayLogsQuery.data?.data || []).filter((r: any) => {
-      if (r.status === "DRAFT") return false;
-      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-      if (!isWalkieTalkie) return false;
-      const targetDiv = userDivision ? normalizeDivName(userDivision) : "";
-      const matchesDiv = !targetDiv || normalizeDivName(r.division) === targetDiv;
-      return !isRecordAllOk(r) && matchesDiv;
-    }).length;
-
-    const baseFaultsToday = data.kpis.find(k => k.id === "faultsToday") || {
+    const faultsTodayKpi = data.kpis.find(k => k.id === "faultsToday") || {
       id: "faultsToday",
       label: "Faults Today",
       value: "0",
@@ -5088,12 +4105,6 @@ function DailyPositionDashboardView({
       tone: "amber",
       series: [0, 0, 0, 0, 0]
     };
-
-    const faultsTodayKpi = {
-      ...baseFaultsToday,
-      value: String(Number(baseFaultsToday.value || 0) + wtFaultsToday)
-    };
-
     const resolvedTodayKpi = data.kpis.find(k => k.id === "resolvedToday") || {
       id: "resolvedToday",
       label: "Resolved Today",
@@ -5103,7 +4114,7 @@ function DailyPositionDashboardView({
       series: [0, 0, 0, 0, 0]
     };
     return [faultsKpi, faultsTodayKpi, resolvedTodayKpi, wifiKpi];
-  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient, queries.stationsQuery.data, userDivision, todayLogsQuery.data]);
+  }, [data.kpis, wifiFaultsCount, activeFaultsCountClient]);
 
   const dailyPositionMetrics = useMemo(() => {
     const statusColors: Record<string, string> = {
@@ -5169,11 +4180,7 @@ function DailyPositionDashboardView({
       {/* Row 2 (Middle Section): Division Active Faults, Category-wise Fault, & Weekly Trends */}
       <section className="dashboard-grid dashboard-grid-unequal" style={{ marginTop: -15 }}>
         {userDivision ? (
-          role === "STAFF" ? (
-            <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
-          ) : (
-            <LatestUpdatesWidget showToast={showToast} />
-          )
+          <LatestUpdatesWidget showToast={showToast} />
         ) : (
           <ActiveFaultsDivisionPanel metrics={activeFaultsByDivisionClient} />
         )}
@@ -5186,12 +4193,7 @@ function DailyPositionDashboardView({
 
       {/* Row 3 (Bottom Section): Walkie-Talkie Status & Priority Table */}
       <section className="dashboard-grid" style={{ marginTop: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
-          <WalkieTalkieTestedTodayPanel summary={data} onCategoryClick={onCategoryClick} />
-          {role !== "STAFF" && (
-            <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
-          )}
-        </div>
+        <WalkieTalkieDivisionPanel summary={data} activeCounts={walkieTalkieActiveCountsClient} onCategoryClick={onCategoryClick} />
         <DailyPositionHighPriorityFaultsPanel
           userDivision={userDivision}
           showToast={showToast}
@@ -5204,7 +4206,7 @@ function DailyPositionDashboardView({
 }
 
 // KPI Card Component
-function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: number; onCategoryClick?: (categoryName: string, divisionName?: string) => void }) {
+function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: number; onCategoryClick?: (categoryName: string) => void }) {
   const Icon = toneIcons[kpi.tone];
   const { setActiveNav, setAssetStatusFilter, setDpHistoryFilter, role } = useAppStore();
 
@@ -5417,13 +4419,14 @@ function DailyPositionDetailsModal({
           {(() => {
             const activeEntries = detailsRecord.filter((e: any) => e.status !== "DRAFT");
             const faultyEntries = activeEntries.filter((e: any) => {
+              const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
               const effStatus = e.positionStatus || e.status;
-              return effStatus !== "All Ok" && effStatus !== "RECTIFIED" && !isRecordAllOk(e);
+              return effStatus !== "All Ok" && effStatus !== "RECTIFIED" && !isAllOk;
             });
             const displayEntries = faultyEntries.length > 0 ? faultyEntries : activeEntries;
 
             return displayEntries.map((entry: any, index: number) => {
-              const isAllOk = isRecordAllOk(entry);
+              const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
               const effectiveStatus = entry.positionStatus || entry.status;
               const isFault = effectiveStatus !== "All Ok" && effectiveStatus !== "RECTIFIED" && !isAllOk;
               const showRemarks = entry.remarks && entry.remarks.trim() !== (entry.reason || "").trim();
@@ -5473,22 +4476,6 @@ function DailyPositionDetailsModal({
                     value: summaryDisplayValue(displayVal, isAllOk)
                   };
                 });
-
-              const isWT = (entry.formType || entry.name || "").toLowerCase().includes("walkie-talkie");
-              const wtItems = isWT ? [
-                { label: "Station / Lobby", value: entry.formData?.stationLobby },
-                { label: "Make / Model", value: entry.formData?.makeModel },
-                { label: "Serial No.", value: entry.formData?.serialNo },
-                { label: "Report Type", value: entry.formData?.reportType || "Fault" },
-                { label: "Tested W/T Sets", value: entry.formData?.testedCount },
-                { label: "Total W/T Sets", value: entry.formData?.toBeTestedCount },
-                { label: "Balance W/T Sets", value: entry.formData?.balanceWalkieTalkies },
-                { label: "Output TX Power", value: entry.formData?.powerOutput },
-                { label: "Battery Voltage", value: entry.formData?.batteryVoltage },
-                { label: "Battery Current", value: entry.formData?.batteryCurrent },
-                { label: "Antenna Status", value: entry.formData?.antennaStatus },
-                { label: "Date of Testing", value: entry.formData?.testDate ? formatDate24(entry.formData.testDate) : "" }
-              ].filter(item => item.value !== undefined && item.value !== null && item.value !== "") : [];
 
               return (
                 <Fragment key={entry.id}>
@@ -5573,32 +4560,14 @@ function DailyPositionDetailsModal({
                     {howItems.length > 0 && (
                       <div style={{
                         marginBottom: "14px",
-                        borderBottom: (isWT || entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                        paddingBottom: (isWT || entry.remarks || entry.reason) ? "14px" : "0"
+                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
+                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
                       }}>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
                           {howItems.map(item => (
                             <div key={item.key}>
                               <span style={{ display: "block", fontSize: "11px", color: "#8c5d0a", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
                               <strong style={{ fontSize: "12px", color: "#8c5d0a", fontWeight: 700 }}>{item.value}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Walkie-Talkie Testing Details */}
-                    {isWT && wtItems.length > 0 && (
-                      <div style={{
-                        marginBottom: "14px",
-                        borderBottom: (entry.remarks || entry.reason) ? "1px dashed var(--line)" : "none",
-                        paddingBottom: (entry.remarks || entry.reason) ? "14px" : "0"
-                      }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px" }}>
-                          {wtItems.map((item, idx) => (
-                            <div key={idx}>
-                              <span style={{ display: "block", fontSize: "11px", color: "var(--navy)", opacity: 0.7, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>{item.label}</span>
-                              <strong style={{ fontSize: "12px", color: "var(--navy)", fontWeight: 700 }}>{item.value}</strong>
                             </div>
                           ))}
                         </div>
@@ -5642,42 +4611,10 @@ function DailyPositionDetailsModal({
                       fontSize: "11px",
                       color: "var(--muted)"
                     }}>
-                      {(() => {
-                        const currentUser = useAppStore.getState().user;
-                        const createdBy = entry.createdBy || {};
-                        let name = createdBy.name || createdBy.fullName || entry.createdByUsername || createdBy.username;
-                        if ((!name || name === "System User") && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
-                          name = currentUser.name || currentUser.fullName || currentUser.username;
-                        }
-                        if (!name) name = "System User";
-
-                        let designation = createdBy.designation || entry.designation;
-                        if (!designation && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
-                          designation = currentUser.designation;
-                        }
-
-                        let mobile = createdBy.mobile || createdBy.mobileNumber || createdBy.phone || createdBy.phoneNumber || entry.mobile;
-                        if (!mobile && entry.createdByUsername && /^\d{10}$/.test(entry.createdByUsername)) {
-                          mobile = entry.createdByUsername;
-                        }
-                        if (!mobile && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
-                          mobile = currentUser.mobile || currentUser.mobileNumber || currentUser.phone || currentUser.phoneNumber;
-                        }
-
-                        const timeStr = entry.createdAt
-                          ? formatDateTime24(entry.createdAt)
-                          : (entry.date ? formatDate24(entry.date) : "-");
-
-                        return (
-                          <span>
-                            Submitted by: <strong>{name}</strong>
-                            {designation ? ` (${designation})` : ""}
-                            {mobile ? ` [${mobile}]` : ""}
-                            {" at "}
-                            <strong>{timeStr}</strong>
-                          </span>
-                        );
-                      })()}
+                      <span>
+                        Submitted by: <strong>{entry.createdBy?.name || entry.createdByUsername || "System User"}</strong>
+                        {entry.createdBy?.designation ? ` (${entry.createdBy.designation})` : ""}{entry.createdBy?.mobile ? ` [${entry.createdBy.mobile}]` : ""} at <strong>{formatDateTime24(entry.createdAt)}</strong>
+                      </span>
                     </div>
                   </div>
                   {index < displayEntries.length - 1 && (
@@ -5736,19 +4673,7 @@ function DailyPositionSummaryTable({
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
   const [isPrintOpen, setIsPrintOpen] = useState(false);
-  const [printDivisionModalOpen, setPrintDivisionModalOpen] = useState(false);
-  const [printFilterDivision, setPrintFilterDivision] = useState<string | undefined>(undefined);
   const maxPickerDate = positionType === "MORNING" ? morningDefaultDate : todayStr;
-  
-  const handlePrintClick = () => {
-    if (isSuperAdmin) {
-      setPrintDivisionModalOpen(true);
-    } else {
-      setPrintFilterDivision(userDivision);
-      setIsPrintOpen(true);
-    }
-  };
-
   const selectPositionType = (nextType: "MORNING" | "CURRENT") => {
     setPositionType(nextType);
     setSelectedDate(nextType === "MORNING" ? morningDefaultDate : todayStr);
@@ -5861,11 +4786,13 @@ function DailyPositionSummaryTable({
     if (activeEntries.length === 0) return null;
     const hasFault = activeEntries.some((e: any) => {
       const s = (e.positionStatus || e.status || "").toUpperCase();
-      return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
+      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+      return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
     });
     if (hasFault) return "FAULT";
     const hasRectified = activeEntries.some((e: any) => {
-      return !isRecordAllOk(e) && (e.positionStatus || e.status || "").toUpperCase() === "RECTIFIED";
+      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+      return !isAllOk && (e.positionStatus || e.status || "").toUpperCase() === "RECTIFIED";
     });
     return hasRectified ? "RECTIFIED" : "NORMAL";
   };
@@ -5927,7 +4854,8 @@ function DailyPositionSummaryTable({
 
     for (const entry of activeEntries) {
       const status = (entry.positionStatus || entry.status || "").toUpperCase();
-      if (status !== "All Ok" && status !== "RECTIFIED" && !isRecordAllOk(entry)) {
+      const isAllOk = entry.reason === "All OK" || (entry.formData && entry.formData.actionType === "OK");
+      if (status !== "All Ok" && status !== "RECTIFIED" && !isAllOk) {
         hasFaultyState = true;
         totalFaults += 1;
       }
@@ -5947,7 +4875,8 @@ function DailyPositionSummaryTable({
       const faultRemarks = activeEntries
         .filter((e: any) => {
           const s = (e.positionStatus || e.status || "").toUpperCase();
-          return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
+          const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+          return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
         })
         .map((entry: any) => {
           const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
@@ -6035,7 +4964,7 @@ function DailyPositionSummaryTable({
           detailsTitle={detailsTitle}
           queries={queries}
           getRemark={getRemark}
-          onPrintClick={handlePrintClick}
+          onPrintClick={() => setIsPrintOpen(true)}
           positionType={positionType}
           setPositionType={selectPositionType}
           maxPickerDate={maxPickerDate}
@@ -6070,7 +4999,7 @@ function DailyPositionSummaryTable({
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
               <button
-                onClick={handlePrintClick}
+                onClick={() => setIsPrintOpen(true)}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -6289,76 +5218,11 @@ function DailyPositionSummaryTable({
         </article>
       )}
 
-      {printDivisionModalOpen && (
-        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setPrintDivisionModalOpen(false)} style={{ zIndex: 9999 }}>
-          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(480px, 95vw)", padding: "28px", borderRadius: "16px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", background: "#fff", position: "relative" }}>
-            <button className="modal-close" type="button" onClick={() => setPrintDivisionModalOpen(false)} aria-label="Close" style={{ border: "none", background: "none", cursor: "pointer", position: "absolute", top: 18, right: 18, color: "var(--muted)" }}>
-              <X size={18} />
-            </button>
-            
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <Printer size={22} style={{ color: "var(--blue)" }} />
-              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "var(--navy)" }}>Print Position Summary</h3>
-            </div>
-            <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "var(--muted)", lineHeight: 1.5 }}>
-              Please select the division(s) you need to print:
-            </p>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { label: "All Division", value: undefined, desc: "Include Bilaspur, Raipur, and Nagpur divisions", color: "var(--navy)" },
-                { label: "Bilaspur Division", value: "Bilaspur", desc: "Print summary for Bilaspur division only", color: "#3b82f6" },
-                { label: "Raipur Division", value: "Raipur", desc: "Print summary for Raipur division only", color: "#ef4444" },
-                { label: "Nagpur Division", value: "Nagpur", desc: "Print summary for Nagpur division only", color: "#10b981" }
-              ].map((opt) => (
-                <button
-                  key={opt.label}
-                  onClick={() => {
-                    setPrintFilterDivision(opt.value);
-                    setIsPrintOpen(true);
-                    setPrintDivisionModalOpen(false);
-                  }}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--line)",
-                    background: "#fff",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease-in-out",
-                    textAlign: "left",
-                    width: "100%"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = opt.color;
-                    e.currentTarget.style.background = "var(--page)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = "var(--line)";
-                    e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.transform = "none";
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color, display: "inline-block" }} />
-                    <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--navy)" }}>{opt.label}</span>
-                  </div>
-                  <span style={{ fontSize: "12px", color: "var(--muted)", marginTop: 4, marginLeft: 16 }}>{opt.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {isPrintOpen && (
         <DailyPositionPrintView
           selectedDate={selectedDate}
           onClose={() => setIsPrintOpen(false)}
-          filterDivision={printFilterDivision}
+          filterDivision={isSuperAdmin ? undefined : userDivision}
           positionType={positionType}
         />
       )}
@@ -6522,7 +5386,8 @@ function DailyPositionSummaryTableSuperAdmin({
                         faultDetails = activeEntries
                           .filter((e: any) => {
                             const s = (e.positionStatus || e.status || "").toUpperCase();
-                            return s !== "All Ok" && s !== "RECTIFIED" && !isRecordAllOk(e);
+                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
                           })
                           .map((entry: any) => {
                             const failureText = entry.failureTime ? formatDateTime24(entry.failureTime) : "";
@@ -7893,38 +6758,13 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                               onChange={(e) => setEditingWTSerial(e.target.value)}
                               style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
                             />
-                            <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: "2px", marginRight: "8px" }}>
-                              <select
-                                value={["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) ? editingWTMakeModel : "Other"}
-                                disabled={isMutating}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val === "Other") {
-                                    if (["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel)) {
-                                      setEditingWTMakeModel("");
-                                    }
-                                  } else {
-                                    setEditingWTMakeModel(val);
-                                  }
-                                }}
-                                style={{ padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", background: "#ffffff", opacity: isMutating ? 0.7 : 1 }}
-                              >
-                                <option value="Motorola">Motorola</option>
-                                <option value="Sanchar">Sanchar</option>
-                                <option value="Convey">Convey</option>
-                                <option value="Other">Other (Specify manually)</option>
-                              </select>
-                              {!["Motorola", "Sanchar", "Convey"].includes(editingWTMakeModel) && (
-                                <input
-                                  type="text"
-                                  placeholder="Specify Make / Model..."
-                                  value={editingWTMakeModel}
-                                  disabled={isMutating}
-                                  onChange={(e) => setEditingWTMakeModel(e.target.value)}
-                                  style={{ padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
-                                />
-                              )}
-                            </div>
+                            <input
+                              type="text"
+                              value={editingWTMakeModel}
+                              disabled={isMutating}
+                              onChange={(e) => setEditingWTMakeModel(e.target.value)}
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "13px", border: "1px solid #3b82f6", borderRadius: "4px", outline: "none", marginRight: "8px", opacity: isMutating ? 0.7 : 1 }}
+                            />
                             <div style={{ display: "flex", gap: "6px" }}>
                               <button
                                 onClick={() => handleSaveSingleWalkieTalkieEdit(viewingLobby, index)}
@@ -7986,38 +6826,14 @@ function WalkieTalkieInventoryViewComponent({ showToast }: { showToast: (message
                     onChange={(e) => setNewWTSerial(e.target.value)}
                     style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", fontFamily: "monospace", opacity: isMutating ? 0.7 : 1 }}
                   />
-                  <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <select
-                      value={["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) ? newWTMakeModel : "Other"}
-                      disabled={isMutating}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "Other") {
-                          if (["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel)) {
-                            setNewWTMakeModel("");
-                          }
-                        } else {
-                          setNewWTMakeModel(val);
-                        }
-                      }}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", background: "#ffffff", opacity: isMutating ? 0.7 : 1 }}
-                    >
-                      <option value="Motorola">Motorola</option>
-                      <option value="Sanchar">Sanchar</option>
-                      <option value="Convey">Convey</option>
-                      <option value="Other">Other (Specify manually)</option>
-                    </select>
-                    {!["Motorola", "Sanchar", "Convey"].includes(newWTMakeModel) && (
-                      <input
-                        type="text"
-                        placeholder="Specify Make / Model..."
-                        value={newWTMakeModel}
-                        disabled={isMutating}
-                        onChange={(e) => setNewWTMakeModel(e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
-                      />
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Make / Model..."
+                    value={newWTMakeModel}
+                    disabled={isMutating}
+                    onChange={(e) => setNewWTMakeModel(e.target.value)}
+                    style={{ flex: 2, padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none", opacity: isMutating ? 0.7 : 1 }}
+                  />
                   <button
                     onClick={() => handleAddSingleWalkieTalkie(viewingLobby)}
                     disabled={isMutating}
@@ -8770,27 +7586,14 @@ function ModuleView({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterState, setFilterState] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string[]>([]);
+  const [filterCategory, setFilterCategory] = useState("");
   const [filterAsset, setFilterAsset] = useState("");
-  const [summaryView, setSummaryView] = useState<"Category-wise" | "State-wise">("Category-wise");
-  const [showBalance, setShowBalance] = useState(false);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [expandedStationCode, setExpandedStationCode] = useState<string | null>(null);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null); // "stationCode::CATEGORY"
   const [currentPage, setCurrentPage] = useState(1);
   const [multiStationModalOpen, setMultiStationModalOpen] = useState(false);
   const [analyticsTab, setAnalyticsTab] = useState<"trends" | "checklist">("trends");
-
-  const [selectedSummaryDivision, setSelectedSummaryDivision] = useState("");
-  const [selectedSummaryState, setSelectedSummaryState] = useState("");
-  const [selectedSummaryCategory, setSelectedSummaryCategory] = useState<string[]>([]);
-
-  // Reset summary clicks when global filters change
-  useEffect(() => {
-    setSelectedSummaryDivision("");
-    setSelectedSummaryState("");
-    setSelectedSummaryCategory([]);
-  }, [filterDivision, filterState, filterCategory, filterAsset]);
 
   // Click outside handler for station dropdown
   useEffect(() => {
@@ -8825,9 +7628,8 @@ function ModuleView({
   useEffect(() => {
     setFilterDivision("");
     setFilterState("");
-    setFilterCategory([]);
+    setFilterCategory("");
     setFilterAsset("");
-    setShowBalance(false);
     setFilterPopoverOpen(false);
     setCurrentPage(1);
   }, [activeNav]);
@@ -8864,8 +7666,8 @@ function ModuleView({
     if (filterState) {
       filtered = filtered.filter((s: any) => s.state === filterState);
     }
-    if (filterCategory && filterCategory.length > 0) {
-      filtered = filtered.filter((s: any) => filterCategory.includes(s.category));
+    if (filterCategory) {
+      filtered = filtered.filter((s: any) => s.category === filterCategory);
     }
     if (filterAsset) {
       const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
@@ -8892,8 +7694,8 @@ function ModuleView({
     if (filterDivision) {
       filtered = filtered.filter((s: any) => normalizeDivision(s.division) === filterDivision);
     }
-    if (filterCategory && filterCategory.length > 0) {
-      filtered = filtered.filter((s: any) => filterCategory.includes(s.category));
+    if (filterCategory && filterCategory !== "Category-wise") {
+      filtered = filtered.filter((s: any) => s.category === filterCategory);
     }
     if (filterAsset) {
       const matchedCap = TELECOM_ASSET_CHECKS.find(cap => isTelecomAssetMatch(cap.label, filterAsset));
@@ -8949,8 +7751,8 @@ function ModuleView({
     if (filterState && filterState !== "State-wise") {
       filteredStations = filteredStations.filter((s: any) => s.state === filterState);
     }
-    if (filterCategory && filterCategory.length > 0) {
-      filteredStations = filteredStations.filter((s: any) => filterCategory.includes(s.category));
+    if (filterCategory && filterCategory !== "Category-wise") {
+      filteredStations = filteredStations.filter((s: any) => s.category === filterCategory);
     }
 
     const stationCodes = new Set(filteredStations.map((s: any) => s.code));
@@ -8979,57 +7781,36 @@ function ModuleView({
 
   const renderSummaryCard = (filteredList: any[]) => {
     if (activeNav !== "Master List") return null;
+    const isFilterSelected = !!(filterDivision || filterState || filterCategory || filterAsset);
+    if (!isFilterSelected) return null;
 
     const headerTitle = filterDivision ? filterDivision : "Overall Divisions";
-    const hasActiveFilters = !!(filterDivision || filterState || filterCategory.length > 0 || filterAsset);
 
     const activeFiltersText = [
-      filterState && `State: ${filterState}`,
-      filterCategory && filterCategory.length > 0 && `Category: ${filterCategory.join(", ")}`,
+      filterState && (filterState === "State-wise" ? "State-wise" : `State: ${filterState}`),
+      filterCategory && (filterCategory === "Category-wise" ? "Category-wise" : `Category: ${filterCategory}`),
       filterAsset && `Telecom Asset: ${filterAsset}`,
-      selectedSummaryDivision && `Division Selection: ${selectedSummaryDivision}`,
-      selectedSummaryState && `State Selection: ${selectedSummaryState}`,
-      selectedSummaryCategory && selectedSummaryCategory.length > 0 && `Category Selection: ${selectedSummaryCategory.join(", ")}`
     ].filter(Boolean).join(" | ");
 
-    const rows = ["Bilaspur", "Nagpur", "Raipur"];
-
-    if (summaryView === "State-wise") {
+    // If filterState is active, render State-wise matrix
+    if (filterState) {
       const cols = Array.from(new Set(stations.map((s: any) => s.state).filter(Boolean))).sort() as string[];
-
-      const overallMatrix: Record<string, Record<string, number>> = {};
-      const filteredMatrix: Record<string, Record<string, number>> = {};
-      rows.forEach(r => {
-        overallMatrix[r] = {};
-        filteredMatrix[r] = {};
-        cols.forEach(c => {
-          overallMatrix[r][c] = 0;
-          filteredMatrix[r][c] = 0;
-        });
-      });
-
-      stations.forEach((item: any) => {
-        const div = normalizeDivision(item.division);
-        const st = item.state;
-        if (rows.includes(div) && cols.includes(st)) {
-          overallMatrix[div][st] = (overallMatrix[div][st] || 0) + 1;
-        }
-      });
-
-      filteredList.forEach((item: any) => {
-        const div = normalizeDivision(item.division);
-        const st = item.state;
-        if (rows.includes(div) && cols.includes(st)) {
-          filteredMatrix[div][st] = (filteredMatrix[div][st] || 0) + 1;
-        }
-      });
+      const rows = ["Bilaspur", "Nagpur", "Raipur"];
 
       const matrix: Record<string, Record<string, number>> = {};
       rows.forEach(r => {
         matrix[r] = {};
         cols.forEach(c => {
-          matrix[r][c] = showBalance ? (overallMatrix[r][c] - filteredMatrix[r][c]) : filteredMatrix[r][c];
+          matrix[r][c] = 0;
         });
+      });
+
+      filteredList.forEach(item => {
+        const div = normalizeDivision(item.division);
+        const st = item.state;
+        if (rows.includes(div) && cols.includes(st)) {
+          matrix[div][st] = (matrix[div][st] || 0) + 1;
+        }
       });
 
       const colTotals = cols.reduce((acc, c) => {
@@ -9044,51 +7825,9 @@ function ModuleView({
       return (
         <div className="filter-summary-card">
           <div className="summary-card-header">
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-              <div className="summary-toggle-group">
-                <button
-                  type="button"
-                  className="summary-toggle-btn"
-                  onClick={() => setSummaryView("Category-wise")}
-                >
-                  Category-wise
-                </button>
-                <button
-                  type="button"
-                  className="summary-toggle-btn active"
-                  onClick={() => setSummaryView("State-wise")}
-                >
-                  State-wise
-                </button>
-              </div>
-              {hasActiveFilters && (
-                <div className="summary-toggle-group">
-                  <button
-                    type="button"
-                    className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
-                    onClick={() => setShowBalance(false)}
-                    title="Present (Asset)"
-                    style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    P
-                  </button>
-                  <button
-                    type="button"
-                    className={`summary-toggle-btn ${showBalance ? "active" : ""}`}
-                    onClick={() => setShowBalance(true)}
-                    title="Balance (Stations missing Asset)"
-                    style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    Bal
-                  </button>
-                </div>
-              )}
-              {activeFiltersText && (
-                <span className="summary-active-filters-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
-                  ({activeFiltersText})
-                </span>
-              )}
-            </div>
+            <h4>
+              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+            </h4>
             <span className="total-badge">Total Stations: {filteredList.length}</span>
           </div>
           <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
@@ -9096,17 +7835,7 @@ function ModuleView({
               <thead>
                 <tr style={{ background: "#114c8f" }}>
                   <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
-                  {cols.map(c => (
-                    <th
-                      key={c}
-                      className="interactive-summary-cell"
-                      style={{ fontWeight: 800 }}
-                      onClick={() => setSelectedSummaryState(c)}
-                      title={`Filter by State: ${c}`}
-                    >
-                      {c}
-                    </th>
-                  ))}
+                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
                   <th style={{ fontWeight: 800 }}>TOTAL</th>
                 </tr>
               </thead>
@@ -9115,86 +7844,26 @@ function ModuleView({
                   const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
                   return (
                     <tr key={r}>
-                      <td
-                        className="interactive-summary-cell"
-                        style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}
-                        onClick={() => setSelectedSummaryDivision(r)}
-                        title={`Filter by Division: ${r}`}
-                      >
-                        {r}
-                      </td>
-                      {cols.map(c => {
-                        const val = matrix[r][c] || 0;
-                        return (
-                          <td
-                            key={c}
-                            className={val > 0 ? "interactive-summary-cell" : ""}
-                            style={{ fontWeight: val > 0 ? "800" : "400", color: val > 0 ? "var(--navy)" : "#94a3b8" }}
-                            onClick={() => {
-                              if (val > 0) {
-                                setSelectedSummaryDivision(r);
-                                setSelectedSummaryState(c);
-                              }
-                            }}
-                            title={val > 0 ? `Filter by Division: ${r}, State: ${c}` : ""}
-                          >
-                            {val || "-"}
-                          </td>
-                        );
-                      })}
-                      <td
-                        className={rowTotal > 0 ? "interactive-summary-cell" : ""}
-                        style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}
-                        onClick={() => {
-                          if (rowTotal > 0) {
-                            setSelectedSummaryDivision(r);
-                          }
-                        }}
-                        title={rowTotal > 0 ? `Filter by Division: ${r}` : ""}
-                      >
+                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
+                      {cols.map(c => (
+                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                          {matrix[r][c] || "-"}
+                        </td>
+                      ))}
+                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
                         {rowTotal || "-"}
                       </td>
                     </tr>
                   );
                 })}
                 <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
-                  <td
-                    className="interactive-summary-cell"
-                    style={{ fontWeight: 800, textAlign: "center" }}
-                    onClick={() => setSelectedSummaryDivision("")}
-                    title="Show All Divisions"
-                  >
-                    SECR
-                  </td>
-                  {cols.map(c => {
-                    const totalVal = colTotals[c] || 0;
-                    return (
-                      <td
-                        key={c}
-                        className={totalVal > 0 ? "interactive-summary-cell" : ""}
-                        style={{ fontWeight: "800", color: "var(--navy)" }}
-                        onClick={() => {
-                          if (totalVal > 0) {
-                            setSelectedSummaryState(c);
-                          }
-                        }}
-                        title={totalVal > 0 ? `Filter by State: ${c}` : ""}
-                      >
-                        {totalVal || "-"}
-                      </td>
-                    );
-                  })}
-                  <td
-                    className={grandTotal > 0 ? "interactive-summary-cell" : ""}
-                    style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}
-                    onClick={() => {
-                      if (grandTotal > 0) {
-                        setSelectedSummaryDivision("");
-                        setSelectedSummaryState("");
-                      }
-                    }}
-                    title={grandTotal > 0 ? "Reset Division and State Filters" : ""}
-                  >
+                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
+                  {cols.map(c => (
+                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
+                      {colTotals[c] || "-"}
+                    </td>
+                  ))}
+                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
                     {grandTotal || "-"}
                   </td>
                 </tr>
@@ -9205,215 +7874,113 @@ function ModuleView({
       );
     }
 
-    // Render Category-wise table by default
-    let cols = Array.from(new Set(stations.map((s: any) => s.category).filter(Boolean))).sort() as string[];
-    if (filterCategory && filterCategory.length > 0) {
-      cols = cols.filter(c => filterCategory.includes(c));
+    // If filterCategory is active, render Category-wise matrix
+    if (filterCategory) {
+      const cols = Array.from(new Set(stations.map((s: any) => s.category).filter(Boolean))).sort() as string[];
+      const rows = ["Bilaspur", "Nagpur", "Raipur"];
+
+      const matrix: Record<string, Record<string, number>> = {};
+      rows.forEach(r => {
+        matrix[r] = {};
+        cols.forEach(c => {
+          matrix[r][c] = 0;
+        });
+      });
+
+      filteredList.forEach(item => {
+        const div = normalizeDivision(item.division);
+        const cat = item.category;
+        if (rows.includes(div) && cols.includes(cat)) {
+          matrix[div][cat] = (matrix[div][cat] || 0) + 1;
+        }
+      });
+
+      const colTotals = cols.reduce((acc, c) => {
+        acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const grandTotal = rows.reduce((sum, r) => {
+        return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
+      }, 0);
+
+      return (
+        <div className="filter-summary-card">
+          <div className="summary-card-header">
+            <h4>
+              {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+            </h4>
+            <span className="total-badge">Total Stations: {filteredList.length}</span>
+          </div>
+          <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
+            <table className="data-table text-center" style={{ margin: 0 }}>
+              <thead>
+                <tr style={{ background: "#114c8f" }}>
+                  <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
+                  {cols.map(c => <th key={c} style={{ fontWeight: 800 }}>{c}</th>)}
+                  <th style={{ fontWeight: 800 }}>TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => {
+                  const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
+                  return (
+                    <tr key={r}>
+                      <td style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}>{r}</td>
+                      {cols.map(c => (
+                        <td key={c} style={{ fontWeight: matrix[r][c] > 0 ? "800" : "400", color: matrix[r][c] > 0 ? "var(--navy)" : "#94a3b8" }}>
+                          {matrix[r][c] || "-"}
+                        </td>
+                      ))}
+                      <td style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}>
+                        {rowTotal || "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
+                  <td style={{ fontWeight: 800, textAlign: "center" }}>SECR</td>
+                  {cols.map(c => (
+                    <td key={c} style={{ fontWeight: "800", color: "var(--navy)" }}>
+                      {colTotals[c] || "-"}
+                    </td>
+                  ))}
+                  <td style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}>
+                    {grandTotal || "-"}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
     }
 
-    const overallMatrix: Record<string, Record<string, number>> = {};
-    const filteredMatrix: Record<string, Record<string, number>> = {};
-    rows.forEach(r => {
-      overallMatrix[r] = {};
-      filteredMatrix[r] = {};
-      cols.forEach(c => {
-        overallMatrix[r][c] = 0;
-        filteredMatrix[r][c] = 0;
-      });
+    // Default: flat count list (for Division or Asset filters when category/state are not filtered)
+    const counts: Record<string, number> = {};
+    filteredList.forEach(item => {
+      const div = normalizeDivision(item.division) || "Unknown";
+      counts[div] = (counts[div] || 0) + 1;
     });
 
-    stations.forEach((item: any) => {
-      const div = normalizeDivision(item.division);
-      const cat = item.category;
-      if (rows.includes(div) && cols.includes(cat)) {
-        overallMatrix[div][cat] = (overallMatrix[div][cat] || 0) + 1;
-      }
-    });
-
-    filteredList.forEach((item: any) => {
-      const div = normalizeDivision(item.division);
-      const cat = item.category;
-      if (rows.includes(div) && cols.includes(cat)) {
-        filteredMatrix[div][cat] = (filteredMatrix[div][cat] || 0) + 1;
-      }
-    });
-
-    const matrix: Record<string, Record<string, number>> = {};
-    rows.forEach(r => {
-      matrix[r] = {};
-      cols.forEach(c => {
-        matrix[r][c] = showBalance ? (overallMatrix[r][c] - filteredMatrix[r][c]) : filteredMatrix[r][c];
-      });
-    });
-
-    const colTotals = cols.reduce((acc, c) => {
-      acc[c] = rows.reduce((sum, r) => sum + (matrix[r][c] || 0), 0);
-      return acc;
-    }, {} as Record<string, number>);
-
-    const grandTotal = rows.reduce((sum, r) => {
-      return sum + cols.reduce((rowSum, c) => rowSum + (matrix[r][c] || 0), 0);
-    }, 0);
+    const divisionKeys = Object.keys(counts).sort();
+    if (divisionKeys.length === 0) return null;
 
     return (
       <div className="filter-summary-card">
         <div className="summary-card-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-            <div className="summary-toggle-group">
-              <button
-                type="button"
-                className="summary-toggle-btn active"
-                onClick={() => setSummaryView("Category-wise")}
-              >
-                Category-wise
-              </button>
-              <button
-                type="button"
-                className="summary-toggle-btn"
-                onClick={() => setSummaryView("State-wise")}
-              >
-                State-wise
-              </button>
-            </div>
-            {hasActiveFilters && (
-              <div className="summary-toggle-group">
-                <button
-                  type="button"
-                  className={`summary-toggle-btn ${!showBalance ? "active" : ""}`}
-                  onClick={() => setShowBalance(false)}
-                  title="Present (Asset)"
-                  style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  P
-                </button>
-                <button
-                  type="button"
-                  className={`summary-toggle-btn ${showBalance ? "active" : ""}`}
-                  onClick={() => setShowBalance(true)}
-                  title="Balance (Stations missing Asset)"
-                  style={{ minWidth: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  B
-                </button>
-              </div>
-            )}
-            {activeFiltersText && (
-              <span className="summary-active-filters-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)" }}>
-                ({activeFiltersText})
-              </span>
-            )}
-          </div>
+          <h4>
+            {headerTitle} {activeFiltersText && `(${activeFiltersText})`}
+          </h4>
           <span className="total-badge">Total Stations: {filteredList.length}</span>
         </div>
-        <div className="table-scroll-container" style={{ marginTop: "12px", border: "1px solid var(--line)", borderRadius: "8px" }}>
-          <table className="data-table text-center" style={{ margin: 0 }}>
-            <thead>
-              <tr style={{ background: "#114c8f" }}>
-                <th style={{ fontWeight: 800, textAlign: "center" }}>Division</th>
-                {cols.map(c => (
-                  <th
-                    key={c}
-                    className="interactive-summary-cell"
-                    style={{ fontWeight: 800 }}
-                    onClick={() => setSelectedSummaryCategory([c])}
-                    title={`Filter by Category: ${c}`}
-                  >
-                    {c}
-                  </th>
-                ))}
-                <th style={{ fontWeight: 800 }}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => {
-                const rowTotal = cols.reduce((sum, c) => sum + (matrix[r][c] || 0), 0);
-                return (
-                  <tr key={r}>
-                    <td
-                      className="interactive-summary-cell"
-                      style={{ fontWeight: 700, textAlign: "center", background: "#f8fafc" }}
-                      onClick={() => setSelectedSummaryDivision(r)}
-                      title={`Filter by Division: ${r}`}
-                    >
-                      {r}
-                    </td>
-                    {cols.map(c => {
-                      const val = matrix[r][c] || 0;
-                      return (
-                        <td
-                          key={c}
-                          className={val > 0 ? "interactive-summary-cell" : ""}
-                          style={{ fontWeight: val > 0 ? "800" : "400", color: val > 0 ? "var(--navy)" : "#94a3b8" }}
-                          onClick={() => {
-                            if (val > 0) {
-                              setSelectedSummaryDivision(r);
-                              setSelectedSummaryCategory([c]);
-                            }
-                          }}
-                          title={val > 0 ? `Filter by Division: ${r}, Category: ${c}` : ""}
-                        >
-                          {val || "-"}
-                        </td>
-                      );
-                    })}
-                    <td
-                      className={rowTotal > 0 ? "interactive-summary-cell" : ""}
-                      style={{ fontWeight: "800", color: "var(--navy)", background: "#f8fafc" }}
-                      onClick={() => {
-                        if (rowTotal > 0) {
-                          setSelectedSummaryDivision(r);
-                        }
-                      }}
-                      title={rowTotal > 0 ? `Filter by Division: ${r}` : ""}
-                    >
-                      {rowTotal || "-"}
-                    </td>
-                  </tr>
-                );
-              })}
-              <tr key="SECR" style={{ background: "#f1f5f9", borderTop: "2px solid var(--line)" }}>
-                <td
-                  className="interactive-summary-cell"
-                  style={{ fontWeight: 800, textAlign: "center" }}
-                  onClick={() => setSelectedSummaryDivision("")}
-                  title="Show All Divisions"
-                >
-                  SECR
-                </td>
-                {cols.map(c => {
-                  const totalVal = colTotals[c] || 0;
-                  return (
-                    <td
-                      key={c}
-                      className={totalVal > 0 ? "interactive-summary-cell" : ""}
-                      style={{ fontWeight: "800", color: "var(--navy)" }}
-                      onClick={() => {
-                        if (totalVal > 0) {
-                          setSelectedSummaryCategory([c]);
-                        }
-                      }}
-                      title={totalVal > 0 ? `Filter by Category: ${c}` : ""}
-                    >
-                      {totalVal || "-"}
-                    </td>
-                  );
-                })}
-                <td
-                  className={grandTotal > 0 ? "interactive-summary-cell" : ""}
-                  style={{ fontWeight: "900", color: "var(--navy)", background: "#e2e8f0" }}
-                  onClick={() => {
-                    if (grandTotal > 0) {
-                      setSelectedSummaryDivision("");
-                      setSelectedSummaryCategory([]);
-                    }
-                  }}
-                  title={grandTotal > 0 ? "Reset Division and Category Filters" : ""}
-                >
-                  {grandTotal || "-"}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="summary-card-grid">
+          {divisionKeys.map(div => (
+            <div key={div} className="summary-grid-item">
+              <span className="div-name">{div}</span>
+              <span className="div-count">{counts[div]}</span>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -9503,7 +8070,7 @@ function ModuleView({
     switch (activeNav) {
       case "Master List": {
         const rawList = queries.stationsQuery.data?.data || [];
-        const globalFilteredList = rawList.filter((s: any) => {
+        const list = rawList.filter((s: any) => {
           const normDiv = normalizeDivision(s.division).toLowerCase();
           const matchesSearch =
             s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -9513,7 +8080,7 @@ function ModuleView({
             (s.state && s.state.toLowerCase().includes(searchTerm.toLowerCase()));
           const matchesDivision = !filterDivision || normalizeDivision(s.division) === filterDivision;
           const matchesState = !filterState || filterState === "State-wise" || s.state === filterState;
-          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(s.category);
+          const matchesCategory = !filterCategory || filterCategory === "Category-wise" || s.category === filterCategory;
 
           let matchesAsset = true;
           if (filterAsset) {
@@ -9528,16 +8095,10 @@ function ModuleView({
 
           return matchesSearch && matchesDivision && matchesState && matchesCategory && matchesAsset;
         });
-        const finalFilteredList = globalFilteredList.filter((s: any) => {
-          const matchesSummaryDivision = !selectedSummaryDivision || normalizeDivision(s.division) === selectedSummaryDivision;
-          const matchesSummaryState = !selectedSummaryState || s.state === selectedSummaryState;
-          const matchesSummaryCategory = selectedSummaryCategory.length === 0 || selectedSummaryCategory.includes(s.category);
-          return matchesSummaryDivision && matchesSummaryState && matchesSummaryCategory;
-        });
-        const paginatedList = finalFilteredList.slice((currentPage - 1) * 50, currentPage * 50);
+        const paginatedList = list.slice((currentPage - 1) * 50, currentPage * 50);
         return (
           <>
-            {renderSummaryCard(globalFilteredList)}
+            {renderSummaryCard(list)}
             <div className="table-scroll-container" style={{ overflow: "auto" }}>
               <table className="data-table">
                 <thead>
@@ -9814,7 +8375,7 @@ function ModuleView({
                 </tbody>
               </table>
             </div>
-            {renderPagination(finalFilteredList.length)}
+            {renderPagination(list.length)}
           </>
         );
       }
@@ -9835,7 +8396,7 @@ function ModuleView({
           const linkedStation = stations.find((s: any) => s.code === a.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
-          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(telecomAssetName);
+          const matchesCategory = !filterCategory || telecomAssetName === filterCategory;
 
           return matchesSearch && matchesStatus && matchesDivision && matchesState && matchesCategory;
         });
@@ -9900,7 +8461,7 @@ function ModuleView({
           const linkedStation = stations.find((s: any) => s.code === g.stationCode);
           const matchesDivision = !filterDivision || (linkedStation && normalizeDivision(linkedStation.division) === filterDivision);
           const matchesState = !filterState || (linkedStation && linkedStation.state === filterState);
-          const matchesCategory = filterCategory.length === 0 || filterCategory.includes(g.category);
+          const matchesCategory = !filterCategory || g.category === filterCategory;
 
           return matchesSearch && matchesDivision && matchesState && matchesCategory;
         });
@@ -10288,12 +8849,12 @@ function ModuleView({
 
               <button
                 type="button"
-                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory.length > 0 || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
+                className={`filter-toggle-btn ${filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter) ? "active" : ""}`}
                 onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
               >
                 <SlidersHorizontal size={16} />
                 <span>Filters</span>
-                {(filterDivision || filterState || filterCategory.length > 0 || filterAsset || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
+                {(filterDivision || filterState || filterCategory || filterAsset || (activeNav === "Assets" && assetStatusFilter)) && <span className="filter-active-dot" />}
               </button>
 
               {filterPopoverOpen && (
@@ -10316,6 +8877,7 @@ function ModuleView({
                     <label>State</label>
                     <ClearableSelect value={filterState} onChange={setFilterState}>
                       <option value="">All States</option>
+                      {activeNav === "Master List" && <option value="State-wise">State-wise</option>}
                       {dynamicStates.map((st) => (
                         <option key={st} value={st}>{st}</option>
                       ))}
@@ -10325,22 +8887,13 @@ function ModuleView({
                   {/* Category / Telecom Asset Filter */}
                   <div className="filter-group">
                     <label>{activeNav === "Assets" ? "Telecom Asset" : "Category"}</label>
-                    {activeNav === "Assets" ? (
-                      <ClearableSelect value={filterCategory[0] || ""} onChange={(val) => setFilterCategory(val ? [val] : [])}>
-                        <option value="">All Telecom Assets</option>
-                        {dynamicCategories.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </ClearableSelect>
-                    ) : (
-                      <MultiSelectDropdown
-                        label={null}
-                        options={dynamicCategories}
-                        selected={filterCategory}
-                        onChange={setFilterCategory}
-                        placeholder="All Categories"
-                      />
-                    )}
+                    <ClearableSelect value={filterCategory} onChange={setFilterCategory}>
+                      <option value="">{activeNav === "Assets" ? "All Telecom Assets" : "All Categories"}</option>
+                      {activeNav === "Master List" && <option value="Category-wise">Category-wise</option>}
+                      {dynamicCategories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </ClearableSelect>
                   </div>
 
                   {/* Telecom Asset Filter (Master List only) */}
@@ -10380,9 +8933,8 @@ function ModuleView({
                       onClick={() => {
                         setFilterDivision("");
                         setFilterState("");
-                        setFilterCategory([]);
+                        setFilterCategory("");
                         setFilterAsset("");
-                        setShowBalance(false);
                         if (activeNav === "Assets") setAssetStatusFilter("");
                         setFilterPopoverOpen(false);
                       }}
@@ -11435,7 +9987,7 @@ function StationDetailsModal({ itemId, close, queries }: { itemId: string; close
     { key: "hasTrainIndicationBoard", label: "Train Indication Board" },
     { key: "hasDigitalDisplayHeritage", label: "Heritage Digital Display" },
     { key: "hasAtAGlanceBoard", label: "At A Glance Board" },
-    { key: "hasCctvDe", label: "CCTV D&E" }
+    { key: "hasCctvDe", label: "CCTV DE" }
   ];
 
   return (
@@ -13925,7 +12477,7 @@ function StaffSignupForm({ showToast, onSuccess }: { showToast: (msg: string) =>
 }
 
 function AuthView({ showToast }: { showToast: (msg: string) => void }) {
-  const [isSignup, setIsSignup] = useState(() => window.location.hash.includes('signup'));
+  const [isSignup, setIsSignup] = useState(false);
   const [activeTab, setActiveTab] = useState<"username" | "phone">("username");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -14384,13 +12936,7 @@ function AuthView({ showToast }: { showToast: (msg: string) => void }) {
         <div className="auth-right">
           <div className="auth-card">
             {isSignup ? (
-              <StaffSignupForm
-                showToast={showToast}
-                onSuccess={() => {
-                  setIsSignup(false);
-                  window.location.href = `https://secrtelecom.com/login?app=DP%26AM&redirect_to=${encodeURIComponent(window.location.origin)}`;
-                }}
-              />
+              <StaffSignupForm showToast={showToast} onSuccess={() => setIsSignup(false)} />
             ) : (
               <>
                 <div className="auth-card-header">

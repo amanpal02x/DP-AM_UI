@@ -2331,16 +2331,6 @@ textarea {
   color: #ffffff;
 }
 
-.profile-hover-card::before {
-  content: '';
-  position: absolute;
-  bottom: -15px;
-  left: 0;
-  right: 0;
-  height: 15px;
-  background: transparent;
-}
-
 @keyframes slideUp {
   from {
     transform: translateY(8px);
@@ -2992,146 +2982,9 @@ textarea {
   gap: 8px;
 }
 
-.ok-button {
-  background: #10b981 !important;
-  border-color: #10b981 !important;
-  color: #ffffff !important;
-}
-
-.ok-button:hover:not(:disabled) {
-  background: #059669 !important;
-  border-color: #059669 !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
-  transform: translateY(-1px);
-}
-
-.faulty-button {
-  background: #ef4444 !important;
-  border-color: #ef4444 !important;
-  color: #ffffff !important;
-}
-
-.faulty-button:hover:not(:disabled) {
-  background: #dc2626 !important;
-  border-color: #dc2626 !important;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35) !important;
-  transform: translateY(-1px);
-}
-
-/* Prohibited / No-entry cursor for disabled & read-only form fields */
-input[readonly],
-select[readonly],
-textarea[readonly],
-input:disabled,
-select:disabled,
-textarea:disabled,
-button:disabled,
-.dp-field input[readonly],
-.dp-field select[readonly],
-.dp-field textarea[readonly],
-.dp-field input:disabled,
-.dp-field select:disabled,
-.dp-field textarea:disabled,
-.dp-field button[disabled],
-.dp-form-grid input[readonly],
-.dp-form-grid select[readonly],
-.dp-form-grid textarea[readonly],
-.dp-form-grid input:disabled,
-.dp-form-grid select:disabled,
-.dp-form-grid textarea:disabled,
-.secr-form-shell input[readonly],
-.secr-form-shell select[readonly],
-.secr-form-shell textarea[readonly],
-.secr-form-shell input:disabled,
-.secr-form-shell select:disabled,
-.secr-form-shell textarea:disabled {
-  cursor: not-allowed !important;
-  background-color: #f8fafc !important;
-}
-
-.dp-field:has(input[readonly]),
-.dp-field:has(select[readonly]),
-.dp-field:has(textarea[readonly]),
-.dp-field:has(input:disabled),
-.dp-field:has(select:disabled),
-.dp-field:has(textarea:disabled),
-.dp-field:has(button[disabled]) {
-  cursor: not-allowed !important;
-}
-
-/* ── Locked Form Overlay ────────────────────────────────────── */
-.dp-form-locked-wrapper {
-  position: relative;
-}
-
-/* Soft dimmed overlay over the entire form body when locked */
-.dp-form-locked-wrapper::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(248, 250, 252, 0.45);
-  border-radius: 8px;
-  pointer-events: none;
-  z-index: 1;
-  transition: opacity 0.25s ease;
-}
-
-/* Fields inside locked wrapper get extra visual muting */
-.dp-form-locked-wrapper input,
-.dp-form-locked-wrapper select,
-.dp-form-locked-wrapper textarea {
-  opacity: 0.7;
-  filter: grayscale(0.15);
-  transition: opacity 0.25s ease, filter 0.25s ease;
-}
-
-/* Lock hint banner shown above form body in locked state */
-.dp-form-lock-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border: 1px solid #cbd5e1;
-  border-left: 3px solid #94a3b8;
-  border-radius: 6px;
-  padding: 7px 12px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-  letter-spacing: 0.1px;
-  animation: fadeInDown 0.25s ease;
-}
-
-.dp-form-lock-banner svg {
-  flex-shrink: 0;
-  color: #94a3b8;
-}
-
-/* When unlocked (faulty mode), fields spring back to normal */
-.dp-form-unlocked input,
-.dp-form-unlocked select,
-.dp-form-unlocked textarea {
-  opacity: 1 !important;
-  filter: none !important;
-}
-
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Faulty mode: fields get a subtle warm tint to signal editable state */
-.dp-form-unlocked .dp-field {
-  border-color: rgba(239, 68, 68, 0.18);
-}
-
-.dp-form-unlocked input:not(:disabled):not([readonly]),
-.dp-form-unlocked select:not(:disabled):not([readonly]),
-.dp-form-unlocked textarea:not(:disabled):not([readonly]) {
-  border-color: rgba(239, 68, 68, 0.22) !important;
-  background: #fff9f9 !important;
-  transition: border-color 0.2s ease, background 0.2s ease;
+.dp-form-actions .ok-button {
+  background: #10b981;
+  border-color: #10b981;
 }
 
 .dp-recent-form-records {
@@ -5413,16 +5266,6 @@ path:focus {
   z-index: 100 !important;
 }
 
-.header-profile-hover-card::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: 0;
-  right: 0;
-  height: 12px;
-  background: transparent;
-}
-
 .header-profile-hover-card .profile-field .label {
   color: var(--muted) !important;
 }
@@ -5490,7 +5333,7 @@ path:focus {
 
 /* Filter Summary Card styling */
 .filter-summary-card {
-  padding: 8px 14px;
+  padding: 12px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -5502,9 +5345,9 @@ path:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 6px;
+  padding-bottom: 8px;
 }
 
 .summary-card-header h4 {
@@ -5536,7 +5379,7 @@ table.data-table {
 
 table.data-table th,
 table.data-table td {
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 13.5px;
   vertical-align: middle;
   border-bottom: 1px solid var(--line);
@@ -5560,7 +5403,7 @@ table.data-table th {
   text-transform: uppercase;
   font-size: 11.5px;
   letter-spacing: 0.04em;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-right: 1px solid rgba(255, 255, 255, 0.15) !important; /* Soft border between dark headers */
 }
 
@@ -5604,68 +5447,6 @@ table.data-table tbody tr:hover {
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 14px;
-}
-
-/* Segmented Toggle Control for Summary View */
-.summary-toggle-group {
-  display: inline-flex;
-  background: #f1f5f9;
-  padding: 3px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  align-items: center;
-}
-
-.summary-toggle-btn {
-  border: none;
-  background: transparent;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 750;
-  color: var(--muted);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.summary-toggle-btn:hover {
-  color: var(--navy);
-}
-
-.summary-toggle-btn.active {
-  background: #ffffff;
-  color: #114c8f;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-/* Interactive Summary Cell & Header styles */
-.interactive-summary-cell {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.interactive-summary-cell:hover {
-  background-color: var(--blue-soft) !important;
-  color: var(--blue) !important;
-}
-
-th.interactive-summary-cell:hover {
-  background-color: #0f3f78 !important; /* Slightly darker brand blue for headers */
-  color: #ffffff !important;
-  text-decoration: underline;
-}
-
-.walkie-talkie-div-row {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 4px 8px;
-  margin: 0 -8px;
-  border-radius: 6px;
-}
-
-.walkie-talkie-div-row:hover {
-  background-color: rgba(59, 130, 246, 0.08);
-  transform: translateX(4px);
 }
 
 /* Fault Trends Dashboard Custom CSS */
