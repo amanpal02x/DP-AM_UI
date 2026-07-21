@@ -5125,13 +5125,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                             showToast("Form unlocked. Please fill out failure details and click Submit.");
                             return;
                           }
-                          if (isFormEmpty()) {
+                          const isWt = selectedForm?.name === "Walkie-Talkie Testing";
+                          const wtDrafts = isWt ? records.filter((r: any) => r.formType === "Walkie-Talkie Testing" && r.status === "DRAFT") : [];
+                          const shouldBlock = isWt ? (isFormEmpty() && wtDrafts.length === 0) : isFormEmpty();
+                          if (shouldBlock) {
                             const firstInput = document.querySelector(".dp-form-scrollable-container input, .dp-form-scrollable-container select") as HTMLElement;
                             if (firstInput) {
                               firstInput.focus();
                               firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
                             }
-                            showToast("Please fill out failure details before submitting.");
+                            showToast(isWt ? "Please add at least one record or fill in the form before submitting." : "Please fill out failure details before submitting.");
                             return;
                           }
                           handleSaveAndNext();
