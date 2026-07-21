@@ -3242,7 +3242,7 @@ function CategoryFaultsPageView({
       if (lowerCat === "active faults") {
         if (isRecordAllOk(r)) return false;
         const isWifi = (r.formType || r.name || "").toLowerCase() === "wi-fi";
-        return !isWifi && !isWT && !r.rectificationTime; // Must be active
+        return !isWifi && !r.rectificationTime; // Must be active
       }
 
       // 2. Wi-Fi Faults
@@ -3640,11 +3640,22 @@ function CategoryFaultsPageView({
                       <tr key={record.id}>
                         <td>{record.division}</td>
                         <td>{record.stationCode || record.stationName || record.section || "-"}</td>
-                        <td>
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <strong style={{ color: "var(--navy)" }}>{record.formType || record.name}</strong>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{record.category}</span>
-                          </div>
+                         <td>
+                          {(() => {
+                            const isWT = (record.formType || record.name || "").toLowerCase().includes("walkie-talkie");
+                            return (
+                              <div style={{ display: "flex", flexDirection: "column" }}>
+                                <strong style={{ color: "var(--navy)" }}>
+                                  {record.formType || record.name}
+                                  {isWT && record.formData?.serialNo && ` (S/N: ${record.formData.serialNo})`}
+                                </strong>
+                                <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                                  {record.category}
+                                  {isWT && record.formData?.makeModel && ` · ${record.formData.makeModel}`}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td>{formatDateTime(record.failureTime)}</td>
                         <td>
