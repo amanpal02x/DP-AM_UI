@@ -1124,6 +1124,13 @@ function App() {
     if (activeNav === "Walkie Talkie Testing") {
       useAppStore.getState().setDpSelectedCategory("Testing & Maintenance");
       useAppStore.getState().setDpSelectedFormName("Walkie-Talkie Testing");
+    } else if (activeNav === "DP Form") {
+      const state = useAppStore.getState();
+      if (state.dpSelectedCategory === "Testing & Maintenance") {
+        state.setDpSelectedCategory("Communication & Voice Circuits");
+        state.setDpSelectedFormName("");
+        state.setDpOpenCategory("Communication & Voice Circuits");
+      }
     }
   }, [activeNav]);
 
@@ -1844,6 +1851,7 @@ function SidebarDailyPositionAccordion() {
                         alignItems: "center"
                       }}
                       onClick={() => {
+                        setDpSelectedCategory(category);
                         setDpSelectedFormName(form.name);
                       }}
                     >
@@ -5727,7 +5735,19 @@ function DailyPositionSummaryTable({
   const [detailsRecord, setDetailsRecord] = useState<any[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [printDivisionModalOpen, setPrintDivisionModalOpen] = useState(false);
+  const [printFilterDivision, setPrintFilterDivision] = useState<string | undefined>(undefined);
   const maxPickerDate = positionType === "MORNING" ? morningDefaultDate : todayStr;
+  
+  const handlePrintClick = () => {
+    if (isSuperAdmin) {
+      setPrintDivisionModalOpen(true);
+    } else {
+      setPrintFilterDivision(userDivision);
+      setIsPrintOpen(true);
+    }
+  };
+
   const selectPositionType = (nextType: "MORNING" | "CURRENT") => {
     setPositionType(nextType);
     setSelectedDate(nextType === "MORNING" ? morningDefaultDate : todayStr);
@@ -6014,7 +6034,7 @@ function DailyPositionSummaryTable({
           detailsTitle={detailsTitle}
           queries={queries}
           getRemark={getRemark}
-          onPrintClick={() => setIsPrintOpen(true)}
+          onPrintClick={handlePrintClick}
           positionType={positionType}
           setPositionType={selectPositionType}
           maxPickerDate={maxPickerDate}
@@ -6049,7 +6069,7 @@ function DailyPositionSummaryTable({
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
               <button
-                onClick={() => setIsPrintOpen(true)}
+                onClick={handlePrintClick}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -6268,11 +6288,76 @@ function DailyPositionSummaryTable({
         </article>
       )}
 
+      {printDivisionModalOpen && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setPrintDivisionModalOpen(false)} style={{ zIndex: 9999 }}>
+          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(480px, 95vw)", padding: "28px", borderRadius: "16px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", background: "#fff", position: "relative" }}>
+            <button className="modal-close" type="button" onClick={() => setPrintDivisionModalOpen(false)} aria-label="Close" style={{ border: "none", background: "none", cursor: "pointer", position: "absolute", top: 18, right: 18, color: "var(--muted)" }}>
+              <X size={18} />
+            </button>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <Printer size={22} style={{ color: "var(--blue)" }} />
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "var(--navy)" }}>Print Position Summary</h3>
+            </div>
+            <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "var(--muted)", lineHeight: 1.5 }}>
+              Please select the division(s) you need to print:
+            </p>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { label: "All Division", value: undefined, desc: "Include Bilaspur, Raipur, and Nagpur divisions", color: "var(--navy)" },
+                { label: "Bilaspur Division", value: "Bilaspur", desc: "Print summary for Bilaspur division only", color: "#3b82f6" },
+                { label: "Raipur Division", value: "Raipur", desc: "Print summary for Raipur division only", color: "#ef4444" },
+                { label: "Nagpur Division", value: "Nagpur", desc: "Print summary for Nagpur division only", color: "#10b981" }
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => {
+                    setPrintFilterDivision(opt.value);
+                    setIsPrintOpen(true);
+                    setPrintDivisionModalOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    padding: "12px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--line)",
+                    background: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease-in-out",
+                    textAlign: "left",
+                    width: "100%"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = opt.color;
+                    e.currentTarget.style.background = "var(--page)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = "var(--line)";
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.transform = "none";
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color, display: "inline-block" }} />
+                    <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--navy)" }}>{opt.label}</span>
+                  </div>
+                  <span style={{ fontSize: "12px", color: "var(--muted)", marginTop: 4, marginLeft: 16 }}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isPrintOpen && (
         <DailyPositionPrintView
           selectedDate={selectedDate}
           onClose={() => setIsPrintOpen(false)}
-          filterDivision={isSuperAdmin ? undefined : userDivision}
+          filterDivision={printFilterDivision}
           positionType={positionType}
         />
       )}

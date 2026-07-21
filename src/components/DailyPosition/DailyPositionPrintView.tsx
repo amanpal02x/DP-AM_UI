@@ -731,7 +731,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 rtTimeStr = "";
                                 durationStr = "";
                                 faultySec = "";
-                                actionRemarks = `Faults: ${entry.faultCount}`;
+                                let stationCount = 0;
+                                if (div === "Bilaspur") stationCount = 82;
+                                else if (div === "Raipur") stationCount = 30;
+                                else if (div === "Nagpur") stationCount = 91;
+
+                                actionRemarks = stationCount > 0
+                                  ? `Faults: ${entry.faultCount}/${stationCount} Stations`
+                                  : `Faults: ${entry.faultCount}`;
                               } else if (!entry.isPlaceholder) {
                                 if (isWtRepair) {
                                   const fd = entry.formData || {};
@@ -866,7 +873,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                 {wtForms.length > 0 && (
                   <div style={{ marginTop: "20px" }}>
                     <div style={{ fontWeight: "bold", fontSize: "12px", marginBottom: "6px" }}>
-                      WALKIE-TALKIE TESTING POSITION
+                      5W WALKIE-TALKIE TESTING POSITION
                     </div>
                     <table style={{
                       width: "100%",
@@ -879,12 +886,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                         <tr style={{ background: "#f8fafc" }}>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "5%", textAlign: "center" }}>Sr. No.</th>
                           {!filterDivision && <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Division</th>}
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "47%" : "32%", textAlign: "left" }}>Lobby / Location</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "12%", textAlign: "center" }}>Total Sets</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "12%", textAlign: "center" }}>Sets Tested</th>
-                          {!filterDivision && <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Active Faults</th>}
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "9%", textAlign: "center" }}>
-                            {filterDivision ? "Balance to be tested" : "Not Tested"}
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "47%" : "41%", textAlign: "left" }}>Lobby / Location</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "14%", textAlign: "center" }}>Total Sets</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "14%", textAlign: "center" }}>Sets Tested</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "16%", textAlign: "center" }}>
+                            Balance to be Tested
                           </th>
                         </tr>
                       </thead>
@@ -1001,9 +1007,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 const fSerials = lobbyFaults.map(r => r.formData?.serialNo).filter(Boolean);
                                 const fSerialsStr = fSerials.length > 0 ? ` (${fSerials.join(", ")})` : "";
 
-                                const bal = filterDivision 
-                                  ? Math.max(0, totSets - tSets)
-                                  : Math.max(0, totSets - fSets);
+                                const bal = Math.max(0, totSets - tSets);
 
                                 return {
                                   isPlaceholder: false,
@@ -1041,9 +1045,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.totalSets || 0)), 0), 0);
                           const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.testedSets || 0)), 0), 0);
                           const grandFaultySets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.faultySets || 0)), 0), 0);
-                          const grandBalance = filterDivision
-                            ? Math.max(0, grandTotalSets - grandTestedSets)
-                            : Math.max(0, grandTotalSets - grandFaultySets);
+                          const grandBalance = Math.max(0, grandTotalSets - grandTestedSets);
 
                           return (
                             <React.Fragment key={form.systemCode}>
@@ -1066,9 +1068,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                     totalSetsStr = String(entry.totalSets);
                                     testedSetsStr = String(entry.testedSets);
                                     faultySetsStr = String(entry.faultySets);
-                                    const bal = filterDivision 
-                                      ? Math.max(0, entry.totalSets - entry.testedSets)
-                                      : Math.max(0, entry.totalSets - entry.faultySets);
+                                    const bal = Math.max(0, entry.totalSets - entry.testedSets);
                                     balanceStr = String(bal);
                                   }
 
@@ -1107,11 +1107,6 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                       <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                         {testedSetsStr}
                                       </td>
-                                      {!filterDivision && (
-                                        <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                          {faultySetsStr}
-                                        </td>
-                                      )}
                                       <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                         {balanceStr}
                                       </td>
@@ -1133,11 +1128,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                  <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
                                    {grandTestedSets}
                                  </td>
-                                 {!filterDivision && (
-                                   <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
-                                     {grandFaultySets}
-                                   </td>
-                                 )}
+
                                  <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
                                    {grandBalance}
                                  </td>
