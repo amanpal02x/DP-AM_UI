@@ -4538,7 +4538,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                 {selectedForm?.name === "Walkie-Talkie Testing" && (
                   <div style={{
                     display: "grid",
-                    gridTemplateColumns: "1.2fr 0.90fr 0.90fr 0.90fr",
+                    gridTemplateColumns: selectedDivision ? "1.2fr 0.90fr 0.90fr 0.90fr" : "1.2fr 0.90fr 0.90fr 0.90fr 0.90fr",
                     gap: "12px",
                     marginBottom: "20px",
                     background: "var(--light)",
@@ -4562,7 +4562,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       />
                     </div>
 
-                    {/* Stats Card 1 */}
+                    {/* Stats Card 1 — Total Sets */}
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Total sets</div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", marginTop: "2px" }}>
@@ -4570,30 +4570,58 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       </div>
                     </div>
 
-                    {/* Stats Card 2 */}
+                    {/* Stats Card 2 — Sets Tested */}
                     <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        Tested sets
+                        Sets Tested
                       </div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--green)", marginTop: "2px" }}>
                         {values.testedCount || 0}
                       </div>
                     </div>
 
-                    {/* Stats Card 3 */}
-                    <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        Balance for Testing
-                      </div>
-                      <div style={{
-                        fontSize: "18px",
-                        fontWeight: 800,
-                        color: Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0))) > 0 ? "var(--amber)" : "var(--green)",
-                        marginTop: "2px"
-                      }}>
-                        {Math.max(0, Number(values.toBeTestedCount || 0) - (Number(values.testedCount || 0) + Number(values.newTestedCount || 0)))}
-                      </div>
-                    </div>
+                    {/* Stats Card 3 — Active Faults (only for HQ / All Divisions view) */}
+                    {!selectedDivision && (() => {
+                      const activeFaultCount = records.filter((r: any) =>
+                        r.formType === "Walkie-Talkie Testing" &&
+                        !r.formData?.reportType?.includes("Healthy") &&
+                        r.reason !== "All OK" &&
+                        r.status !== "RECTIFIED" &&
+                        r.status !== "DRAFT"
+                      ).length;
+                      return (
+                        <div style={{ background: activeFaultCount > 0 ? "#fff5f5" : "#ffffff", padding: "10px 12px", borderRadius: "6px", border: `1px solid ${activeFaultCount > 0 ? "#fecaca" : "#e2e8f0"}`, boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                          <div style={{ fontSize: "10px", color: activeFaultCount > 0 ? "#dc2626" : "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                            Active Faults
+                          </div>
+                          <div style={{ fontSize: "18px", fontWeight: 800, color: activeFaultCount > 0 ? "#dc2626" : "var(--muted)", marginTop: "2px" }}>
+                            {activeFaultCount}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Stats Card 4 — Balance to be tested */}
+                    {(() => {
+                      const balanceVal = selectedDivision 
+                        ? Math.max(0, Number(values.toBeTestedCount || 0) - Number(values.testedCount || 0))
+                        : Math.max(0, Number(values.toBeTestedCount || 0) - records.filter((r: any) => r.formType === "Walkie-Talkie Testing" && !r.formData?.reportType?.includes("Healthy") && r.reason !== "All OK" && r.status !== "RECTIFIED" && r.status !== "DRAFT").length);
+                      return (
+                        <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                          <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                            {selectedDivision ? "Balance to be tested" : "Not Tested"}
+                          </div>
+                          <div style={{
+                            fontSize: "18px",
+                            fontWeight: 800,
+                            color: balanceVal > 0 ? "var(--amber)" : "var(--green)",
+                            marginTop: "2px"
+                          }}>
+                            {balanceVal}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 

@@ -563,9 +563,15 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             const isSuperAdminOrViewer = !role || role === "SUPER_ADMIN" || role === "VIEWER" || role === "ALL_DIVISION_VIEWER" || role === "DIVISIONAL_VIEWER";
             const isSuperAdminOrViewerPrint = isSuperAdminOrViewer && (!filterDivision || DIVISIONS.length > 1);
 
+            // Division users for Bilaspur/Raipur/Nagpur also get a dedicated WT section
+            const isDivisionWtPrint = !!filterDivision && (
+              filterDivision === "Bilaspur" || filterDivision === "Raipur" || filterDivision === "Nagpur"
+            );
+
             const isWtForm = (f: any) => f.name === "Walkie-Talkie Testing" || f.name === "Walkie-Talkie Repairing";
-            const mainForms = isSuperAdminOrViewerPrint ? displayedForms.filter(f => !isWtForm(f)) : displayedForms;
-            const wtForms = isSuperAdminOrViewerPrint ? displayedForms.filter(f => isWtForm(f)) : [];
+            const shouldSeparateWt = isSuperAdminOrViewerPrint || isDivisionWtPrint;
+            const mainForms = shouldSeparateWt ? displayedForms.filter(f => !isWtForm(f)) : displayedForms;
+            const wtForms = shouldSeparateWt ? displayedForms.filter(f => isWtForm(f)) : [];
 
             return (
               <>
@@ -872,12 +878,14 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                       <thead>
                         <tr style={{ background: "#f8fafc" }}>
                           <th style={{ border: "1px solid #000000", padding: "6px", width: "5%", textAlign: "center" }}>Sr. No.</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "12%", textAlign: "center" }}>Division</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "37%", textAlign: "left" }}>Lobby/Location</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Total Sets</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Sets Tested</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "13%", textAlign: "center" }}>Active Faults</th>
-                          <th style={{ border: "1px solid #000000", padding: "6px", width: "11%", textAlign: "center" }}>Balance</th>
+                          {!filterDivision && <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Division</th>}
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "47%" : "32%", textAlign: "left" }}>Lobby / Location</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "12%", textAlign: "center" }}>Total Sets</th>
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "12%", textAlign: "center" }}>Sets Tested</th>
+                          {!filterDivision && <th style={{ border: "1px solid #000000", padding: "6px", width: "10%", textAlign: "center" }}>Active Faults</th>}
+                          <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "16%" : "9%", textAlign: "center" }}>
+                            {filterDivision ? "Balance to be tested" : "Not Tested"}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -962,62 +970,52 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               return lDiv === targetDiv && lobbyKey !== "testing";
                             });
 
-                            let lobbyNames = divisionLobbies.map(l => l.lobbyName);
-                            if (normalizeDiv(div) === "Raipur") {
-                              if (!lobbyNames.some(n => n.toLowerCase().includes("durg"))) {
-                                lobbyNames.push("DURG");
-                              }
-                            }
-
-                            const mergedLobbyStr = lobbyNames.join(" / ");
-                            
-                            const mergedTotalSets = divisionLobbies.reduce((acc, l) => {
-                              const count = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
-                                ? l.walkieTalkies.length
-                                : (l.totalWalkieTalkies || 0);
-                              return acc + count;
-                            }, 0);
-
-                            const mergedTestedSets = groupedEntries.reduce((acc, curr) => {
-                              const isLobbyOfDiv = divisionLobbies.some(dl => dl.lobbyName.toLowerCase().trim() === curr.lobbyStr.toLowerCase().trim());
-                              const isDurg = curr.lobbyStr.toLowerCase().trim() === "durg";
-                              if (isLobbyOfDiv || isDurg) {
-                                return acc + curr.testedSets;
-                              }
-                              return acc;
-                            }, 0);
-
                             const activeFaults = (activeFaultsQuery.data || []) as any[];
-                            const divisionFaultyRecords = activeFaults.filter((r: any) => {
-                              const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
-                              const recordLobby = (r.formData?.stationLobby || r.formData?.lobbyName || r.stationCode || r.stationName || "").toLowerCase().trim();
-                              const matchesAnyLobby = divisionLobbies.some(dl => dl.lobbyName.toLowerCase().trim() === recordLobby) ||
-                                                    (normalizeDiv(div) === "Raipur" && recordLobby === "durg");
-                              const isDraft = r.status === "DRAFT";
-                              const isRectified = r.status === "RECTIFIED" || r.reason === "All OK" || (r.formData && r.formData.actionType === "OK") || r.formData?.reportType === "Healthy";
-                              return isWT && matchesAnyLobby && !isDraft && !isRectified;
-                            });
 
-                            const mergedFaultySets = divisionFaultyRecords.length;
-                            const faultySerials = divisionFaultyRecords
-                              .map(r => r.formData?.serialNo)
-                              .filter(Boolean);
-                            const faultySerialsStr = faultySerials.length > 0 ? ` (${faultySerials.join(", ")})` : "";
+                            if (divisionLobbies.length > 0) {
+                              finalEntries = divisionLobbies.map((l: any) => {
+                                const lobbyName = l.lobbyName;
+                                const lobbyKey = lobbyName.toLowerCase().trim();
 
-                            const mergedBalance = mergedTotalSets - mergedTestedSets;
-                            const mergedIds = groupedEntries.flatMap(e => e.ids);
+                                const totSets = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0
+                                  ? l.walkieTalkies.length
+                                  : (l.totalWalkieTalkies || 0);
 
-                            if (lobbyNames.length > 0) {
-                              finalEntries = [{
-                                isPlaceholder: false,
-                                lobbyStr: mergedLobbyStr,
-                                totalSets: mergedTotalSets,
-                                testedSets: mergedTestedSets,
-                                faultySets: mergedFaultySets,
-                                faultySerialsStr: faultySerialsStr,
-                                balance: mergedBalance < 0 ? 0 : mergedBalance,
-                                ids: mergedIds
-                              }];
+                                const entry = groupedEntries.find(g => 
+                                  g.lobbyStr.toLowerCase().trim() === lobbyKey || 
+                                  (lobbyKey.includes("durg") && g.lobbyStr.toLowerCase().trim() === "durg")
+                                );
+
+                                const tSets = entry ? Math.max(Number(entry.testedSets || 0), Number(l.testedCount || 0)) : Number(l.testedCount || 0);
+
+                                const lobbyFaults = activeFaults.filter((r: any) => {
+                                  const isWT = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+                                  const recordLobby = (r.formData?.stationLobby || r.formData?.lobbyName || r.stationCode || r.stationName || "").toLowerCase().trim();
+                                  const matchesLobby = recordLobby === lobbyKey || (lobbyKey.includes("durg") && recordLobby === "durg");
+                                  const isDraft = r.status === "DRAFT";
+                                  const isRectified = r.status === "RECTIFIED" || r.reason === "All OK" || (r.formData && r.formData.actionType === "OK") || r.formData?.reportType === "Healthy";
+                                  return isWT && matchesLobby && !isDraft && !isRectified;
+                                });
+
+                                const fSets = lobbyFaults.length;
+                                const fSerials = lobbyFaults.map(r => r.formData?.serialNo).filter(Boolean);
+                                const fSerialsStr = fSerials.length > 0 ? ` (${fSerials.join(", ")})` : "";
+
+                                const bal = filterDivision 
+                                  ? Math.max(0, totSets - tSets)
+                                  : Math.max(0, totSets - fSets);
+
+                                return {
+                                  isPlaceholder: false,
+                                  lobbyStr: lobbyName,
+                                  totalSets: totSets,
+                                  testedSets: tSets,
+                                  faultySets: fSets,
+                                  faultySerialsStr: fSerialsStr,
+                                  balance: bal,
+                                  ids: entry ? entry.ids : []
+                                };
+                              });
                             } else {
                               finalEntries = [{
                                 isPlaceholder: true,
@@ -1040,10 +1038,12 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           const totalRows = divisionRenderData.reduce((acc, curr) => acc + curr.entries.length, 0);
                           let formRowIndex = 0;
 
-                          const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.totalSets || 0)), 0);
-                          const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.testedSets || 0)), 0);
-                          const grandFaultySets = divisionRenderData.reduce((sum, d) => sum + (d.entries[0]?.isPlaceholder ? 0 : (d.entries[0]?.faultySets || 0)), 0);
-                          const grandBalance = grandTotalSets - grandTestedSets;
+                          const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.totalSets || 0)), 0), 0);
+                          const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.testedSets || 0)), 0), 0);
+                          const grandFaultySets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.faultySets || 0)), 0), 0);
+                          const grandBalance = filterDivision
+                            ? Math.max(0, grandTotalSets - grandTestedSets)
+                            : Math.max(0, grandTotalSets - grandFaultySets);
 
                           return (
                             <React.Fragment key={form.systemCode}>
@@ -1066,7 +1066,10 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                     totalSetsStr = String(entry.totalSets);
                                     testedSetsStr = String(entry.testedSets);
                                     faultySetsStr = String(entry.faultySets);
-                                    balanceStr = String(entry.balance);
+                                    const bal = filterDivision 
+                                      ? Math.max(0, entry.totalSets - entry.testedSets)
+                                      : Math.max(0, entry.totalSets - entry.faultySets);
+                                    balanceStr = String(bal);
                                   }
 
                                   return (
@@ -1104,9 +1107,11 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                       <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                         {testedSetsStr}
                                       </td>
-                                      <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                        {faultySetsStr}
-                                      </td>
+                                      {!filterDivision && (
+                                        <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
+                                          {faultySetsStr}
+                                        </td>
+                                      )}
                                       <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
                                         {balanceStr}
                                       </td>
@@ -1116,31 +1121,33 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               })}
                               {/* Grand Total Row */}
                               <tr style={{ fontWeight: "bold", background: "#f8fafc" }}>
-                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }} colSpan={2}>
-                                  Total
-                                </td>
-                                <td style={{ border: "1px solid #000000", padding: "5px" }}>
-                                  -
-                                </td>
-                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                  {grandTotalSets}
-                                </td>
-                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                  {grandTestedSets}
-                                </td>
-                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                  {grandFaultySets}
-                                </td>
-                                <td style={{ border: "1px solid #000000", padding: "5px", textAlign: "center" }}>
-                                  {grandBalance < 0 ? 0 : grandBalance}
-                                </td>
-                              </tr>
+                                 <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }} colSpan={filterDivision ? 1 : 2}>
+                                   Total
+                                 </td>
+                                 <td style={{ border: "1px solid #000000", padding: "6px" }}>
+                                   -
+                                 </td>
+                                 <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
+                                   {grandTotalSets}
+                                 </td>
+                                 <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
+                                   {grandTestedSets}
+                                 </td>
+                                 {!filterDivision && (
+                                   <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
+                                     {grandFaultySets}
+                                   </td>
+                                 )}
+                                 <td style={{ border: "1px solid #000000", padding: "6px", textAlign: "center" }}>
+                                   {grandBalance}
+                                 </td>
+                               </tr>
                             </React.Fragment>
                           );
-                         })}
-                       </tbody>
+                        })}
+                      </tbody>
                      </table>
-                   </div>
+                    </div>
                  )}
                </>
              );
