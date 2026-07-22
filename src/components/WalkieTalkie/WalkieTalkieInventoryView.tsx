@@ -27,6 +27,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
   const [editingLobbyId, setEditingLobbyId] = useState<string | null>(null);
   const [walkieTalkies, setWalkieTalkies] = useState<{ serialNumber: string; makeModel: string }[]>([]);
   const [hasJustImported, setHasJustImported] = useState(false);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
 
   // Dialog state for viewing serial numbers
   const [isViewSerialsModalOpen, setIsViewSerialsModalOpen] = useState(false);
@@ -99,6 +100,28 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
 
   useEffect(() => { fetchLobbies(); }, []);
 
+  const enhanceErrorMessage = (errMsg: string) => {
+    if (!errMsg.includes("already assigned to other lobbies:")) return errMsg;
+    
+    const parts = errMsg.split("already assigned to other lobbies:");
+    const prefix = parts[0] + "already assigned to other lobbies:";
+    const serialsPart = parts[1];
+    if (!serialsPart) return errMsg;
+
+    const serials = serialsPart.split(",").map(s => s.trim());
+    const detailedList = serials.map(sn => {
+      const foundLobby = lobbies.find(l => 
+        (l.walkieTalkies || []).some((wt: any) => wt.serialNumber.toLowerCase() === sn.toLowerCase())
+      );
+      if (foundLobby) {
+        return `${sn} (assigned to ${foundLobby.lobbyName} in ${foundLobby.division} Division)`;
+      }
+      return sn;
+    });
+
+    return `${prefix} ${detailedList.join(", ")}`;
+  };
+
   const handleOpenAddModal = () => {
     setLobbyName("");
     setTotalWalkieTalkies("");
@@ -106,6 +129,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     setEditingLobbyId(null);
     setWalkieTalkies([]);
     setHasJustImported(false);
+    setLobbyError(null);
     setIsLobbyModalOpen(true);
   };
 
@@ -117,6 +141,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     setEditingLobbyId(lobby.id);
     setWalkieTalkies(lobbyWTs);
     setHasJustImported(false);
+    setLobbyError(null);
     setIsLobbyModalOpen(true);
   };
 
@@ -128,6 +153,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     }
     try {
       setIsMutating(true);
+      setLobbyError(null);
       const res = await api.walkieTalkie.upsertLobby({
         lobbyName: lobbyName.trim(),
         totalWalkieTalkies: Number(totalWalkieTalkies),
@@ -142,7 +168,9 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
         fetchLobbies();
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to save lobby");
+      const detailedError = enhanceErrorMessage(err.message || "Failed to save lobby");
+      setLobbyError(detailedError);
+      showToast(detailedError);
     } finally {
       setIsMutating(false);
     }
@@ -849,6 +877,27 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                 <div style={{ fontSize: "13px", color: "#1e293b", background: "#f0fdf4", padding: "10px 12px", borderRadius: "8px", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: "8px" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                   <span><strong>{walkieTalkies.length}</strong> walkie-talkies imported successfully.</span>
+                </div>
+              )}
+
+              {lobbyError && (
+                <div style={{ 
+                  fontSize: "13px", 
+                  color: "#ef4444", 
+                  background: "#fef2f2", 
+                  padding: "10px 12px", 
+                  borderRadius: "8px", 
+                  border: "1px solid #fecaca", 
+                  display: "flex", 
+                  alignItems: "flex-start", 
+                  gap: "8px" 
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: "1px" }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span style={{ fontWeight: 500 }}>{lobbyError}</span>
                 </div>
               )}
 
