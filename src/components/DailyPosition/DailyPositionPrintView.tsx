@@ -596,6 +596,59 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             const mainForms = shouldSeparateWt ? displayedForms.filter(f => !isWtForm(f)) : displayedForms;
             const wtForms = shouldSeparateWt ? displayedForms.filter(f => isWtForm(f)) : [];
 
+            const groupedCircuitNames = [
+              "Control & ICMS Position",
+              "FOIS",
+              "Hotline",
+              "Video Conferencing with Divisions",
+              "Railway Board Video Phones",
+              "CFTM Conference",
+              "Railnet / Internet",
+              "PRS/UTS",
+              "Exchange",
+              "Rail Madad"
+            ];
+
+            const isPrintAllDivisions = !filterDivision && DIVISIONS.length === 3;
+
+            const areAllGroupedCircuitsOk = isPrintAllDivisions && groupedCircuitNames.every((name) => {
+              const targetForm = mainForms.find(f => f.name === name);
+              if (!targetForm) return true;
+              return DIVISIONS.every((div) => {
+                const map = divisionMaps[div] || {};
+                const formEntries = map[targetForm.name] || map[targetForm.systemCode] || [];
+                const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                
+                const faultEntries = activeEntries.filter((e: any) => {
+                  const s = (e.status || "").toUpperCase();
+                  const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                  return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                });
+                return faultEntries.length === 0;
+              });
+            });
+
+            const renderForms = (() => {
+              if (!areAllGroupedCircuitsOk) return mainForms;
+              const items = [];
+              let groupedInserted = false;
+              for (const form of mainForms) {
+                if (groupedCircuitNames.includes(form.name)) {
+                  if (!groupedInserted) {
+                    items.push({
+                      isGroupedCircuits: true,
+                      name: groupedCircuitNames.join(", "),
+                      systemCode: "GROUPED_CIRCUITS_OK",
+                    });
+                    groupedInserted = true;
+                  }
+                } else {
+                  items.push(form);
+                }
+              }
+              return items;
+            })();
+
             return (
               <>
                 <table style={{
@@ -619,7 +672,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                     </tr>
                   </thead>
                   <tbody>
-                    {mainForms.map((form, index) => {
+                    {renderForms.map((form, index) => {
                       const srNo = index + 1;
 
                       const isWtRepair = form.name === "Walkie-Talkie Repairing";
@@ -627,35 +680,45 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                       const isJoints = form.name === "Temporary Joints";
                       const isInsulation = form.name === "Low Insulation";
 
-                      let divisionRenderData = DIVISIONS.map((div) => {
-                        const map = divisionMaps[div] || {};
-                        const formEntries = map[form.name] || map[form.systemCode] || [];
-                        const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+                      let divisionRenderData: any[] = [];
+                      if ((form as any).isGroupedCircuits) {
+                        divisionRenderData = [
+                          {
+                            div: "SECR",
+                            entries: [{ isPlaceholder: true }],
+                            hasFaults: false,
+                          },
+                        ];
+                      } else {
+                        divisionRenderData = DIVISIONS.map((div) => {
+                          const map = divisionMaps[div] || {};
+                          const formEntries = map[form.name] || map[form.systemCode] || [];
+                          const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
 
-                        const faultEntries = activeEntries.filter((e: any) => {
-                          const s = (e.status || "").toUpperCase();
-                          const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                          return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                          const faultEntries = activeEntries.filter((e: any) => {
+                            const s = (e.status || "").toUpperCase();
+                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
+                          });
+
+                          let entries: any[] = [];
+                          if (isWtTest || isWtRepair) {
+                            entries = activeEntries.length > 0 ? activeEntries : [{ isPlaceholder: true }];
+                          } else if (faultEntries.length > 0) {
+                            entries = faultEntries;
+                          } else if (activeEntries.length > 0) {
+                            entries = [activeEntries[0]];
+                          } else {
+                            entries = [{ isPlaceholder: true }];
+                          }
+
+                          return {
+                            div,
+                            entries,
+                            hasFaults: faultEntries.length > 0,
+                          };
                         });
-
-                        let entries: any[] = [];
-                        if (isWtTest || isWtRepair) {
-                          entries = activeEntries.length > 0 ? activeEntries : [{ isPlaceholder: true }];
-                        } else if (faultEntries.length > 0) {
-                          entries = faultEntries;
-                        } else if (activeEntries.length > 0) {
-                          entries = [activeEntries[0]];
-                        } else {
-                          entries = [{ isPlaceholder: true }];
-                        }
-
-                        return {
-                          div,
-                          entries,
-                          hasFaults: faultEntries.length > 0,
-                        };
-                      });
-
+                      }
                       const SECR_CONSOLIDATED_FORMS = [
                         "Control & ICMS Position",
                         "FOIS",
@@ -730,7 +793,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           {divisionRenderData.map((divData, divIndex) => {
                             const { div, entries } = divData;
 
-                            return entries.map((entry, entryIndex) => {
+                            return entries.map((entry: any, entryIndex: number) => {
                               const isFirstFormRow = formRowIndex === 0;
                               const isFirstDivRow = entryIndex === 0;
                               formRowIndex++;
@@ -832,7 +895,9 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               }
 
                               if (actionRemarks === "All OK") {
-                                if (div === "SECR") {
+                                if ((form as any).isGroupedCircuits) {
+                                  actionRemarks = "All OK";
+                                } else if (div === "SECR") {
                                   const bspTime = getDivisionAllOkTime("Bilaspur", form.name, form.systemCode);
                                   const rTime = getDivisionAllOkTime("Raipur", form.name, form.systemCode);
                                   const ngpTime = getDivisionAllOkTime("Nagpur", form.name, form.systemCode);
