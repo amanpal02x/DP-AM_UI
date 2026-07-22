@@ -88,6 +88,29 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
   const DIVISIONS = filterDivision ? [filterDivision] : ["Bilaspur", "Raipur", "Nagpur"];
 
+  const getDivisionAllOkTime = (divName: string, formName: string, formSystemCode: string) => {
+    const map = divisionMaps[divName] || {};
+    const formEntries = map[formName] || map[formSystemCode] || [];
+    const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
+    const allOkEntry = activeEntries.find((e: any) => {
+      const s = (e.status || "").toUpperCase();
+      const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
+      return s === "All Ok" || isAllOk;
+    });
+    if (allOkEntry && allOkEntry.formData?.testingTime) {
+      const date = new Date(allOkEntry.formData.testingTime);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString("en-US", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true
+        });
+      }
+    }
+    return null;
+  };
+
   const displayedForms = useMemo(() => {
     const base = DAILY_POSITION_FORMS.filter(
       (form) => form.category !== "Daily Log" && form.name !== "Daily Position Log"
@@ -805,6 +828,30 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                 if (faultySec === "-") faultySec = "";
                                 if (!actionRemarks || actionRemarks === "-" || actionRemarks === "" || actionRemarks === "OK" || actionRemarks === "All OK" || actionRemarks === "All Ok" || actionRemarks === "Joints logged." || actionRemarks === "Insulation faults logged.") {
                                   actionRemarks = "All OK";
+                                }
+                              }
+
+                              if (actionRemarks === "All OK") {
+                                if (div === "SECR") {
+                                  const bspTime = getDivisionAllOkTime("Bilaspur", form.name, form.systemCode);
+                                  const rTime = getDivisionAllOkTime("Raipur", form.name, form.systemCode);
+                                  const ngpTime = getDivisionAllOkTime("Nagpur", form.name, form.systemCode);
+                                  const parts: string[] = [];
+                                  if (bspTime) parts.push(`BSP- ${bspTime}`);
+                                  if (rTime) parts.push(`R - ${rTime}`);
+                                  if (ngpTime) parts.push(`NGP- ${ngpTime}`);
+                                  if (parts.length > 0) {
+                                    actionRemarks = `All OK (${parts.join(", ")})`;
+                                  }
+                                } else {
+                                  let abbrev = "";
+                                  if (div === "Bilaspur") abbrev = "BSP";
+                                  else if (div === "Raipur") abbrev = "R";
+                                  else if (div === "Nagpur") abbrev = "NGP";
+                                  const time = getDivisionAllOkTime(div, form.name, form.systemCode);
+                                  if (time && abbrev) {
+                                    actionRemarks = `All OK (${abbrev}- ${time})`;
+                                  }
                                 }
                               }
 

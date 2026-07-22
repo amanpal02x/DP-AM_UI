@@ -2857,6 +2857,11 @@ export default function DailyPositionView({ role, division, user, mode, showToas
   const [isFaultyMode, setIsFaultyMode] = useState(false);
   const [localDrafts, setLocalDrafts] = useState<any[]>([]);
 
+  // State variables for All OK Testing Time Modal
+  const [isAllOkModalOpen, setIsAllOkModalOpen] = useState(false);
+  const [allOkTestingTime, setAllOkTestingTime] = useState("");
+  const successTimerRef = useRef<any>(null);
+
   // Local completed forms state for today
   const todayStr = toDateValue();
   const completedFormsKey = `dp_completed_${user?.username || "default"}_${todayStr}`;
@@ -3118,7 +3123,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       if (isAllOk) {
         actionMsg = (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Status Updated Successfully</div>
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#16a34a" }}>✅ All OK Record Submitted Successfully</div>
             {selectedForm?.name !== "Walkie-Talkie Testing" && <div style={{ fontSize: "14px", color: "#64748b" }}>Opening the Next Form...</div>}
           </div>
         );
@@ -3126,20 +3131,36 @@ export default function DailyPositionView({ role, division, user, mode, showToas
         actionMsg = <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Record Saved Successfully</div>;
       }
 
+      const onOkHandler = () => {
+        if (successTimerRef.current) {
+          clearTimeout(successTimerRef.current);
+          successTimerRef.current = null;
+        }
+        setSuccessModal(null);
+        resetForm();
+        setEditingRecordId(null);
+        if (mode === "history") {
+          setLocalViewMode("history");
+        }
+        if (isAllOk && selectedForm?.name !== "Walkie-Talkie Testing") {
+          moveToNextForm();
+        }
+      };
+
       setSuccessModal({
         message: actionMsg,
-        onOk: () => {
-          setSuccessModal(null);
-          resetForm();
-          setEditingRecordId(null);
-          if (mode === "history") {
-            setLocalViewMode("history");
-          }
-          if (isAllOk && selectedForm?.name !== "Walkie-Talkie Testing") {
-            moveToNextForm();
-          }
-        }
+        onOk: onOkHandler
       });
+
+      if (isAllOk) {
+        if (successTimerRef.current) {
+          clearTimeout(successTimerRef.current);
+        }
+        successTimerRef.current = setTimeout(() => {
+          onOkHandler();
+        }, 3000);
+      }
+
       setIsSavingDraft(false);
       setIsSubmittingAllOk(false);
     },
@@ -3386,6 +3407,10 @@ export default function DailyPositionView({ role, division, user, mode, showToas
       }
     });
 
+    if (processedValues.testingTime) {
+      processedValues.testingTime = toUTCFromISTString(processedValues.testingTime);
+    }
+
     if (selectedForm.name === "Walkie-Talkie Testing") {
       // Map the input count to testedCount before sending to the backend controller
       processedValues.testedCount = Number(processedValues.newTestedCount || 0);
@@ -3496,9 +3521,8 @@ export default function DailyPositionView({ role, division, user, mode, showToas
 
   const handleOk = () => {
     if (!canFill || !selectedForm) return;
-    setIsSubmittingAllOk(true);
-    createRecord.mutate(buildPayload("OK"));
-    markFormCompleted(selectedForm.name);
+    setAllOkTestingTime(toLocalDateTimeValue(new Date()));
+    setIsAllOkModalOpen(true);
   };
 
   const handleDeleteDraft = async (id: string) => {
@@ -4868,7 +4892,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                       ) : (
                         <>
                           {selectedForm?.name === "Walkie-Talkie Testing" ? <Plus size={14} /> : <AlertTriangle size={14} />}
-                          {selectedForm?.name === "Walkie-Talkie Testing" ? "Add Record" : "Add Faulty"}
+                          {selectedForm?.name === "Walkie-Talkie Testing" ? "Add Record" : "Add Failure"}
                         </>
                       )}
                     </button>
@@ -5280,7 +5304,16 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   </div>
 
                   <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>System Operational</h3>
-                  <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b" }}>All services in this category are working normally.</p>
+                  <p style={{ margin: "0 0 16px 0", fontSize: "14px", color: "#64748b" }}>All services in this category are working normally.</p>
+                  {(() => {
+                    const tTime = detailsRecord.formData?.testingTime || (detailsRecord.formType === "Walkie-Talkie Testing" ? detailsRecord.formData?.testDate : null);
+                    if (!tTime) return null;
+                    return (
+                      <p style={{ margin: "0 0 24px 0", fontSize: "13.5px", color: "#475569" }}>
+                        Testing Time: <strong style={{ color: "#0f172a" }}>{formatDateTime24(tTime)}</strong>
+                      </p>
+                    );
+                  })()}
                   
                   {/* Centered Submitter Metadata */}
                   <div style={{
@@ -5664,6 +5697,81 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   disabled={updateRecord.isPending}
                 >
                   {updateRecord.isPending ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isAllOkModalOpen && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setIsAllOkModalOpen(false)}>
+          <div className="modal-card" onClick={event => event.stopPropagation()} style={{ width: "min(400px, 95vw)", padding: "24px" }}>
+            <button className="modal-close" type="button" onClick={() => setIsAllOkModalOpen(false)} aria-label="Close">
+              <X size={16} />
+            </button>
+            <p style={{ margin: "0 0 20px 0", fontSize: "14px", color: "#64748b" }}>
+              Please enter the Testing Time to confirm everything is OK.
+            </p>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!allOkTestingTime) {
+                showToast("Please enter the testing date and time.");
+                return;
+              }
+              const nowLocalStr = toLocalDateTimeValue(new Date());
+              if (allOkTestingTime > nowLocalStr) {
+                showToast("Future date & time is not allowed.");
+                return;
+              }
+
+              setIsAllOkModalOpen(false);
+              setIsSubmittingAllOk(true);
+              try {
+                const payload = buildPayload("OK", { ...values, testingTime: allOkTestingTime });
+                createRecord.mutate(payload);
+                markFormCompleted(selectedForm.name);
+              } catch (err: any) {
+                showToast(err.message || "Failed to submit All OK.");
+                setIsSubmittingAllOk(false);
+              }
+            }}>
+              <div className="dp-field" style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                  Testing Time <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={allOkTestingTime}
+                  max={toLocalDateTimeValue(new Date())}
+                  onChange={(e) => setAllOkTestingTime(e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAllOkModalOpen(false)}
+                  className="export-button"
+                  style={{ background: "transparent", color: "#64748b", borderColor: "#e2e8f0" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="export-button"
+                  disabled={isSubmittingAllOk}
+                >
+                  {isSubmittingAllOk ? "Submitting..." : "Confirm & Submit"}
                 </button>
               </div>
             </form>
