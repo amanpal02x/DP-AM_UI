@@ -1080,6 +1080,26 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               }];
                             }
 
+                            // Merge lobbies of division into a single row only when printing all divisions (no specific filterDivision)
+                            if (!filterDivision && finalEntries.length > 0 && !finalEntries[0].isPlaceholder) {
+                              const combinedLobbies = finalEntries.map(e => e.lobbyStr).join(", ");
+                              const sumTotalSets = finalEntries.reduce((sum, e) => sum + (e.totalSets || 0), 0);
+                              const sumTestedSets = finalEntries.reduce((sum, e) => sum + (e.testedSets || 0), 0);
+                              const sumBalance = finalEntries.reduce((sum, e) => sum + (e.balance || 0), 0);
+                              const allIds = finalEntries.flatMap(e => e.ids || []);
+
+                              finalEntries = [{
+                                isPlaceholder: false,
+                                lobbyStr: combinedLobbies,
+                                totalSets: sumTotalSets,
+                                testedSets: sumTestedSets,
+                                faultySets: 0,
+                                faultySerialsStr: "",
+                                balance: sumBalance,
+                                ids: allIds
+                              }];
+                            }
+
                             return {
                               div,
                               entries: finalEntries,
@@ -1091,8 +1111,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
 
                           const grandTotalSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.totalSets || 0)), 0), 0);
                           const grandTestedSets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.testedSets || 0)), 0), 0);
-                          const grandFaultySets = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.faultySets || 0)), 0), 0);
-                          const grandBalance = Math.max(0, grandTotalSets - grandTestedSets);
+                          const grandBalance = divisionRenderData.reduce((sum, d) => sum + d.entries.reduce((acc: number, e: any) => acc + (e.isPlaceholder ? 0 : (e.balance || 0)), 0), 0);
 
                           return (
                             <React.Fragment key={form.systemCode}>
@@ -1114,9 +1133,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                     lobbyStr = entry.lobbyStr;
                                     totalSetsStr = String(entry.totalSets);
                                     testedSetsStr = String(entry.testedSets);
-                                    faultySetsStr = String(entry.faultySets);
-                                    const bal = Math.max(0, entry.totalSets - entry.testedSets);
-                                    balanceStr = String(bal);
+                                    balanceStr = String(entry.balance);
                                   }
 
                                   return (
