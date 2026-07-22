@@ -5330,7 +5330,7 @@ export default function DailyPositionView({ role, division, user, mode, showToas
                   }}>
                     {(() => {
                       const createdBy = detailsRecord.createdBy || {};
-                      let name = createdBy.name || createdBy.fullName || detailsRecord.createdByUsername || createdBy.username;
+                      let name = createdBy.name || createdBy.fullName || detailsRecord.name || detailsRecord.createdByUsername || createdBy.username;
                       if ((!name || name === "System User") && user && (detailsRecord.createdById === user.id || detailsRecord.createdByUsername === user.username)) {
                         name = user.name || user.fullName || user.username;
                       }

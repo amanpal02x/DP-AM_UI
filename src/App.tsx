@@ -5689,7 +5689,7 @@ function DailyPositionDetailsModal({
                       {(() => {
                         const currentUser = useAppStore.getState().user;
                         const createdBy = entry.createdBy || {};
-                        let name = createdBy.name || createdBy.fullName || entry.createdByUsername || createdBy.username;
+                        let name = createdBy.name || createdBy.fullName || entry.name || entry.createdByUsername || createdBy.username;
                         if ((!name || name === "System User") && currentUser && (entry.createdById === currentUser.id || entry.createdByUsername === currentUser.username)) {
                           name = currentUser.name || currentUser.fullName || currentUser.username;
                         }
