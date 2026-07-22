@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Plus, X, Search, Download, PlusCircle, Upload } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Plus, X, Search, Download, PlusCircle, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/apiClient";
 import { useAppStore } from "../../App";
@@ -29,6 +29,16 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
   const [hasJustImported, setHasJustImported] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
 
+  // Pagination & Dropdown states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  // Reset pagination when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   // Dialog state for viewing serial numbers
   const [isViewSerialsModalOpen, setIsViewSerialsModalOpen] = useState(false);
   const [viewingLobby, setViewingLobby] = useState<any>(null);
@@ -49,6 +59,22 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
         (wt.makeModel || "Motorola").toLowerCase().includes(wtSearchTerm.toLowerCase())
       )
     : [];
+
+  const matchedWalkieTalkies = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const results: { lobby: any; wt: any }[] = [];
+    const term = searchTerm.toLowerCase();
+    for (const lobby of lobbies) {
+      if (Array.isArray(lobby.walkieTalkies)) {
+        for (const wt of lobby.walkieTalkies) {
+          if (String(wt.serialNumber || "").toLowerCase().includes(term)) {
+            results.push({ lobby, wt });
+          }
+        }
+      }
+    }
+    return results;
+  }, [lobbies, searchTerm]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lobbyFileInputRef = useRef<HTMLInputElement>(null);
@@ -546,35 +572,119 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
     }
   };
 
-  const filteredLobbies = lobbies.filter(l => 
-    String(l.lobbyName || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLobbies = useMemo(() => {
+    return lobbies.filter(l => {
+      const nameMatch = String(l.lobbyName || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const serialMatch = (l.walkieTalkies || []).some((wt: any) => 
+        String(wt.serialNumber || "").toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      return nameMatch || serialMatch;
+    });
+  }, [lobbies, searchTerm]);
+
+  const totalItems = filteredLobbies.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  const paginatedLobbies = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredLobbies.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLobbies, currentPage, itemsPerPage]);
 
   return (
-    <div className="dashboard-scroll-wrap" style={{ flex: 1, overflowY: "auto" }}>
-      <div style={{ padding: "20px 24px 20px 30px", display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="dashboard-scroll-wrap" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "#f8fafc" }}>
+      {/* 1. Header Section (Fixed at top) */}
+      <div style={{ padding: "20px 24px 15px 30px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", flexShrink: 0 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: "22px", color: "var(--navy)", fontWeight: 700 }}>Walkie-Talkie Inventory</h2>
         </div>
-         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <input 
-            type="text" 
-            placeholder="Search lobby..." 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-            style={{
-              padding: "0 14px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              fontSize: "14px",
-              outline: "none",
-              width: "220px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-              height: "38px",
-              boxSizing: "border-box"
-            }} 
-          />
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div 
+            style={{ position: "relative" }}
+            onMouseEnter={() => setShowSearchDropdown(true)}
+            onMouseLeave={() => setShowSearchDropdown(false)}
+          >
+            <input 
+              type="text" 
+              placeholder="Search lobby or serial number..." 
+              value={searchTerm} 
+              onFocus={() => setShowSearchDropdown(true)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSearchDropdown(true);
+              }} 
+              style={{
+                padding: "0 14px",
+                borderRadius: "8px",
+                border: "1px solid var(--line)",
+                fontSize: "14px",
+                outline: "none",
+                width: "240px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                height: "38px",
+                boxSizing: "border-box"
+              }} 
+            />
+            {showSearchDropdown && searchTerm.trim() && (
+              <div 
+                style={{
+                  position: "absolute",
+                  top: "42px",
+                  right: 0,
+                  width: "360px",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                  zIndex: 99999,
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                  padding: "8px 0"
+                }}
+              >
+                <div style={{ padding: "6px 14px", fontSize: "10.5px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", borderBottom: "1px solid #f1f5f9", textAlign: "left" }}>
+                  Matched Walkie-Talkies ({matchedWalkieTalkies.length})
+                </div>
+                {matchedWalkieTalkies.length === 0 ? (
+                  <div style={{ padding: "12px 14px", fontSize: "13px", color: "#64748b", textAlign: "center" }}>
+                    No matching serial numbers found.
+                  </div>
+                ) : (
+                  matchedWalkieTalkies.map(({ lobby, wt }, idx) => (
+                    <div 
+                      key={`${lobby.id}-${wt.serialNumber}-${idx}`}
+                      onClick={() => {
+                        setViewingLobby(lobby);
+                        setWtSearchTerm(wt.serialNumber);
+                        setIsViewSerialsModalOpen(true);
+                        setSearchTerm("");
+                        setShowSearchDropdown(false);
+                      }}
+                      style={{
+                        padding: "10px 14px",
+                        cursor: "pointer",
+                        borderBottom: idx === matchedWalkieTalkies.length - 1 ? "none" : "1px solid #f1f5f9",
+                        transition: "background-color 0.1s ease",
+                        textAlign: "left"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>S/N: {wt.serialNumber}</span>
+                        <span style={{ fontSize: "11px", fontWeight: "500", color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "999px" }}>
+                          {wt.makeModel || "Motorola"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "2px", display: "flex", justifyContent: "space-between" }}>
+                        <span>Lobby: {lobby.lobbyName}</span>
+                        <span style={{ fontSize: "11px", fontWeight: "500", color: "#64748b" }}>{lobby.division}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           {!isViewer && (
             <button 
               onClick={handleOpenAddModal} 
@@ -604,16 +714,17 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
         </div>
       </div>
 
-      <div className="panel" style={{ padding: "20px", background: "transparent", border: "none", boxShadow: "none" }}>
-        <h3 style={{ margin: "0 0 15px", fontSize: "16px", color: "var(--navy)", fontWeight: 600 }}>Lobby Inventory Status</h3>
+      {/* 2. Scrollable Body Content Section */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 0", display: "flex", flexDirection: "column", minHeight: 0 }} className="custom-scrollbar">
+        <h3 style={{ margin: "0 0 15px", padding: "0 24px 0 30px", fontSize: "16px", color: "var(--navy)", fontWeight: 600, flexShrink: 0 }}>Lobby Inventory Status</h3>
         {isLoading && lobbies.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>Loading lobbies data...</div>
+          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)", flex: 1 }}>Loading lobbies data...</div>
         ) : lobbies.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>
+          <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)", flex: 1 }}>
             No lobbies registered yet. Click <strong>Add New Lobby</strong> to get started.
           </div>
         ) : (
-          <div className="table-scroll-container custom-scrollbar" style={{ overflowY: "auto", maxHeight: "420px", paddingRight: "6px" }}>
+          <div className="table-scroll-container custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "0 24px 0 30px", paddingRight: "30px", minHeight: 0 }}>
             <style>{`
               .wt-lobby-table {
                 border-collapse: separate;
@@ -687,7 +798,7 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                 </tr>
               </thead>
               <tbody>
-                {filteredLobbies.map((l: any) => {
+                {paginatedLobbies.map((l: any) => {
                   const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
                     ? l.walkieTalkies.length 
                     : l.totalWalkieTalkies;
@@ -775,6 +886,134 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
           </div>
         )}
       </div>
+
+      {/* 3. Sticky Pagination Footer (Fixed at bottom) */}
+      <div style={{
+        flexShrink: 0,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "16px",
+        padding: "14px 30px",
+        borderTop: "1px solid var(--border)",
+        background: "#ffffff",
+        boxShadow: "0 -4px 6px -1px rgba(0,0,0,0.03)"
+      }}>
+        {/* Left Section: Rows per page and showing info */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", color: "var(--muted)", fontWeight: 500 }}>Rows per page:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid var(--line)",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--navy)",
+                outline: "none",
+                cursor: "pointer",
+                background: "#ffffff"
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          
+          <div style={{ fontSize: "13px", color: "var(--muted)", fontWeight: 500 }}>
+            Showing <span style={{ fontWeight: 600, color: "var(--navy)" }}>{totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span>–
+            <span style={{ fontWeight: 600, color: "var(--navy)" }}>{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{" "}
+            <span style={{ fontWeight: 600, color: "var(--navy)" }}>{totalItems}</span> records
+          </div>
+        </div>
+
+        {/* Right Section: Navigation buttons */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid var(--line)",
+                background: currentPage === 1 ? "#f8fafc" : "#ffffff",
+                color: currentPage === 1 ? "#94a3b8" : "var(--navy)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                transition: "all 0.15s ease"
+              }}
+              onMouseEnter={(e) => { if (currentPage !== 1) e.currentTarget.style.backgroundColor = "#f1f5f9"; }}
+              onMouseLeave={(e) => { if (currentPage !== 1) e.currentTarget.style.backgroundColor = "#ffffff"; }}
+            >
+              <ChevronLeft size={16} /> Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, idx) => {
+              const pageNum = idx + 1;
+              const isActive = pageNum === currentPage;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  style={{
+                    minWidth: "32px",
+                    height: "32px",
+                    borderRadius: "6px",
+                    border: isActive ? "none" : "1px solid var(--line)",
+                    background: isActive ? "#2563eb" : "#ffffff",
+                    color: isActive ? "#ffffff" : "var(--navy)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center"
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "#f1f5f9"; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "#ffffff"; }}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid var(--line)",
+                background: currentPage === totalPages ? "#f8fafc" : "#ffffff",
+                color: currentPage === totalPages ? "#94a3b8" : "var(--navy)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                transition: "all 0.15s ease"
+              }}
+              onMouseEnter={(e) => { if (currentPage !== totalPages) e.currentTarget.style.backgroundColor = "#f1f5f9"; }}
+              onMouseLeave={(e) => { if (currentPage !== totalPages) e.currentTarget.style.backgroundColor = "#ffffff"; }}
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Lobby Modal */}
