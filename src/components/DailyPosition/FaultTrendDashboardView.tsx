@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ResponsiveContainer,
@@ -26,6 +27,8 @@ import {
   Activity,
   SlidersHorizontal,
   ChevronDown,
+  ChevronRight,
+  Check,
   Eye,
   Search,
   RefreshCw
@@ -48,6 +51,12 @@ const FORM_TO_CATEGORY_MAP = DAILY_POSITION_FORMS.reduce((acc, form) => {
   return acc;
 }, {} as Record<string, string>);
 
+// Map of categories to their list of subcategories/form names
+const CATEGORY_SUBFORMS_MAP = DAILY_POSITION_CATEGORIES.reduce((acc, cat) => {
+  acc[cat] = DAILY_POSITION_FORMS.filter(f => f.category === cat).map(f => f.name);
+  return acc;
+}, {} as Record<string, string[]>);
+
 export default function FaultTrendDashboardView({
   role,
   userDivision,
@@ -56,6 +65,19 @@ export default function FaultTrendDashboardView({
 }: FaultTrendDashboardViewProps) {
   // 1. Filter States
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState<boolean>(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; maxHeight: number }>({
+    top: 0,
+    left: 0,
+    width: 280,
+    maxHeight: 340
+  });
+
   const [selectedDivision, setSelectedDivision] = useState<string>(
     userDivision && userDivision !== "HQ" ? userDivision : ""
   );
@@ -63,6 +85,96 @@ export default function FaultTrendDashboardView({
   const [tableSearch, setTableSearch] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
+
+  // Calculate dynamic overlay position based on available viewport space
+  const updateDropdownPosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const defaultMaxHeight = 340;
+
+    let top = rect.bottom + 4;
+    let maxHeight = Math.min(defaultMaxHeight, Math.max(spaceBelow - 16, 150));
+
+    // If space below is limited (< 260px) and there's more space above, open upward
+    if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+      const actualMaxHeight = Math.min(defaultMaxHeight, Math.max(spaceAbove - 16, 150));
+      top = Math.max(8, rect.top - actualMaxHeight - 4);
+      maxHeight = actualMaxHeight;
+    }
+
+    let left = rect.left;
+    const width = Math.max(280, rect.width);
+    if (left + width > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - width - 16);
+    }
+
+    setDropdownPos({ top, left, width, maxHeight });
+  };
+
+  const toggleCategoryDropdown = () => {
+    if (!isCategoryDropdownOpen) {
+      updateDropdownPosition();
+      // On open, expand the active category if set, else collapse all
+      setExpandedCategory(selectedCategory || null);
+      setIsCategoryDropdownOpen(true);
+    } else {
+      setIsCategoryDropdownOpen(false);
+    }
+  };
+
+  const handleCategoryRowClick = (cat: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    // Accordion: toggle selected category, collapse any other
+    setExpandedCategory(prev => (prev === cat ? null : cat));
+    setSelectedCategory(cat);
+    setSelectedSubcategory("");
+    setCurrentPage(1);
+    setTimeout(updateDropdownPosition, 50);
+  };
+
+  const handleSubcategoryClick = (cat: string, subName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedCategory(cat);
+    setSelectedSubcategory(subName);
+    setCurrentPage(1);
+    setIsCategoryDropdownOpen(false);
+  };
+
+  // Reposition on window scroll or resize
+  useEffect(() => {
+    if (!isCategoryDropdownOpen) return;
+
+    const handleScrollOrResize = () => {
+      updateDropdownPosition();
+    };
+
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [isCategoryDropdownOpen]);
+
+  // Handle click outside for custom category dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // 2. Fetch Data using React Query
   const { data: recordsRes, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -124,16 +236,20 @@ export default function FaultTrendDashboardView({
     return r.category || FORM_TO_CATEGORY_MAP[r.formType] || "Others";
   };
 
-  // 4. In-Memory Filtered Data (by Category)
+  // 4. In-Memory Filtered Data (by Category & Subcategory)
   const filteredFaults = useMemo(() => {
     return faults.filter((r: any) => {
+      if (selectedSubcategory) {
+        const formType = r.formType || r.formData?.formType || "";
+        return formType.toLowerCase() === selectedSubcategory.toLowerCase();
+      }
       if (selectedCategory) {
         const cat = getRecordCategory(r);
         return cat.toUpperCase() === selectedCategory.toUpperCase();
       }
       return true;
     });
-  }, [faults, selectedCategory]);
+  }, [faults, selectedCategory, selectedSubcategory]);
 
   // 5. Aggregations & Metrics
 
@@ -277,16 +393,22 @@ export default function FaultTrendDashboardView({
     }));
   }, [filteredFaults, datePreset]);
 
-  // Category or Sub-category (Reason) Distribution Data
+  // Category, Sub-category, or Reason Distribution Data
   const breakdownData = useMemo(() => {
     const counts: Record<string, number> = {};
     
-    if (selectedCategory) {
-      // Reason breakdown inside specific category
+    if (selectedSubcategory) {
+      // Reason breakdown inside specific subcategory
       filteredFaults.forEach((r: any) => {
         const reason = r.reason || r.formData?.reason || "Unspecified";
         const clean = reason.charAt(0).toUpperCase() + reason.slice(1).toLowerCase();
         counts[clean] = (counts[clean] || 0) + 1;
+      });
+    } else if (selectedCategory) {
+      // Subcategory / Form breakdown inside specific category
+      filteredFaults.forEach((r: any) => {
+        const subcat = r.formType || r.reason || "Unspecified";
+        counts[subcat] = (counts[subcat] || 0) + 1;
       });
     } else {
       // Category distribution
@@ -304,8 +426,8 @@ export default function FaultTrendDashboardView({
         color: colors[idx % colors.length]
       }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8); // top 8 categories/reasons
-  }, [filteredFaults, selectedCategory]);
+      .slice(0, 8); // top 8 categories/subcategories/reasons
+  }, [filteredFaults, selectedCategory, selectedSubcategory]);
 
   // Monthly Summary: Group by Month (Chronological last 6 months)
   const monthlySummaryData = useMemo(() => {
@@ -359,21 +481,42 @@ export default function FaultTrendDashboardView({
 
   // Handle Chart Clicks (interactive filter)
   const handleChartClick = (clickedName: string) => {
-    if (!selectedCategory) {
+    if (!selectedCategory && !selectedSubcategory) {
       // If we clicked on a category, filter by it
-      const match = DAILY_POSITION_CATEGORIES.find(c => c.toUpperCase() === clickedName.toUpperCase());
-      if (match) {
-        setSelectedCategory(match);
+      const matchCat = DAILY_POSITION_CATEGORIES.find(c => c.toUpperCase() === clickedName.toUpperCase());
+      if (matchCat) {
+        setSelectedCategory(matchCat);
+        setSelectedSubcategory("");
         setCurrentPage(1);
-        showToast(`Filtered by category: ${match}`);
+        showToast(`Filtered by category: ${matchCat}`);
+        return;
+      }
+
+      // If we clicked on a subcategory/form
+      const matchForm = DAILY_POSITION_FORMS.find(f => f.name.toUpperCase() === clickedName.toUpperCase());
+      if (matchForm) {
+        setSelectedCategory(matchForm.category);
+        setSelectedSubcategory(matchForm.name);
+        setCurrentPage(1);
+        showToast(`Filtered by subcategory: ${matchForm.name}`);
       }
     }
+  };
+
+  const getDropdownLabel = () => {
+    if (selectedSubcategory) {
+      return selectedSubcategory;
+    }
+    if (selectedCategory) {
+      return selectedCategory;
+    }
+    return "All Categories";
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
       {/* 6. Dashboard Controls */}
-      <div className="panel" style={{ padding: "16px 20px" }}>
+      <div className="panel" style={{ padding: "16px 20px", overflow: "visible", position: "relative", zIndex: 100 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 800 }}>Fault Analytics Dashboard</h3>
@@ -402,23 +545,188 @@ export default function FaultTrendDashboardView({
               </div>
             )}
 
-            {/* Category Search Filter */}
+            {/* Category Search Filter with Expandable Subcategories */}
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Category:</span>
-              <select
-                value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value);
-                  setCurrentPage(1);
-                }}
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={toggleCategoryDropdown}
                 className="form-control"
-                style={{ padding: "6px 12px", fontSize: "13px", height: "36px", width: "180px", borderRadius: "6px" }}
+                style={{
+                  padding: "0 12px",
+                  fontSize: "13px",
+                  height: "36px",
+                  minWidth: "190px",
+                  maxWidth: "280px",
+                  borderRadius: "6px",
+                  background: "#ffffff",
+                  border: "1px solid var(--line, #cbd5e1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  color: (selectedCategory || selectedSubcategory) ? "var(--navy, #1e293b)" : "#475569",
+                  fontWeight: (selectedCategory || selectedSubcategory) ? 600 : 400,
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+                }}
               >
-                <option value="">All Categories</option>
-                {DAILY_POSITION_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "8px" }}>
+                  {getDropdownLabel()}
+                </span>
+                <ChevronDown size={14} style={{ flexShrink: 0, color: "#64748b", transform: isCategoryDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+              </button>
+
+              {/* Expandable Categories & Subcategories Menu Popover Portal */}
+              {isCategoryDropdownOpen && createPortal(
+                <div
+                  ref={dropdownRef}
+                  style={{
+                    position: "fixed",
+                    top: `${dropdownPos.top}px`,
+                    left: `${dropdownPos.left}px`,
+                    width: `${dropdownPos.width}px`,
+                    maxHeight: `${dropdownPos.maxHeight}px`,
+                    overflowY: "auto",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                    zIndex: 999999,
+                    padding: "6px 0"
+                  }}
+                  className="custom-scrollbar"
+                >
+                  {/* All Categories Option */}
+                  <div
+                    onClick={() => {
+                      setSelectedCategory("");
+                      setSelectedSubcategory("");
+                      setCurrentPage(1);
+                      setIsCategoryDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: (!selectedCategory && !selectedSubcategory) ? 700 : 500,
+                      color: (!selectedCategory && !selectedSubcategory) ? "#2563eb" : "#334155",
+                      background: (!selectedCategory && !selectedSubcategory) ? "#eff6ff" : "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      borderBottom: "1px solid #f1f5f9"
+                    }}
+                    onMouseEnter={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                    onMouseLeave={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "transparent"; }}
+                  >
+                    <span>All Categories</span>
+                    {(!selectedCategory && !selectedSubcategory) && <Check size={14} style={{ color: "#2563eb" }} />}
+                  </div>
+
+                  {/* Main Categories and Subcategories Accordion */}
+                  {DAILY_POSITION_CATEGORIES.map((cat) => {
+                    const subforms = CATEGORY_SUBFORMS_MAP[cat] || [];
+                    const isExpanded = expandedCategory === cat;
+                    const isCatSelected = selectedCategory === cat && !selectedSubcategory;
+                    const hasSubSelected = selectedCategory === cat && !!selectedSubcategory;
+
+                    return (
+                      <div key={cat} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        {/* Main Category Accordion Header Row */}
+                        <div
+                          onClick={(e) => handleCategoryRowClick(cat, e)}
+                          style={{
+                            padding: "9px 14px",
+                            fontSize: "13px",
+                            fontWeight: (isCatSelected || hasSubSelected) ? 700 : 600,
+                            color: isCatSelected ? "#2563eb" : (hasSubSelected ? "#1d4ed8" : "#1e293b"),
+                            background: isCatSelected ? "#eff6ff" : (hasSubSelected ? "#f0f7ff" : "transparent"),
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            cursor: "pointer",
+                            userSelect: "none",
+                            transition: "background-color 0.15s ease, color 0.15s ease"
+                          }}
+                          onMouseEnter={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                          onMouseLeave={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+                          </div>
+
+                          {subforms.length > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", marginLeft: "8px" }}>
+                              {isExpanded ? (
+                                <ChevronDown size={15} style={{ color: "#2563eb", transition: "transform 0.2s ease" }} />
+                              ) : (
+                                <ChevronRight size={15} style={{ color: "#64748b", transition: "transform 0.2s ease" }} />
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Subcategories Accordion Content with Smooth Animation */}
+                        {subforms.length > 0 && (
+                          <div
+                            style={{
+                              maxHeight: isExpanded ? `${subforms.length * 38 + 10}px` : "0px",
+                              opacity: isExpanded ? 1 : 0,
+                              overflow: "hidden",
+                              transition: "max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-in-out",
+                              background: "#f8fafc"
+                            }}
+                          >
+                            <div style={{ padding: "4px 0" }}>
+                              {subforms.map((subName) => {
+                                const isSubSelected = selectedSubcategory === subName;
+                                return (
+                                  <div
+                                    key={subName}
+                                    onClick={(e) => handleSubcategoryClick(cat, subName, e)}
+                                    style={{
+                                      padding: "7px 14px 7px 28px",
+                                      fontSize: "12.5px",
+                                      fontWeight: isSubSelected ? 700 : 500,
+                                      color: isSubSelected ? "#2563eb" : "#475569",
+                                      background: isSubSelected ? "#dbeafe" : "transparent",
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      transition: "background 0.12s ease"
+                                    }}
+                                    onMouseEnter={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "#e2e8f0"; }}
+                                    onMouseLeave={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                                      <span
+                                        style={{
+                                          width: "5px",
+                                          height: "5px",
+                                          borderRadius: "50%",
+                                          background: isSubSelected ? "#2563eb" : "#94a3b8",
+                                          flexShrink: 0
+                                        }}
+                                      />
+                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {subName}
+                                      </span>
+                                    </div>
+                                    {isSubSelected && <Check size={14} style={{ color: "#2563eb", flexShrink: 0, marginLeft: "6px" }} />}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>,
+                document.body
+              )}
             </div>
 
             {/* Date Range Preset */}
@@ -610,11 +918,19 @@ export default function FaultTrendDashboardView({
             <article className="panel chart-panel" style={{ display: "flex", flexDirection: "column", height: "350px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", color: "var(--navy)", fontWeight: 700 }}>
-                  {selectedCategory ? `${selectedCategory} Breakdown (By Reason)` : "Category-wise Fault Analysis"}
+                  {selectedSubcategory
+                    ? `${selectedSubcategory} Breakdown (By Reason)`
+                    : selectedCategory
+                    ? `${selectedCategory} Breakdown`
+                    : "Category-wise Fault Analysis"}
                 </h3>
-                {selectedCategory ? (
+                {(selectedCategory || selectedSubcategory) ? (
                   <button
-                    onClick={() => setSelectedCategory("")}
+                    onClick={() => {
+                      setSelectedCategory("");
+                      setSelectedSubcategory("");
+                      setCurrentPage(1);
+                    }}
                     style={{ background: "none", border: 0, padding: 0, fontSize: "11.5px", color: "var(--blue)", fontWeight: 700, cursor: "pointer" }}
                   >
                     Clear Filter
