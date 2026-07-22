@@ -2231,7 +2231,7 @@ textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Sidebar profile card popover on hover */

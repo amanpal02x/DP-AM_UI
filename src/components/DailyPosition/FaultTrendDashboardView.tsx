@@ -514,337 +514,309 @@ export default function FaultTrendDashboardView({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
-      {/* 6. Dashboard Controls */}
-      <div className="panel" style={{ padding: "16px 20px", overflow: "visible", position: "relative", zIndex: 100 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 800 }}>Fault Analytics Dashboard</h3>
-            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#64748b" }}>Graphical trends and detailed breakdowns of equipment breakdowns</p>
-          </div>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            {/* Division Selector */}
-            {(!userDivision || userDivision === "HQ") && (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Division:</span>
-                <select
-                  value={selectedDivision}
-                  onChange={(e) => {
-                    setSelectedDivision(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="form-control"
-                  style={{ padding: "6px 12px", fontSize: "13px", height: "36px", width: "150px", borderRadius: "6px" }}
-                >
-                  <option value="">All Divisions</option>
-                  <option value="Raipur">Raipur</option>
-                  <option value="Bilaspur">Bilaspur</option>
-                  <option value="Nagpur">Nagpur</option>
-                </select>
-              </div>
-            )}
-
-            {/* Category Search Filter with Expandable Subcategories */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Category:</span>
-              <button
-                ref={triggerRef}
-                type="button"
-                onClick={toggleCategoryDropdown}
-                className="form-control"
-                style={{
-                  padding: "0 12px",
-                  fontSize: "13px",
-                  height: "36px",
-                  minWidth: "190px",
-                  maxWidth: "280px",
-                  borderRadius: "6px",
-                  background: "#ffffff",
-                  border: "1px solid var(--line, #cbd5e1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  cursor: "pointer",
-                  color: (selectedCategory || selectedSubcategory) ? "var(--navy, #1e293b)" : "#475569",
-                  fontWeight: (selectedCategory || selectedSubcategory) ? 600 : 400,
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
-                }}
-              >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "8px" }}>
-                  {getDropdownLabel()}
-                </span>
-                <ChevronDown size={14} style={{ flexShrink: 0, color: "#64748b", transform: isCategoryDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
-              </button>
-
-              {/* Expandable Categories & Subcategories Menu Popover Portal */}
-              {isCategoryDropdownOpen && createPortal(
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: "fixed",
-                    top: `${dropdownPos.top}px`,
-                    left: `${dropdownPos.left}px`,
-                    width: `${dropdownPos.width}px`,
-                    maxHeight: `${dropdownPos.maxHeight}px`,
-                    overflowY: "auto",
-                    background: "#ffffff",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "8px",
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-                    zIndex: 999999,
-                    padding: "6px 0"
-                  }}
-                  className="custom-scrollbar"
-                >
-                  {/* All Categories Option */}
-                  <div
-                    onClick={() => {
-                      setSelectedCategory("");
-                      setSelectedSubcategory("");
+    <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+      {/* 6. Dashboard Controls & Sticky KPI Cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+        {/* 6. Dashboard Controls */}
+        <div className="panel" style={{ padding: "16px 20px", overflow: "visible", position: "relative", zIndex: 100 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "18px", color: "var(--navy)", fontWeight: 800 }}>Fault Analytics Dashboard</h3>
+              <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#64748b" }}>Graphical trends and detailed breakdowns of equipment breakdowns</p>
+            </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              {/* Division Selector */}
+              {(!userDivision || userDivision === "HQ") && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Division:</span>
+                  <select
+                    value={selectedDivision}
+                    onChange={(e) => {
+                      setSelectedDivision(e.target.value);
                       setCurrentPage(1);
-                      setIsCategoryDropdownOpen(false);
                     }}
-                    style={{
-                      padding: "8px 14px",
-                      fontSize: "13px",
-                      fontWeight: (!selectedCategory && !selectedSubcategory) ? 700 : 500,
-                      color: (!selectedCategory && !selectedSubcategory) ? "#2563eb" : "#334155",
-                      background: (!selectedCategory && !selectedSubcategory) ? "#eff6ff" : "transparent",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      borderBottom: "1px solid #f1f5f9"
-                    }}
-                    onMouseEnter={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
-                    onMouseLeave={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "transparent"; }}
+                    className="form-control"
+                    style={{ padding: "6px 12px", fontSize: "13px", height: "36px", width: "150px", borderRadius: "6px" }}
                   >
-                    <span>All Categories</span>
-                    {(!selectedCategory && !selectedSubcategory) && <Check size={14} style={{ color: "#2563eb" }} />}
-                  </div>
+                    <option value="">All Divisions</option>
+                    <option value="Raipur">Raipur</option>
+                    <option value="Bilaspur">Bilaspur</option>
+                    <option value="Nagpur">Nagpur</option>
+                  </select>
+                </div>
+              )}
 
-                  {/* Main Categories and Subcategories Accordion */}
-                  {DAILY_POSITION_CATEGORIES.map((cat) => {
-                    const subforms = CATEGORY_SUBFORMS_MAP[cat] || [];
-                    const isExpanded = expandedCategory === cat;
-                    const isCatSelected = selectedCategory === cat && !selectedSubcategory;
-                    const hasSubSelected = selectedCategory === cat && !!selectedSubcategory;
+              {/* Category Search Filter with Expandable Subcategories */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Category:</span>
+                <button
+                  ref={triggerRef}
+                  type="button"
+                  onClick={toggleCategoryDropdown}
+                  className="form-control"
+                  style={{
+                    padding: "0 12px",
+                    fontSize: "13px",
+                    height: "36px",
+                    minWidth: "190px",
+                    maxWidth: "280px",
+                    borderRadius: "6px",
+                    background: "#ffffff",
+                    border: "1px solid var(--line, #cbd5e1)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    color: (selectedCategory || selectedSubcategory) ? "var(--navy, #1e293b)" : "#475569",
+                    fontWeight: (selectedCategory || selectedSubcategory) ? 600 : 400,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "8px" }}>
+                    {getDropdownLabel()}
+                  </span>
+                  <ChevronDown size={14} style={{ flexShrink: 0, color: "#64748b", transform: isCategoryDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+                </button>
 
-                    return (
-                      <div key={cat} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                        {/* Main Category Accordion Header Row */}
-                        <div
-                          onClick={(e) => handleCategoryRowClick(cat, e)}
-                          style={{
-                            padding: "9px 14px",
-                            fontSize: "13px",
-                            fontWeight: (isCatSelected || hasSubSelected) ? 700 : 600,
-                            color: isCatSelected ? "#2563eb" : (hasSubSelected ? "#1d4ed8" : "#1e293b"),
-                            background: isCatSelected ? "#eff6ff" : (hasSubSelected ? "#f0f7ff" : "transparent"),
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            cursor: "pointer",
-                            userSelect: "none",
-                            transition: "background-color 0.15s ease, color 0.15s ease"
-                          }}
-                          onMouseEnter={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
-                          onMouseLeave={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+                {/* Expandable Categories & Subcategories Menu Popover Portal */}
+                {isCategoryDropdownOpen && createPortal(
+                  <div
+                    ref={dropdownRef}
+                    style={{
+                      position: "fixed",
+                      top: `${dropdownPos.top}px`,
+                      left: `${dropdownPos.left}px`,
+                      width: `${dropdownPos.width}px`,
+                      maxHeight: `${dropdownPos.maxHeight}px`,
+                      overflowY: "auto",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                      zIndex: 999999,
+                      padding: "6px 0"
+                    }}
+                    className="custom-scrollbar"
+                  >
+                    {/* All Categories Option */}
+                    <div
+                      onClick={() => {
+                        setSelectedCategory("");
+                        setSelectedSubcategory("");
+                        setCurrentPage(1);
+                        setIsCategoryDropdownOpen(false);
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        fontSize: "13px",
+                        fontWeight: (!selectedCategory && !selectedSubcategory) ? 700 : 500,
+                        color: (!selectedCategory && !selectedSubcategory) ? "#2563eb" : "#334155",
+                        background: (!selectedCategory && !selectedSubcategory) ? "#eff6ff" : "transparent",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        borderBottom: "1px solid #f1f5f9"
+                      }}
+                      onMouseEnter={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                      onMouseLeave={(e) => { if (selectedCategory || selectedSubcategory) e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
+                      <span>All Categories</span>
+                      {(!selectedCategory && !selectedSubcategory) && <Check size={14} style={{ color: "#2563eb" }} />}
+                    </div>
+
+                    {/* Main Categories and Subcategories Accordion */}
+                    {DAILY_POSITION_CATEGORIES.map((cat) => {
+                      const subforms = CATEGORY_SUBFORMS_MAP[cat] || [];
+                      const isExpanded = expandedCategory === cat;
+                      const isCatSelected = selectedCategory === cat && !selectedSubcategory;
+                      const hasSubSelected = selectedCategory === cat && !!selectedSubcategory;
+
+                      return (
+                        <div key={cat} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          {/* Main Category Accordion Header Row */}
+                          <div
+                            onClick={(e) => handleCategoryRowClick(cat, e)}
+                            style={{
+                              padding: "9px 14px",
+                              fontSize: "13px",
+                              fontWeight: (isCatSelected || hasSubSelected) ? 700 : 600,
+                              color: isCatSelected ? "#2563eb" : (hasSubSelected ? "#1d4ed8" : "#1e293b"),
+                              background: isCatSelected ? "#eff6ff" : (hasSubSelected ? "#f0f7ff" : "transparent"),
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              cursor: "pointer",
+                              userSelect: "none",
+                              transition: "background-color 0.15s ease, color 0.15s ease"
+                            }}
+                            onMouseEnter={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                            onMouseLeave={(e) => { if (!isCatSelected && !hasSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+                            </div>
+
+                            {subforms.length > 0 && (
+                              <div style={{ display: "flex", alignItems: "center", marginLeft: "8px" }}>
+                                {isExpanded ? (
+                                  <ChevronDown size={15} style={{ color: "#2563eb", transition: "transform 0.2s ease" }} />
+                                ) : (
+                                  <ChevronRight size={15} style={{ color: "#64748b", transition: "transform 0.2s ease" }} />
+                                )}
+                              </div>
+                            )}
                           </div>
 
+                          {/* Subcategories Accordion Content with Smooth Animation */}
                           {subforms.length > 0 && (
-                            <div style={{ display: "flex", alignItems: "center", marginLeft: "8px" }}>
-                              {isExpanded ? (
-                                <ChevronDown size={15} style={{ color: "#2563eb", transition: "transform 0.2s ease" }} />
-                              ) : (
-                                <ChevronRight size={15} style={{ color: "#64748b", transition: "transform 0.2s ease" }} />
-                              )}
+                            <div
+                              style={{
+                                maxHeight: isExpanded ? `${subforms.length * 38 + 10}px` : "0px",
+                                opacity: isExpanded ? 1 : 0,
+                                overflow: "hidden",
+                                transition: "max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-in-out",
+                                background: "#f8fafc"
+                              }}
+                            >
+                              <div style={{ padding: "4px 0" }}>
+                                {subforms.map((subName) => {
+                                  const isSubSelected = selectedSubcategory === subName;
+                                  return (
+                                    <div
+                                      key={subName}
+                                      onClick={(e) => handleSubcategoryClick(cat, subName, e)}
+                                      style={{
+                                        padding: "7px 14px 7px 28px",
+                                        fontSize: "12.5px",
+                                        fontWeight: isSubSelected ? 700 : 500,
+                                        color: isSubSelected ? "#2563eb" : "#475569",
+                                        background: isSubSelected ? "#dbeafe" : "transparent",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        transition: "background 0.12s ease"
+                                      }}
+                                      onMouseEnter={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "#e2e8f0"; }}
+                                      onMouseLeave={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                                        <span
+                                          style={{
+                                            width: "5px",
+                                            height: "5px",
+                                            borderRadius: "50%",
+                                            background: isSubSelected ? "#2563eb" : "#94a3b8",
+                                            flexShrink: 0
+                                          }}
+                                        />
+                                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {subName}
+                                        </span>
+                                      </div>
+                                      {isSubSelected && <Check size={14} style={{ color: "#2563eb", flexShrink: 0, marginLeft: "6px" }} />}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
+                      );
+                    })}
+                  </div>,
+                  document.body
+                )}
+              </div>
 
-                        {/* Subcategories Accordion Content with Smooth Animation */}
-                        {subforms.length > 0 && (
-                          <div
-                            style={{
-                              maxHeight: isExpanded ? `${subforms.length * 38 + 10}px` : "0px",
-                              opacity: isExpanded ? 1 : 0,
-                              overflow: "hidden",
-                              transition: "max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-in-out",
-                              background: "#f8fafc"
-                            }}
-                          >
-                            <div style={{ padding: "4px 0" }}>
-                              {subforms.map((subName) => {
-                                const isSubSelected = selectedSubcategory === subName;
-                                return (
-                                  <div
-                                    key={subName}
-                                    onClick={(e) => handleSubcategoryClick(cat, subName, e)}
-                                    style={{
-                                      padding: "7px 14px 7px 28px",
-                                      fontSize: "12.5px",
-                                      fontWeight: isSubSelected ? 700 : 500,
-                                      color: isSubSelected ? "#2563eb" : "#475569",
-                                      background: isSubSelected ? "#dbeafe" : "transparent",
-                                      cursor: "pointer",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      transition: "background 0.12s ease"
-                                    }}
-                                    onMouseEnter={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "#e2e8f0"; }}
-                                    onMouseLeave={(e) => { if (!isSubSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
-                                  >
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                                      <span
-                                        style={{
-                                          width: "5px",
-                                          height: "5px",
-                                          borderRadius: "50%",
-                                          background: isSubSelected ? "#2563eb" : "#94a3b8",
-                                          flexShrink: 0
-                                        }}
-                                      />
-                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {subName}
-                                      </span>
-                                    </div>
-                                    {isSubSelected && <Check size={14} style={{ color: "#2563eb", flexShrink: 0, marginLeft: "6px" }} />}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>,
-                document.body
-              )}
+              {/* Date Range Preset */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Range:</span>
+                <select
+                  value={datePreset}
+                  onChange={(e) => {
+                    setDatePreset(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="form-control"
+                  style={{ padding: "6px 12px", fontSize: "13px", height: "36px", width: "140px", borderRadius: "6px" }}
+                >
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                  <option value="90days">Last 90 Days</option>
+                  <option value="180days">Last 180 Days</option>
+                  <option value="year">This Year</option>
+                </select>
+              </div>
             </div>
-
-            {/* Date Range Preset */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Range:</span>
-              <select
-                value={datePreset}
-                onChange={(e) => {
-                  setDatePreset(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="form-control"
-                style={{ padding: "6px 12px", fontSize: "13px", height: "36px", width: "140px", borderRadius: "6px" }}
-              >
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="90days">Last 90 Days</option>
-                <option value="180days">Last 180 Days</option>
-                <option value="year">This Year</option>
-              </select>
-            </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={() => refetch()}
-              className="export-button"
-              style={{ display: "flex", alignItems: "center", gap: "6px", height: "36px", padding: "0 12px", margin: 0, background: "#f1f5f9", color: "#334155" }}
-              title="Refresh Data"
-              type="button"
-            >
-              <RefreshCw size={14} className={isRefetching ? "spin-animation" : ""} />
-              <span>Refresh</span>
-            </button>
           </div>
         </div>
-      </div>
 
-      {/* Loading & Error States */}
-      {isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="panel" style={{ height: "100px", background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
-          ))}
-        </div>
-      ) : isError ? (
-        <div className="panel text-center" style={{ padding: "40px" }}>
-          <AlertCircle size={48} color="var(--red)" style={{ margin: "0 auto 12px auto" }} />
-          <h3 style={{ color: "var(--navy)" }}>Failed to fetch fault analytics data</h3>
-          <p style={{ color: "#64748b" }}>Please check your internet connection or backend server status.</p>
-          <button className="export-button" onClick={() => refetch()} style={{ marginTop: "12px" }}>Retry Connection</button>
-        </div>
-      ) : (
-        <>
-          {/* 7. KPI Metric Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+        {/* 7. Fixed KPI Metric Cards (Sticky Top Row) */}
+        {!isLoading && !isError && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", width: "100%", position: "sticky", top: "0px", zIndex: 90, background: "var(--bg-main, #f8fafc)", padding: 0 }}>
             {/* KPI: Total Faults */}
-            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px", borderLeft: "4px solid var(--blue)" }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "48px", height: "48px", borderRadius: "10px", background: "rgba(11, 109, 255, 0.1)", color: "var(--blue)" }}>
-                <Activity size={24} />
+            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderLeft: "4px solid var(--blue)", minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "38px", height: "38px", borderRadius: "10px", background: "rgba(11, 109, 255, 0.1)", color: "var(--blue)", flexShrink: 0 }}>
+                <Activity size={18} />
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <small style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Total Reported</small>
-                <strong style={{ display: "block", fontSize: "24px", color: "var(--navy)", fontWeight: 800 }}>{kpiStats.total}</strong>
-                <span style={{ fontSize: "10.5px", color: "#64748b" }}>In selected period</span>
+                <strong style={{ display: "block", fontSize: "20px", color: "var(--navy)", fontWeight: 800 }}>{kpiStats.total}</strong>
+                <span style={{ fontSize: "10.5px", color: "#64748b", whiteSpace: "nowrap" }}>In selected period</span>
               </div>
             </div>
 
             {/* KPI: Active Faults */}
-            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px", borderLeft: "4px solid var(--red)" }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "48px", height: "48px", borderRadius: "10px", background: "rgba(239, 68, 68, 0.1)", color: "var(--red)" }}>
-                <AlertCircle size={24} />
+            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderLeft: "4px solid var(--red)", minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "38px", height: "38px", borderRadius: "10px", background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", flexShrink: 0 }}>
+                <AlertCircle size={18} />
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <small style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Active Pending</small>
-                <strong style={{ display: "block", fontSize: "24px", color: "var(--red)", fontWeight: 800 }}>{kpiStats.active}</strong>
-                <span style={{ fontSize: "10.5px", color: "#64748b" }}>Unresolved faults</span>
+                <strong style={{ display: "block", fontSize: "20px", color: "var(--red)", fontWeight: 800 }}>{kpiStats.active}</strong>
+                <span style={{ fontSize: "10.5px", color: "#64748b", whiteSpace: "nowrap" }}>Unresolved faults</span>
               </div>
             </div>
 
             {/* KPI: Resolved Faults */}
-            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px", borderLeft: "4px solid var(--green)" }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "48px", height: "48px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.1)", color: "var(--green)" }}>
-                <CheckCircle2 size={24} />
+            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderLeft: "4px solid var(--green)", minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "38px", height: "38px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.1)", color: "var(--green)", flexShrink: 0 }}>
+                <CheckCircle2 size={18} />
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <small style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Resolved</small>
-                <strong style={{ display: "block", fontSize: "24px", color: "var(--green)", fontWeight: 800 }}>{kpiStats.resolved}</strong>
-                <span style={{ fontSize: "10.5px", color: "#64748b" }}>Rectification completed</span>
-              </div>
-            </div>
-
-            {/* KPI: Resolution Rate */}
-            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px", borderLeft: "4px solid var(--purple)" }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "48px", height: "48px", borderRadius: "10px", background: "rgba(139, 92, 246, 0.1)", color: "var(--purple)" }}>
-                <CheckCircle2 size={24} style={{ color: "var(--purple)" }} />
-              </div>
-              <div>
-                <small style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Resolution Rate</small>
-                <strong style={{ display: "block", fontSize: "24px", color: "var(--purple)", fontWeight: 800 }}>{kpiStats.resolutionRate}%</strong>
-                <span style={{ fontSize: "10.5px", color: "#64748b" }}>Rectified / Reported</span>
-              </div>
-            </div>
-
-            {/* KPI: MTTR */}
-            <div className="panel" style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px", borderLeft: "4px solid var(--amber)" }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "48px", height: "48px", borderRadius: "10px", background: "rgba(245, 158, 11, 0.1)", color: "var(--amber)" }}>
-                <Clock size={24} />
-              </div>
-              <div>
-                <small style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Avg Repair Time</small>
-                <strong style={{ display: "block", fontSize: "24px", color: "var(--amber)", fontWeight: 800 }}>{kpiStats.mttr} hrs</strong>
-                <span style={{ fontSize: "10.5px", color: "#64748b" }}>MTTR (Mean Time to Repair)</span>
+                <strong style={{ display: "block", fontSize: "20px", color: "var(--green)", fontWeight: 800 }}>{kpiStats.resolved}</strong>
+                <span style={{ fontSize: "10.5px", color: "#64748b", whiteSpace: "nowrap" }}>Rectification completed</span>
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Charts & Tables Area */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+        {/* Loading & Error States */}
+        {isLoading ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="panel" style={{ height: "100px", background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="panel text-center" style={{ padding: "40px" }}>
+            <AlertCircle size={48} color="var(--red)" style={{ margin: "0 auto 12px auto" }} />
+            <h3 style={{ color: "var(--navy)" }}>Failed to fetch fault analytics data</h3>
+            <p style={{ color: "#64748b" }}>Please check your internet connection or backend server status.</p>
+            <button className="export-button" onClick={() => refetch()} style={{ marginTop: "12px" }}>Retry Connection</button>
+          </div>
+        ) : (
+          <>
 
           {/* 8. Charts Grid (Responsive layout) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "12px" }}>
             {/* Chart 1: Weekly Fault Trends */}
             <article className="panel chart-panel" style={{ display: "flex", flexDirection: "column", height: "350px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -1180,6 +1152,7 @@ export default function FaultTrendDashboardView({
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
