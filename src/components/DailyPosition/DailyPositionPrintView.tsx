@@ -548,7 +548,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               SOUTH EAST CENTRAL RAILWAY
             </h1>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "16px", fontWeight: "bold" }}>
-              PCSTE/SECR DAILY POSITION
+              PCSTE/SECR MORNING POSITION
             </h2>
             <div style={{ marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
               DATE: {getNextDayFormatted(selectedDate)}
