@@ -59,11 +59,14 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
       const res = await api.walkieTalkie.listLobbies();
       if (res.success) {
         const todayStr = toDateValue(new Date());
-        const logsRes = await api.dailyPosition.list({ date: todayStr, limit: 1000 });
-        const todayLogs = logsRes.success ? (logsRes.data || []) : [];
+        // Fetch all logs to compute cumulative metrics
+        const logsRes = await api.dailyPosition.list({ limit: 5000 });
+        const allLogs = logsRes.success ? (logsRes.data || []) : [];
 
         const lobbyTestedCounts: Record<string, number> = {};
-        todayLogs.forEach((r: any) => {
+        const lobbyCumulativeTestedCounts: Record<string, number> = {};
+
+        allLogs.forEach((r: any) => {
           if (r.status === "DRAFT") return;
           const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
           if (!isWalkieTalkie) return;
@@ -78,14 +81,19 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
             count = Number(r.formData?.repairedFromFirm || 0);
           }
 
-          lobbyTestedCounts[lobbyName] = (lobbyTestedCounts[lobbyName] || 0) + count;
+          const logDate = r.date ? toDateValue(new Date(r.date)) : (r.createdAt ? toDateValue(new Date(r.createdAt)) : "");
+          if (logDate === todayStr) {
+            lobbyTestedCounts[lobbyName] = (lobbyTestedCounts[lobbyName] || 0) + count;
+          }
+          lobbyCumulativeTestedCounts[lobbyName] = (lobbyCumulativeTestedCounts[lobbyName] || 0) + count;
         });
 
         const updatedLobbies = res.data.map((l: any) => {
           const lobbyKey = (l.lobbyName || "").toLowerCase().trim();
           return {
             ...l,
-            testedCount: lobbyTestedCounts[lobbyKey] || 0
+            testedCount: lobbyTestedCounts[lobbyKey] || 0,
+            cumulativeTestedCount: lobbyCumulativeTestedCounts[lobbyKey] || 0
           };
         });
 
@@ -680,8 +688,9 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   <th className="wt-lobby-th" style={{ textAlign: "left" }}>Lobby Name</th>
                   {isNonDivisional && <th className="wt-lobby-th" style={{ textAlign: "left" }}>Division</th>}
                   <th className="wt-lobby-th" style={{ textAlign: "center" }}>Total Walkie-Talkies</th>
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Count</th>
-                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>To Be Tested</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Today</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Tested Till Now</th>
+                  <th className="wt-lobby-th" style={{ textAlign: "center" }}>Balance To Be Tested</th>
                   <th className="wt-lobby-th" style={{ textAlign: "center" }}>Serial Numbers</th>
                   {!isViewer && <th className="wt-lobby-th" style={{ textAlign: "right" }}>Actions</th>}
                 </tr>
@@ -691,8 +700,9 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                   const totalWTs = Array.isArray(l.walkieTalkies) && l.walkieTalkies.length > 0 
                     ? l.walkieTalkies.length 
                     : l.totalWalkieTalkies;
-                  const toBeTested = totalWTs - l.testedCount;
-                  const isCompleted = toBeTested === 0 && totalWTs > 0;
+                  const cumulativeTested = l.cumulativeTestedCount || 0;
+                  const balanceToBeTested = Math.max(0, totalWTs - cumulativeTested);
+                  const isCompleted = balanceToBeTested === 0 && totalWTs > 0;
                   return (
                     <tr key={l.id} className={`wt-lobby-row ${isCompleted ? "completed" : ""}`} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                       <td className="wt-lobby-cell">
@@ -712,8 +722,11 @@ export default function WalkieTalkieInventoryViewComponent({ showToast }: Walkie
                         <span className="pill success" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "6px" }}>{l.testedCount}</span>
                       </td>
                       <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
-                        <span className={`pill ${toBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: toBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: toBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${toBeTested > 0 ? "#fef3c7" : "#bbf7d0"}`, borderRadius: "6px" }}>
-                          {toBeTested}
+                        <span className="pill info" style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe", borderRadius: "6px" }}>{cumulativeTested}</span>
+                      </td>
+                      <td className="wt-lobby-cell" style={{ textAlign: "center" }}>
+                        <span className={`pill ${balanceToBeTested > 0 ? "warning" : "success"}`} style={{ fontWeight: 600, fontSize: "11.5px", padding: "3px 8px", background: balanceToBeTested > 0 ? "#fffbeb" : "#f0fdf4", color: balanceToBeTested > 0 ? "#d97706" : "#16a34a", border: `1px solid ${balanceToBeTested > 0 ? "#fef3c7" : "#bbf7d0"}`, borderRadius: "6px" }}>
+                          {balanceToBeTested}
                         </span>
                       </td>
                       <td className="wt-lobby-cell" style={{ textAlign: "center" }}>

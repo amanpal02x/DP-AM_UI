@@ -4597,6 +4597,29 @@ function WalkieTalkieDivisionPanel({
     return stats;
   }, [allLogs]);
 
+  // Cumulative tested counts from walkie-talkie daily position submissions (all time)
+  const cumulativeDivisionStats = useMemo(() => {
+    const stats: Record<string, number> = {
+      Raipur: 0,
+      Bilaspur: 0,
+      Nagpur: 0,
+      Others: 0
+    };
+
+    allLogs.forEach((r: any) => {
+      if (r.status === "DRAFT") return;
+      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      if (!isWalkieTalkie) return;
+
+      const divNorm = normalizeDiv(r.division);
+      const testedCount = Number(r.formData?.testedCount || 0);
+      if (!stats[divNorm]) stats[divNorm] = 0;
+      stats[divNorm] += testedCount;
+    });
+
+    return stats;
+  }, [allLogs]);
+
   // Tested counts from Walkie-Talkie Lobbies
   const lobbyDivisionStats = useMemo(() => {
     const stats: Record<string, number> = {
@@ -4635,8 +4658,11 @@ function WalkieTalkieDivisionPanel({
     const notTested = Math.max(0, total - (healthy + pendingRepair));
     const color = divColors[div.division] || "#94a3b8";
 
+    const cumulativeTested = cumulativeDivisionStats[divNorm] || 0;
+    const rawCumulativeTested = Math.min(total, cumulativeTested);
+
     const pieData = [
-      { name: "Healthy (Tested)", value: healthy, color: color },
+      { name: "Healthy (Tested Today)", value: healthy, color: color },
       { name: "Active Faulty", value: pendingRepair, color: "#ef4444" },
       { name: "Not Tested", value: notTested, color: "#cbd5e1" }
     ].filter(item => item.value > 0);
@@ -4714,9 +4740,17 @@ function WalkieTalkieDivisionPanel({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
-                  Healthy (Tested):
+                  Tested Today:
                 </span>
                 <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{healthy} sets</strong>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color, opacity: 0.6 }} />
+                  Total Tested Till Now:
+                </span>
+                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{rawCumulativeTested} / {total} sets</strong>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
@@ -4730,9 +4764,9 @@ function WalkieTalkieDivisionPanel({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#cbd5e1" }} />
-                  Not Tested:
+                  Balance To Be Tested:
                 </span>
-                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{notTested} sets</strong>
+                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{Math.max(0, total - rawCumulativeTested)} sets</strong>
               </div>
             </div>
           </div>
@@ -4854,6 +4888,8 @@ function WalkieTalkieDivisionPanel({
             const tested = calcDivTested(div, divNorm);
             const total = div.testing?.total ?? 0;
             const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
+            const cumulativeTested = Math.min(total, cumulativeDivisionStats[divNorm] || 0);
+            const cumulativePercent = total > 0 ? Math.round((cumulativeTested / total) * 100) : 0;
             const pendingRepair = getActiveFaultsCount(div.division);
 
             return (
@@ -4868,9 +4904,12 @@ function WalkieTalkieDivisionPanel({
                     <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: divColors[div.division] || "#94a3b8" }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{div.division}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 600 }}>
-                      {tested}/{total} ({testPercent}%)
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* <span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 600 }} title="Tested Today">
+                      Today: {tested}/{total} ({testPercent}%)
+                    </span> */}
+                    <span style={{ fontSize: 10, color: "var(--navy)", fontWeight: 700 }} title="Total Tested Till Now">
+                      {cumulativeTested}/{total} ({cumulativePercent}%)
                     </span>
                     {pendingRepair > 0 && (
                       <span style={{
@@ -4887,7 +4926,7 @@ function WalkieTalkieDivisionPanel({
                   </div>
                 </div>
                 <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ width: `${testPercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 2 }} />
+                  <div style={{ width: `${cumulativePercent || 0}%`, height: "100%", background: divColors[div.division] || "#94a3b8", borderRadius: 2 }} />
                 </div>
               </div>
             );
