@@ -4643,12 +4643,18 @@ function WalkieTalkieTestedTodayPanel({
   onCategoryClick?: (categoryName: string, divisionName?: string) => void;
 }) {
   const { division: userDivision, role } = useAppStore();
-  const todayStr = toDateValue();
+  const todayStr = toDateValue(new Date());
 
   const todayLogsQuery = useQuery({
-    queryKey: ["daily-position-today-walkie-talkie-logs", todayStr],
-    queryFn: () => api.dailyPosition.list({ date: todayStr, limit: 1000 }),
+    queryKey: ["daily-position-today-walkie-talkie-logs-all"],
+    queryFn: () => api.dailyPosition.list({ limit: 5000 }),
     staleTime: 30 * 1000,
+  });
+
+  const lobbiesQuery = useQuery({
+    queryKey: ["walkie-talkie-lobbies-summary"],
+    queryFn: () => api.walkieTalkie.listLobbies(),
+    staleTime: 60 * 1000,
   });
 
   const normalizeDiv = (divName?: string) => {
@@ -4670,6 +4676,27 @@ function WalkieTalkieTestedTodayPanel({
 
   // Group today's logs and sum up testedCount and faultyCount
   const todayLogs = todayLogsQuery.data?.data || [];
+  const lobbies = lobbiesQuery.data?.data || lobbiesQuery.data || [];
+
+  const lobbyDivisionStats = useMemo(() => {
+    const stats: Record<string, number> = {
+      Raipur: 0,
+      Bilaspur: 0,
+      Nagpur: 0,
+      Others: 0
+    };
+
+    if (Array.isArray(lobbies)) {
+      lobbies.forEach((l: any) => {
+        const divNorm = normalizeDiv(l.division);
+        const count = Number(l.testedCount || 0);
+        if (!stats[divNorm]) stats[divNorm] = 0;
+        stats[divNorm] += count;
+      });
+    }
+
+    return stats;
+  }, [lobbies]);
 
   const divisionStats = useMemo(() => {
     const stats: Record<string, { tested: number; faulty: number }> = {
@@ -4681,28 +4708,39 @@ function WalkieTalkieTestedTodayPanel({
 
     todayLogs.forEach((r: any) => {
       if (r.status === "DRAFT") return;
-      const isWalkieTalkie = (r.formType || r.name || "").toLowerCase().includes("walkie-talkie");
+      const isWalkieTalkie = (r.formType || r.name || r.category || r.circuitName || "").toLowerCase().includes("walkie");
       if (!isWalkieTalkie) return;
 
+      const logDate = r.date ? toDateValue(new Date(r.date)) : (r.createdAt ? toDateValue(new Date(r.createdAt)) : "");
+      if (logDate !== todayStr) return;
+
       const divNorm = normalizeDiv(r.division);
-      const testedCount = Number(r.formData?.testedCount || 0);
+      const testedCount = Number(r.formData?.testedCount || r.formData?.newTestedCount || 1);
       const isFaulty = !isRecordAllOk(r);
 
       if (!stats[divNorm]) {
         stats[divNorm] = { tested: 0, faulty: 0 };
       }
-      stats[divNorm].tested += testedCount;
+      stats[divNorm].tested += (testedCount > 0 ? testedCount : 1);
       if (isFaulty) {
         stats[divNorm].faulty++;
       }
     });
 
     return stats;
-  }, [todayLogs]);
+  }, [todayLogs, todayStr]);
+
+  const getEffectiveTested = (div: any, divNorm: string) => {
+    return Math.max(
+      divisionStats[divNorm]?.tested || 0,
+      lobbyDivisionStats[divNorm] || 0,
+      div.testing?.tested || 0
+    );
+  };
 
   const totalTestedAll = divisions.reduce((sum: number, d: any) => {
     const divNorm = normalizeDiv(d.division);
-    return sum + (divisionStats[divNorm]?.tested || 0);
+    return sum + getEffectiveTested(d, divNorm);
   }, 0);
 
   const totalFaultyAll = divisions.reduce((sum: number, d: any) => {
@@ -4716,12 +4754,12 @@ function WalkieTalkieTestedTodayPanel({
     Nagpur: "#f5b51b"    // Yellow
   };
 
-  const isLoading = todayLogsQuery.isLoading;
+  const isLoading = todayLogsQuery.isLoading || lobbiesQuery.isLoading;
 
   if (divisions.length === 1) {
     const div = divisions[0];
     const divNorm = normalizeDiv(div.division);
-    const tested = divisionStats[divNorm]?.tested || 0;
+    const tested = getEffectiveTested(div, divNorm);
     const total = div.testing?.total ?? 0;
     const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
     const faulty = divisionStats[divNorm]?.faulty || 0;
@@ -4730,7 +4768,7 @@ function WalkieTalkieTestedTodayPanel({
     return (
       <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Today's Position</h3>
           <button
             onClick={() => onCategoryClick?.("Walkie-Talkie")}
             style={{
@@ -4860,7 +4898,7 @@ function WalkieTalkieTestedTodayPanel({
   return (
     <article className="panel walkie-talkie-status-panel" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "260px", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--line)", paddingBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Tested</h3>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--navy)" }}>Walkie-Talkie Today's Position</h3>
 
         <button
           onClick={() => onCategoryClick?.("Walkie-Talkie")}
@@ -4891,7 +4929,7 @@ function WalkieTalkieTestedTodayPanel({
         ) : (
           divisions.map((div: any) => {
             const divNorm = normalizeDiv(div.division);
-            const tested = divisionStats[divNorm]?.tested || 0;
+            const tested = getEffectiveTested(div, divNorm);
             const total = div.testing?.total ?? 0;
             const testPercent = total > 0 ? Math.min(100, Math.round((tested / total) * 100)) : 0;
             const faulty = divisionStats[divNorm]?.faulty || 0;
@@ -5075,24 +5113,30 @@ function WalkieTalkieDivisionPanel({
     Nagpur: "#f5b51b"    // Yellow
   };
 
+  const calcDivCumulativeTested = (divObj: any, divName: string) => {
+    const total = divObj?.testing?.total ?? 0;
+    const count = Math.max(
+      divObj?.testing?.tested || 0,
+      lobbyDivisionStats[divName] || 0,
+      cumulativeDivisionStats[divName] || 0
+    );
+    return Math.min(total, count);
+  };
+
   if (divisions.length === 1) {
     const div = divisions[0];
     const total = div.testing?.total ?? 0;
     const divNorm = normalizeDiv(div.division);
-    const todayTested = todayDivisionStats[divNorm] || 0;
     const pendingRepair = getActiveFaultsCount(div.division);
-    const rawTested = Math.min(total, todayTested);
-    const healthy = Math.max(0, rawTested - pendingRepair);
-    const notTested = Math.max(0, total - (healthy + pendingRepair));
     const color = divColors[div.division] || "#94a3b8";
 
-    const cumulativeTested = cumulativeDivisionStats[divNorm] || 0;
-    const rawCumulativeTested = Math.min(total, cumulativeTested);
+    const rawCumulativeTested = calcDivCumulativeTested(div, divNorm);
+    const balanceToBeTested = Math.max(0, total - rawCumulativeTested - pendingRepair);
 
     const pieData = [
-      { name: "Healthy (Tested Today)", value: healthy, color: color },
+      { name: "Total Tested Till Now", value: rawCumulativeTested, color: color },
       { name: "Active Faulty", value: pendingRepair, color: "#ef4444" },
-      { name: "Not Tested", value: notTested, color: "#cbd5e1" }
+      { name: "Balance To Be Tested", value: balanceToBeTested, color: "#cbd5e1" }
     ].filter(item => item.value > 0);
 
     return (
@@ -5168,14 +5212,6 @@ function WalkieTalkieDivisionPanel({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
-                  Tested Today:
-                </span>
-                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{healthy} sets</strong>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569", fontWeight: 600 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color, opacity: 0.6 }} />
                   Total Tested Till Now:
                 </span>
                 <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{rawCumulativeTested} / {total} sets</strong>
@@ -5194,7 +5230,7 @@ function WalkieTalkieDivisionPanel({
                   <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#cbd5e1" }} />
                   Balance To Be Tested:
                 </span>
-                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{Math.max(0, total - rawCumulativeTested)} sets</strong>
+                <strong style={{ color: "var(--navy)", fontWeight: 750 }}>{balanceToBeTested} sets</strong>
               </div>
             </div>
           </div>
@@ -5316,7 +5352,7 @@ function WalkieTalkieDivisionPanel({
             const tested = calcDivTested(div, divNorm);
             const total = div.testing?.total ?? 0;
             const testPercent = total > 0 ? Math.round((tested / total) * 100) : 0;
-            const cumulativeTested = Math.min(total, cumulativeDivisionStats[divNorm] || 0);
+            const cumulativeTested = calcDivCumulativeTested(div, divNorm);
             const cumulativePercent = total > 0 ? Math.round((cumulativeTested / total) * 100) : 0;
             const pendingRepair = getActiveFaultsCount(div.division);
 
