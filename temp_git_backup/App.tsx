@@ -2991,8 +2991,8 @@ function CategoryFaultsPageView({
       return isTodayVal;
     }
 
-    // 4. Faults Resolved Today
-    if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+    // 4. Faults Resolved
+    if (lowerCat === "resolved today" || lowerCat === "Faults Resolved" || lowerCat === "resolved faults") {
       const isResolvedToday = r.rectificationTime && toDateValue(new Date(r.rectificationTime)) === todayStr;
       return isResolvedToday;
     }
@@ -3078,14 +3078,14 @@ function CategoryFaultsPageView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "Faults Resolved", "resolved faults"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
             {(() => {
               const lower = categoryName.toLowerCase();
               if (lower === "active faults") return "Active Faults";
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
-              if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
+              if (lower === "resolved today" || lower === "Faults Resolved" || lower === "resolved faults") return "Faults Resolved";
               return `${categoryName} Faults`;
             })()}
           </h2>
@@ -4109,7 +4109,7 @@ function DailyPositionDashboardView({
       id: "resolvedToday",
       label: "Resolved Today",
       value: "0",
-      detail: "Faults resolved today",
+      detail: "Faults Resolved",
       tone: "green",
       series: [0, 0, 0, 0, 0]
     };
@@ -4221,7 +4221,7 @@ function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: numbe
       onCategoryClick?.("Active Faults");
     } else if (kpi.id === "wifiFaults" || kpi.label === "Wi-Fi Faults") {
       onCategoryClick?.("Wi-Fi");
-    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved Today" || kpi.label === "Resolved Today") {
+    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved" || kpi.label === "Resolved Today") {
       onCategoryClick?.("Resolved Today");
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       onCategoryClick?.("Faults Today");

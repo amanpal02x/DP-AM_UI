@@ -100,7 +100,7 @@ export async function getDashboardSummary(division = ""): Promise<DashboardSumma
     },
     {
       id: "resolvedToday",
-      label: "Faults Resolved Today",
+      label: "Faults Resolved",
       value: todayRectifiedCount.toString(),
       detail: "",
       tone: "green",

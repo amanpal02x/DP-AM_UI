@@ -411,14 +411,25 @@ const isRecordAllOk = (r: any): boolean => {
 
 const parseSafeDate = (dateStr?: string | Date | null): Date | null => {
   if (!dateStr) return null;
-  if (dateStr instanceof Date) return dateStr;
+  if (dateStr instanceof Date) return Number.isNaN(dateStr.getTime()) ? null : dateStr;
   const s = String(dateStr).trim();
   if (!s) return null;
   const hasOffset = s.includes("Z") || /\+\d{2}:?\d{2}$/.test(s) || /-\d{2}:?\d{2}$/.test(s);
   const formatted = s.includes(" ") && !s.includes("T") ? s.replace(" ", "T") : s;
-  const resolvedStr = hasOffset ? formatted : `${formatted}+05:30`;
+  
+  if (/^\d{4}-\d{2}-\d{2}$/.test(formatted)) {
+    const d = new Date(`${formatted}T00:00:00+05:30`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const withTime = formatted.includes("T") ? formatted : `${formatted}T00:00:00`;
+  const resolvedStr = hasOffset ? formatted : `${withTime}+05:30`;
   const d = new Date(resolvedStr);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (!Number.isNaN(d.getTime())) return d;
+
+  // Fallback direct Date parse
+  const dFallback = new Date(s);
+  return Number.isNaN(dFallback.getTime()) ? null : dFallback;
 };
 
 import { api, getAuthToken, setAuthToken, getCachedUser, setCachedUser } from "./api/apiClient";
@@ -3078,14 +3089,52 @@ function CategoryFaultsPageView({
     return "faults";
   });
 
+  const { role, division: userDivision } = useAppStore();
+  const isSuperAdmin = role === "SUPER_ADMIN" || role === "ALL_DIVISION_VIEWER";
+  const isResolvedPage = lowerCat === "resolved today" || lowerCat === "Faults Resolved" || lowerCat === "resolved faults" || lowerCat === "fault resolved";
+
+  type DateRangePreset = "today" | "yesterday" | "last7" | "last30" | "thisMonth" | "prevMonth" | "custom";
+  const [resolvedDatePreset, setResolvedDatePreset] = useState<DateRangePreset>("today");
+  const [customFromDate, setCustomFromDate] = useState<string>("");
+  const [customToDate, setCustomToDate] = useState<string>("");
+
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+  const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
+  const [rectificationTimeInput, setRectificationTimeInput] = useState("");
+
+  const [editingRemarksRecord, setEditingRemarksRecord] = useState<any | null>(null);
+  const [editingRemarksText, setEditingRemarksText] = useState<string>("");
+
+  const [selectedDivision, setSelectedDivision] = useState(initialDivision || "");
+  const [selectedStation, setSelectedStation] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const normalizeDiv = (divName?: string) => {
+    if (!divName) return "Others";
+    const l = divName.toLowerCase();
+    if (l.includes("raipur") || l === "r") return "Raipur";
+    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
+    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
+    return "Others";
+  };
+
+  useEffect(() => {
+    setSelectedStation("");
+  }, [selectedDivision]);
+
   const todayStr = toDateValue(new Date());
 
   const faultsQuery = useQuery({
-    queryKey: ["daily-position-category-active-faults", categoryName],
+    queryKey: ["daily-position-category-active-faults", categoryName, selectedDivision, resolvedDatePreset, customFromDate, customToDate],
     queryFn: () => {
-      const params: any = { limit: 500 };
-      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
+      const params: any = { limit: 5000 };
+      if (lowerCat === "resolved today" || lowerCat === "Faults Resolved" || lowerCat === "resolved faults" || lowerCat === "fault resolved") {
         params.isResolved = "true";
+        if (selectedDivision) {
+          params.division = selectedDivision;
+        } else if (!isSuperAdmin && userDivision && userDivision !== "HQ") {
+          params.division = userDivision;
+        }
         return api.dailyPosition.list(params);
       } else if (lowerCat === "walkie-talkie active faults" || lowerCat === "walkie-talkie status") {
         // Fetch ALL faulty walkie-talkie records across all days (no date restriction)
@@ -3130,20 +3179,43 @@ function CategoryFaultsPageView({
     enabled: isWalkieTalkie,
   });
 
-  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
-  const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
-  const [rectificationTimeInput, setRectificationTimeInput] = useState("");
+  const getResolvedDateBounds = useMemo(() => {
+    const now = new Date();
+    const today = toDateValue(now);
 
-  const [editingRemarksRecord, setEditingRemarksRecord] = useState<any | null>(null);
-  const [editingRemarksText, setEditingRemarksText] = useState<string>("");
-
-  const [selectedDivision, setSelectedDivision] = useState(initialDivision || "");
-  const [selectedStation, setSelectedStation] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-
-  useEffect(() => {
-    setSelectedStation("");
-  }, [selectedDivision]);
+    if (resolvedDatePreset === "today") {
+      return { from: today, to: today };
+    }
+    if (resolvedDatePreset === "yesterday") {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      const yStr = toDateValue(y);
+      return { from: yStr, to: yStr };
+    }
+    if (resolvedDatePreset === "last7") {
+      const d7 = new Date(now);
+      d7.setDate(d7.getDate() - 6);
+      return { from: toDateValue(d7), to: today };
+    }
+    if (resolvedDatePreset === "last30") {
+      const d30 = new Date(now);
+      d30.setDate(d30.getDate() - 29);
+      return { from: toDateValue(d30), to: today };
+    }
+    if (resolvedDatePreset === "thisMonth") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: toDateValue(firstDay), to: today };
+    }
+    if (resolvedDatePreset === "prevMonth") {
+      const firstDayPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: toDateValue(firstDayPrev), to: toDateValue(lastDayPrev) };
+    }
+    if (resolvedDatePreset === "custom") {
+      return { from: customFromDate || "", to: customToDate || "" };
+    }
+    return { from: today, to: today };
+  }, [resolvedDatePreset, customFromDate, customToDate]);
 
   const formatDate = (dateStr: string) => {
     return formatDate24(dateStr);
@@ -3312,10 +3384,26 @@ function CategoryFaultsPageView({
         return parsed ? toDateValue(parsed) === todayStr : false;
       }
 
-      // 4. Faults Resolved Today
-      if (lowerCat === "resolved today" || lowerCat === "faults resolved today" || lowerCat === "resolved faults") {
-        const parsed = parseSafeDate(r.rectificationTime);
-        return parsed ? toDateValue(parsed) === todayStr : false;
+      // 4. Faults Resolved / Fault Resolved
+      if (lowerCat === "resolved today" || lowerCat === "Faults Resolved" || lowerCat === "resolved faults" || lowerCat === "fault resolved") {
+        if (!r.rectificationTime) return false;
+
+        // Role-based division access control (for non-SuperAdmin divisional users)
+        if (!isSuperAdmin && userDivision && userDivision !== "HQ") {
+          const rDiv = normalizeDiv(r.division);
+          const uDiv = normalizeDiv(userDivision);
+          if (rDiv !== uDiv) return false;
+        }
+
+        const rectDate = parseSafeDate(r.rectificationTime);
+        if (!rectDate) return false;
+        const rectDateStr = toDateValue(rectDate);
+
+        const { from, to } = getResolvedDateBounds;
+        if (from && rectDateStr < from) return false;
+        if (to && rectDateStr > to) return false;
+
+        return true;
       }
 
       // 5. Walkie-Talkie Active Faults (all unresolved WT faults, across all days)
@@ -3339,7 +3427,7 @@ function CategoryFaultsPageView({
 
       return r.category?.toLowerCase() === categoryName?.toLowerCase() && !r.rectificationTime;
     });
-  }, [rawRecords, isWalkieTalkie, wtTab, categoryName, todayStr]);
+  }, [rawRecords, isWalkieTalkie, wtTab, categoryName, todayStr, getResolvedDateBounds, isSuperAdmin, userDivision]);
 
   const sortedRecords = useMemo(() => {
     return [...records].sort((a: any, b: any) => {
@@ -3369,14 +3457,14 @@ function CategoryFaultsPageView({
 
   const uniqueStations = useMemo(() => {
     const filteredForStations = selectedDivision
-      ? records.filter((r: any) => r.division === selectedDivision)
+      ? records.filter((r: any) => normalizeDiv(r.division) === normalizeDiv(selectedDivision))
       : records;
     return Array.from(new Set(filteredForStations.map((r: any) => r.stationCode || r.stationName || r.section).filter(Boolean))) as string[];
   }, [records, selectedDivision]);
 
   const filteredRecords = useMemo(() => {
     return sortedRecords.filter((r: any) => {
-      if (selectedDivision && r.division !== selectedDivision) return false;
+      if (selectedDivision && normalizeDiv(r.division) !== normalizeDiv(selectedDivision)) return false;
 
       const stationVal = r.stationCode || r.stationName || r.section || "";
       if (selectedStation && stationVal !== selectedStation) return false;
@@ -3406,15 +3494,6 @@ function CategoryFaultsPageView({
     if (!dateStr) return "-";
     const date = new Date(dateStr);
     return Number.isNaN(date.getTime()) ? dateStr : formatDateTime24(date);
-  };
-
-  const normalizeDiv = (divName?: string) => {
-    if (!divName) return "Others";
-    const l = divName.toLowerCase();
-    if (l.includes("raipur") || l === "r") return "Raipur";
-    if (l.includes("bilaspur") || l === "bsp") return "Bilaspur";
-    if (l.includes("nagpur") || l === "ngp") return "Nagpur";
-    return "Others";
   };
 
   const stats = useMemo(() => {
@@ -3471,7 +3550,7 @@ function CategoryFaultsPageView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.8px" }}>
-            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "faults resolved today", "resolved faults", "walkie-talkie active faults", "walkie-talkie-tested-today", "walkie-talkie-faults-today"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
+            {["active faults", "wi-fi faults", "faults today", "faults reported today", "reported today", "resolved today", "Faults Resolved", "resolved faults", "fault resolved", "walkie-talkie active faults", "walkie-talkie-tested-today", "walkie-talkie-faults-today"].includes(categoryName.toLowerCase()) ? "Telecom Fault Log" : "Category-wise Fault Log"}
           </span>
           <h2 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>
             {(() => {
@@ -3482,7 +3561,7 @@ function CategoryFaultsPageView({
               if (lower === "walkie-talkie-tested-today") return `Walkie-Talkie — Today's Tested (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
               if (lower === "walkie-talkie-faults-today") return `Walkie-Talkie — Today's Faults (${selectedDivision ? `${selectedDivision} Division` : "All Divisions"})`;
               if (lower === "faults today" || lower === "faults reported today" || lower === "reported today") return "Faults Reported Today";
-              if (lower === "resolved today" || lower === "faults resolved today" || lower === "resolved faults") return "Faults Resolved Today";
+              if (lower === "resolved today" || lower === "faults resolved" || lower === "resolved faults" || lower === "fault resolved") return "Faults Resolved";
               return `${categoryName} Faults`;
             })()}
           </h2>
@@ -3496,9 +3575,87 @@ function CategoryFaultsPageView({
                   : `${records.filter((r: any) => !r.rectificationTime).length} active faults found`}
           </p>
         </div>
-        <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-          ← Back
-        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {isResolvedPage && (
+            <>
+              {/* Division Filter Dropdown (Super Admin / All Division Viewer only) */}
+              {isSuperAdmin && (
+                <select
+                  value={selectedDivision}
+                  onChange={(e) => setSelectedDivision(e.target.value)}
+                  style={{
+                    padding: "7px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                    background: "#ffffff",
+                    outline: "none",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                  }}
+                >
+                  <option value="">All Divisions</option>
+                  <option value="Bilaspur">Bilaspur (BSP)</option>
+                  <option value="Raipur">Raipur (R)</option>
+                  <option value="Nagpur">Nagpur (NGP)</option>
+                </select>
+              )}
+
+              {/* Date Range Dropdown */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <select
+                  value={resolvedDatePreset}
+                  onChange={(e) => setResolvedDatePreset(e.target.value as any)}
+                  style={{
+                    padding: "7px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                    background: "#ffffff",
+                    outline: "none",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                  }}
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="last7">Last 7 Days</option>
+                  <option value="last30">Last 30 Days</option>
+                  <option value="thisMonth">This Month</option>
+                  <option value="prevMonth">Previous Month</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+
+                {resolvedDatePreset === "custom" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <input
+                      type="date"
+                      value={customFromDate}
+                      onChange={(e) => setCustomFromDate(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", color: "#1e293b", outline: "none" }}
+                    />
+                    <span style={{ fontSize: "12px", color: "#64748b" }}>to</span>
+                    <input
+                      type="date"
+                      value={customToDate}
+                      onChange={(e) => setCustomToDate(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", color: "#1e293b", outline: "none" }}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <button onClick={onBack} className="export-button" style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+            ← Back
+          </button>
+        </div>
       </div>
 
       {/* Walkie-Talkie KPI Cards */}
@@ -3589,7 +3746,37 @@ function CategoryFaultsPageView({
           </div>
         ) : records.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
-            {isWalkieTalkie
+            {isResolvedPage ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <span style={{ fontSize: "15px", color: "#64748b" }}>No resolved faults found for the selected filters.</span>
+                {(resolvedDatePreset !== "today" || selectedDivision || selectedStation || searchTerm || customFromDate || customToDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResolvedDatePreset("today");
+                      setCustomFromDate("");
+                      setCustomToDate("");
+                      setSelectedDivision("");
+                      setSelectedStation("");
+                      setSearchTerm("");
+                    }}
+                    style={{
+                      padding: "6px 16px",
+                      borderRadius: "6px",
+                      border: "1px solid #3b82f6",
+                      background: "#eff6ff",
+                      color: "#2563eb",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+            ) : isWalkieTalkie
               ? wtTab === "faults"
                 ? "No active faults found for Walkie-Talkie."
                 : wtTab === "healthy"
@@ -3603,19 +3790,21 @@ function CategoryFaultsPageView({
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
             {/* Filters Panel */}
             <div className="dp-history-filters" style={{ display: "flex", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 150px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
-                <ClearableSelect
-                  value={selectedDivision}
-                  onChange={setSelectedDivision}
-                  style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
-                >
-                  <option value="">All Divisions</option>
-                  {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
-                    <option key={div} value={div}>{div}</option>
-                  ))}
-                </ClearableSelect>
-              </div>
+              {!isResolvedPage && (
+                <div style={{ flex: "1 1 150px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Division</label>
+                  <ClearableSelect
+                    value={selectedDivision}
+                    onChange={setSelectedDivision}
+                    style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "14px", background: "#fff" }}
+                  >
+                    <option value="">All Divisions</option>
+                    {["Bilaspur", "Nagpur", "Raipur", "HQ"].map(div => (
+                      <option key={div} value={div}>{div}</option>
+                    ))}
+                  </ClearableSelect>
+                </div>
+              )}
 
               <div style={{ flex: "1 1 180px" }}>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Station / Location</label>
@@ -3648,26 +3837,40 @@ function CategoryFaultsPageView({
                   />
                 </div>
               </div>
-
-              {(selectedDivision || selectedStation || searchTerm) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDivision("");
-                    setSelectedStation("");
-                    setSearchTerm("");
-                  }}
-                  className="action-btn text-red"
-                  style={{ height: "34px", padding: "0 12px", border: "1px solid #fca5a5", borderRadius: "6px", background: "#fef2f2", fontSize: "13px", alignSelf: "flex-end" }}
-                >
-                  Clear Filters
-                </button>
-              )}
             </div>
 
             {filteredRecords.length === 0 ? (
               <div style={{ textAlign: "center", padding: "80px", color: "var(--muted)", fontSize: "15px" }}>
-                No active faults matching current criteria.
+                {isResolvedPage ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                    <span style={{ fontSize: "15px", color: "#64748b" }}>No resolved faults found for the selected filters.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResolvedDatePreset("today");
+                        setCustomFromDate("");
+                        setCustomToDate("");
+                        setSelectedDivision("");
+                        setSelectedStation("");
+                        setSearchTerm("");
+                      }}
+                      style={{
+                        padding: "6px 16px",
+                        borderRadius: "6px",
+                        border: "1px solid #3b82f6",
+                        background: "#eff6ff",
+                        color: "#2563eb",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                ) : (
+                  "No active faults matching current criteria."
+                )}
               </div>
             ) : (
               <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff" }}>
@@ -3761,27 +3964,29 @@ function CategoryFaultsPageView({
                               >
                                 <Eye size={12} /> View Detail
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => startEditRemarks(record)}
-                                style={{
-                                  alignSelf: "flex-start",
-                                  fontSize: "11px",
-                                  color: "#7c3aed",
-                                  border: "none",
-                                  background: "none",
-                                  padding: 0,
-                                  cursor: "pointer",
-                                  fontWeight: 650,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px"
-                                }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                              >
-                                <Edit size={12} /> Edit
-                              </button>
+                              {!isResolvedPage && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditRemarks(record)}
+                                  style={{
+                                    alignSelf: "flex-start",
+                                    fontSize: "11px",
+                                    color: "#7c3aed",
+                                    border: "none",
+                                    background: "none",
+                                    padding: 0,
+                                    cursor: "pointer",
+                                    fontWeight: 650,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px"
+                                  }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                                >
+                                  <Edit size={12} /> Edit
+                                </button>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -5365,7 +5570,7 @@ function DailyPositionDashboardView({
       id: "resolvedToday",
       label: "Resolved Today",
       value: "0",
-      detail: "Faults resolved today",
+      detail: "Faults Resolved",
       tone: "green",
       series: [0, 0, 0, 0, 0]
     };
@@ -5486,7 +5691,7 @@ function KpiCard({ kpi, index, onCategoryClick }: { kpi: KpiMetric; index: numbe
       onCategoryClick?.("Active Faults");
     } else if (kpi.id === "wifiFaults" || kpi.label === "Wi-Fi Faults") {
       onCategoryClick?.("Wi-Fi");
-    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved Today" || kpi.label === "Resolved Today") {
+    } else if (kpi.id === "resolvedToday" || kpi.label === "Resolved Faults" || kpi.label === "Faults Resolved" || kpi.label === "Resolved Today") {
       onCategoryClick?.("Resolved Today");
     } else if (kpi.id === "faultsToday" || kpi.label === "Faults Today" || kpi.id === "reportedToday" || kpi.label === "Reported Today" || kpi.label === "Rectified Today") {
       onCategoryClick?.("Faults Today");
