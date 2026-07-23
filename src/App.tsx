@@ -3134,6 +3134,9 @@ function CategoryFaultsPageView({
   const [rectifyingRecord, setRectifyingRecord] = useState<any | null>(null);
   const [rectificationTimeInput, setRectificationTimeInput] = useState("");
 
+  const [editingRemarksRecord, setEditingRemarksRecord] = useState<any | null>(null);
+  const [editingRemarksText, setEditingRemarksText] = useState<string>("");
+
   const [selectedDivision, setSelectedDivision] = useState(initialDivision || "");
   const [selectedStation, setSelectedStation] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -3211,6 +3214,47 @@ function CategoryFaultsPageView({
       showToast?.(err.message || "Failed to rectify fault.");
     }
   });
+
+  const updateRemarksMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: any }) => api.dailyPosition.update(id, body),
+    onSuccess: (res: any, variables: any) => {
+      queryClient.invalidateQueries({ queryKey: ["daily-position-category-active-faults"] });
+      queryClient.invalidateQueries({ queryKey: ["daily-position-records"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dp-summary-table"] });
+      showToast?.("Remarks Updated Successfully");
+      if (selectedRecord && selectedRecord.id === variables.id) {
+        const newRem = variables.body.remarks;
+        setSelectedRecord((prev: any) => prev ? { ...prev, remarks: newRem, reason: newRem, formData: { ...(prev.formData || {}), remarks: newRem, reason: newRem } } : null);
+      }
+      setEditingRemarksRecord(null);
+    },
+    onError: (err: any) => {
+      showToast?.(err.message || "Failed to update remarks.");
+    }
+  });
+
+  const startEditRemarks = (record: any) => {
+    setEditingRemarksRecord(record);
+    setEditingRemarksText(record.remarks || record.reason || record.formData?.remarks || record.formData?.reason || "");
+  };
+
+  const handleSaveRemarks = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRemarksRecord) return;
+    const newRemarks = editingRemarksText.trim();
+    const payload = {
+      ...editingRemarksRecord,
+      remarks: newRemarks,
+      reason: newRemarks,
+      formData: {
+        ...(editingRemarksRecord.formData || {}),
+        remarks: newRemarks,
+        reason: newRemarks
+      }
+    };
+    updateRemarksMutation.mutate({ id: editingRemarksRecord.id, body: payload });
+  };
 
   const rawRecords = useMemo(() => {
     if (isWalkieTalkie && (wtTab === "tested" || wtTab === "healthy")) {
@@ -3695,27 +3739,50 @@ function CategoryFaultsPageView({
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                             <span>{record.remarks || record.reason || "-"}</span>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedRecord(record)}
-                              style={{
-                                alignSelf: "flex-start",
-                                fontSize: "11px",
-                                color: "var(--blue)",
-                                border: "none",
-                                background: "none",
-                                padding: 0,
-                                cursor: "pointer",
-                                fontWeight: 650,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px"
-                              }}
-                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                            >
-                              <Eye size={12} /> View Detail
-                            </button>
+                            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedRecord(record)}
+                                style={{
+                                  alignSelf: "flex-start",
+                                  fontSize: "11px",
+                                  color: "var(--blue)",
+                                  border: "none",
+                                  background: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  fontWeight: 650,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                              >
+                                <Eye size={12} /> View Detail
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => startEditRemarks(record)}
+                                style={{
+                                  alignSelf: "flex-start",
+                                  fontSize: "11px",
+                                  color: "#7c3aed",
+                                  border: "none",
+                                  background: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  fontWeight: 650,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                              >
+                                <Edit size={12} /> Edit
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -3738,6 +3805,162 @@ function CategoryFaultsPageView({
           role="SUPER_ADMIN"
           queries={queries}
         />
+      )}
+
+      {editingRemarksRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setEditingRemarksRecord(null)} style={{ zIndex: 9999 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ width: "min(720px, 94vw)", padding: "28px 32px", borderRadius: "16px", boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.25)", background: "#ffffff", position: "relative" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Edit size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", color: "#0f172a", fontWeight: 700, letterSpacing: "-0.01em" }}>Edit Fault Remarks</h3>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>Update the remarks or cause for this active fault record</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingRemarksRecord(null)}
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#0f172a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.color = "#64748b"; }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveRemarks}>
+              <div style={{ marginBottom: "20px" }}>
+                {/* Information Header Card */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", background: "#f8fafc", padding: "14px 18px", borderRadius: "10px", border: "1px solid #e2e8f0", marginBottom: "18px" }}>
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Station / Location</div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", marginTop: "2px" }}>
+                      {editingRemarksRecord.stationCode || editingRemarksRecord.stationName || editingRemarksRecord.section || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Circuit / Form</div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", marginTop: "2px" }}>
+                      {editingRemarksRecord.formType || editingRemarksRecord.name || "-"}
+                      {editingRemarksRecord.category ? <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 500, marginLeft: "4px" }}>({editingRemarksRecord.category})</span> : ""}
+                    </div>
+                  </div>
+                  {editingRemarksRecord.division && (
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", letterSpacing: "0.5px" }}>Division</div>
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", marginTop: "2px" }}>
+                        {editingRemarksRecord.division}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>
+                  Remarks / Reason <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <textarea
+                  rows={8}
+                  value={editingRemarksText}
+                  onChange={(e) => setEditingRemarksText(e.target.value)}
+                  placeholder="Enter detailed updated remarks or cause of fault..."
+                  style={{
+                    width: "100%",
+                    minHeight: "210px",
+                    padding: "14px 16px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: "1.65",
+                    color: "#0f172a",
+                    boxSizing: "border-box",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    resize: "vertical",
+                    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                    background: "#ffffff"
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#2563eb";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(37, 99, 235, 0.12)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#cbd5e1";
+                    e.target.style.boxShadow = "none";
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "18px" }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingRemarksRecord(null)}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    color: "#475569",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#f8fafc"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateRemarksMutation.isPending}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: updateRemarksMutation.isPending ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)",
+                    opacity: updateRemarksMutation.isPending ? 0.7 : 1,
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseEnter={(e) => { if (!updateRemarksMutation.isPending) e.currentTarget.style.background = "#1d4ed8"; }}
+                  onMouseLeave={(e) => { if (!updateRemarksMutation.isPending) e.currentTarget.style.background = "#2563eb"; }}
+                >
+                  {updateRemarksMutation.isPending ? (
+                    <>
+                      <span className="dp-btn-loader" style={{ width: "16px", height: "16px" }} />
+                      Updating...
+                    </>
+                  ) : (
+                    "Save Remarks"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {rectifyingRecord && (
