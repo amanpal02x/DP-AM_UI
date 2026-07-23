@@ -1847,8 +1847,19 @@ textarea {
     box-shadow: 18px 0 34px rgba(10, 20, 42, 0.14);
   }
 
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .main {
     margin-left: 0;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: hidden;
   }
 
   .module-grid,
@@ -3986,6 +3997,17 @@ button:disabled,
   .dp-form-actions {
     justify-content: stretch;
     flex-direction: column;
+    padding: 10px 16px !important;
+    gap: 8px !important;
+  }
+
+  .dp-form-actions button,
+  .dp-form-actions .export-button {
+    width: 100% !important;
+    height: 40px !important;
+    font-size: 13.5px !important;
+    justify-content: center !important;
+    margin: 0 !important;
   }
 
   .daily-position-page {
