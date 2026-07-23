@@ -668,7 +668,9 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                       <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "12%" : "11%", textAlign: "left" }}>Rectified Time</th>
                       <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "8%" : "8%", textAlign: "center" }}>Failure durations/Pending</th>
                       <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "12%" : "11%", textAlign: "left" }}>Faulty Section/station</th>
-                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "28%" : "31%", textAlign: "left" }}>Failure Remarks & Action taken</th>
+                      <th style={{ border: "1px solid #000000", padding: "6px", width: filterDivision ? "28%" : "31%", textAlign: "left" }}>
+                        {filterDivision ? "Reason of Failure & Failure Remarks & Action taken" : "Failure Remarks & Action taken"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -969,7 +971,37 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                                     {faultySec}
                                   </td>
                                   <td style={{ border: "1px solid #000000", padding: "5px" }}>
-                                    {actionRemarks}
+                                    {hasFault && !entry.isWifiSummary && !isWtRepair && !isWtTest ? (
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                        {(() => {
+                                          const reas = entry.reason || entry.formData?.reason;
+                                          if (filterDivision && reas && reas.trim() !== "" && reas.trim() !== "-") {
+                                            return <div><strong>Reason:</strong> {reas}</div>;
+                                          }
+                                          return null;
+                                        })()}
+                                        {(() => {
+                                          const rem = entry.remarks || entry.formData?.remarks;
+                                          if (rem && rem.trim() !== "" && rem.trim() !== "-") {
+                                            return filterDivision ? (
+                                              <div><strong>Remarks:</strong> {rem}</div>
+                                            ) : (
+                                              <div>{rem}</div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                        {(() => {
+                                          const act = entry.formData?.actionPlan || entry.formData?.actionPlanTdc || entry.formData?.stComplianceDetails;
+                                          if (act && act.trim() !== "" && act.trim() !== "-") {
+                                            return <div><strong>Action:</strong> {act}</div>;
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
+                                    ) : (
+                                      actionRemarks
+                                    )}
                                   </td>
                                 </tr>
                               );
