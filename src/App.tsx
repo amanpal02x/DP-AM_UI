@@ -443,6 +443,765 @@ const MISReportView = lazy(() => import("./components/DailyPosition/MISReportVie
 const ScreenerView = lazy(() => import("./components/Screener/ScreenerView"));
 const FaultTrendDashboardView = lazy(() => import("./components/DailyPosition/FaultTrendDashboardView"));
 
+interface TelecomWorkRecord {
+  id: string;
+  nameOfWork: string;
+  planHead: string;
+  loa: string;
+  agencyName: string;
+  fundEstimateAmount: number | string;
+  overallTdc: string;
+  createdAt: string;
+}
+
+const DEFAULT_TELECOM_WORKS: TelecomWorkRecord[] = [];
+
+function TelecomWorkView({ showToast }: { showToast?: (msg: string) => void }) {
+  const [worksList, setWorksList] = useState<TelecomWorkRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("telecom_works_records");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_TELECOM_WORKS;
+  });
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<TelecomWorkRecord | null>(null);
+
+  const [formData, setFormData] = useState({
+    nameOfWork: "",
+    planHead: "",
+    loa: "",
+    agencyName: "",
+    fundEstimateAmount: "",
+    overallTdc: ""
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<keyof TelecomWorkRecord>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Sync to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("telecom_works_records", JSON.stringify(worksList));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [worksList]);
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const openAddModal = () => {
+    setFormData({
+      nameOfWork: "",
+      planHead: "",
+      loa: "",
+      agencyName: "",
+      fundEstimateAmount: "",
+      overallTdc: ""
+    });
+    setFormErrors({});
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (record: TelecomWorkRecord) => {
+    setSelectedRecord(record);
+    setFormData({
+      nameOfWork: record.nameOfWork || "",
+      planHead: record.planHead || "",
+      loa: record.loa || "",
+      agencyName: record.agencyName || "",
+      fundEstimateAmount: String(record.fundEstimateAmount || ""),
+      overallTdc: record.overallTdc || ""
+    });
+    setFormErrors({});
+    setIsEditModalOpen(true);
+  };
+
+  const openViewModal = (record: TelecomWorkRecord) => {
+    setSelectedRecord(record);
+    setIsViewModalOpen(true);
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    if (!formData.nameOfWork.trim()) errors.nameOfWork = "Name of Work is required";
+    if (!formData.planHead.trim()) errors.planHead = "Plan Head is required";
+    if (!formData.loa.trim()) errors.loa = "LOA is required";
+    if (!formData.agencyName.trim()) errors.agencyName = "Agency Name is required";
+    if (!formData.fundEstimateAmount || Number(formData.fundEstimateAmount) <= 0) {
+      errors.fundEstimateAmount = "Valid Fund / Estimate Amount is required";
+    }
+    if (!formData.overallTdc) errors.overallTdc = "Overall TDC is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSaveAdd = () => {
+    if (!validateForm()) return;
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const newRecord: TelecomWorkRecord = {
+      id: `tw-${Date.now()}`,
+      nameOfWork: formData.nameOfWork.trim(),
+      planHead: formData.planHead.trim(),
+      loa: formData.loa.trim(),
+      agencyName: formData.agencyName.trim(),
+      fundEstimateAmount: Number(formData.fundEstimateAmount) || formData.fundEstimateAmount,
+      overallTdc: formData.overallTdc,
+      createdAt: nowStr
+    };
+    setWorksList(prev => [newRecord, ...prev]);
+    setIsAddModalOpen(false);
+    if (showToast) showToast("Telecom Works added successfully.");
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedRecord || !validateForm()) return;
+    setWorksList(prev => prev.map(rec => {
+      if (rec.id === selectedRecord.id) {
+        return {
+          ...rec,
+          nameOfWork: formData.nameOfWork.trim(),
+          planHead: formData.planHead.trim(),
+          loa: formData.loa.trim(),
+          agencyName: formData.agencyName.trim(),
+          fundEstimateAmount: Number(formData.fundEstimateAmount) || formData.fundEstimateAmount,
+          overallTdc: formData.overallTdc
+        };
+      }
+      return rec;
+    }));
+    setIsEditModalOpen(false);
+    setSelectedRecord(null);
+    if (showToast) showToast("Telecom Works updated successfully.");
+  };
+
+  const handleDelete = (id: string) => {
+    setWorksList(prev => prev.filter(rec => rec.id !== id));
+    setDeleteTargetId(null);
+    if (showToast) showToast("Telecom Works deleted successfully.");
+  };
+
+  const handleSort = (field: keyof TelecomWorkRecord) => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const filteredRecords = useMemo(() => {
+    let list = [...worksList];
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      list = list.filter(r =>
+        (r.nameOfWork || "").toLowerCase().includes(q) ||
+        (r.planHead || "").toLowerCase().includes(q) ||
+        (r.loa || "").toLowerCase().includes(q) ||
+        (r.agencyName || "").toLowerCase().includes(q) ||
+        String(r.fundEstimateAmount || "").toLowerCase().includes(q) ||
+        (r.overallTdc || "").toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a, b) => {
+      let valA: any = a[sortField] || "";
+      let valB: any = b[sortField] || "";
+
+      if (sortField === "fundEstimateAmount") {
+        valA = Number(valA) || 0;
+        valB = Number(valB) || 0;
+      } else {
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [worksList, searchTerm, sortField, sortOrder]);
+
+  const totalRecords = filteredRecords.length;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage) || 1;
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredRecords.slice(start, start + itemsPerPage);
+  }, [filteredRecords, currentPage, itemsPerPage]);
+
+  const formatAmount = (amt: any) => {
+    const num = Number(amt);
+    if (isNaN(num)) return amt || "-";
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(num);
+  };
+
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return "-";
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return dateStr;
+  };
+
+  return (
+    <article className="wide-list-container" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Header & Add Work Button */}
+      <div className="tabular-header" style={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="header-title-section">
+          <h2>Telecom Works</h2>
+          <p>Telecom infrastructure, maintenance, and work operations workspace</p>
+        </div>
+        <button
+          type="button"
+          onClick={openAddModal}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "#2563eb",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "6px",
+            padding: "8px 16px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(37, 99, 235, 0.2)",
+            transition: "background 0.15s ease"
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#1d4ed8"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#2563eb"; }}
+        >
+          <Plus size={16} /> Add Work
+        </button>
+      </div>
+
+      {/* Filter & Controls Panel */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+        <div style={{ position: "relative", flex: "1 1 300px", maxWidth: "420px" }}>
+          <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", display: "flex", alignItems: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search Name of Work, Plan Head, LOA, Agency..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "7px 12px 7px 32px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+              fontSize: "13.5px",
+              background: "#ffffff",
+              boxSizing: "border-box"
+            }}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", color: "#475569" }}>
+          <span>Total Records: <strong style={{ color: "#1e293b" }}>{totalRecords}</strong></span>
+        </div>
+      </div>
+
+      {/* Table Section */}
+      <div className="table-scroll-container" style={{ margin: 0, boxShadow: "none", border: "1px solid var(--line)", borderRadius: "8px", overflow: "hidden", background: "#fff", flex: 1 }}>
+        {filteredRecords.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b", fontSize: "14.5px" }}>
+            No Telecom Works records found.
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th onClick={() => handleSort("nameOfWork")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Name of Work {sortField === "nameOfWork" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("planHead")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Plan Head {sortField === "planHead" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("loa")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  LOA {sortField === "loa" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("agencyName")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Agency Name {sortField === "agencyName" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("fundEstimateAmount")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Fund / Estimate Amount {sortField === "fundEstimateAmount" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("overallTdc")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Overall TDC {sortField === "overallTdc" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th onClick={() => handleSort("createdAt")} style={{ cursor: "pointer", userSelect: "none" }}>
+                  Created Date {sortField === "createdAt" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={{ textAlign: "center" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedRecords.map((record) => (
+                <tr key={record.id}>
+                  <td style={{ fontWeight: 600, color: "var(--navy)", minWidth: "200px" }}>{record.nameOfWork}</td>
+                  <td><span className="badge badge-subtle">{record.planHead}</span></td>
+                  <td style={{ fontSize: "12.5px", color: "#334155" }}>{record.loa}</td>
+                  <td style={{ fontWeight: 550, color: "#1e293b" }}>{record.agencyName}</td>
+                  <td style={{ fontWeight: 650, color: "#047857" }}>{formatAmount(record.fundEstimateAmount)}</td>
+                  <td style={{ fontWeight: 550, color: "#2563eb" }}>{formatDateDisplay(record.overallTdc)}</td>
+                  <td style={{ fontSize: "12px", color: "#64748b" }}>{record.createdAt || "-"}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => openViewModal(record)}
+                        style={{
+                          fontSize: "11.5px",
+                          color: "var(--blue)",
+                          border: "none",
+                          background: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontWeight: 650,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px"
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                      >
+                        <Eye size={13} /> View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(record)}
+                        style={{
+                          fontSize: "11.5px",
+                          color: "#7c3aed",
+                          border: "none",
+                          background: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontWeight: 650,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px"
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                      >
+                        <Edit size={13} /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTargetId(record.id)}
+                        style={{
+                          fontSize: "11.5px",
+                          color: "#ef4444",
+                          border: "none",
+                          background: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontWeight: 650,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px"
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination Footer */}
+      {totalRecords > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", padding: "10px 16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px", color: "#475569" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>Rows per page:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff" }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+
+          <div>
+            Showing <strong>{Math.min((currentPage - 1) * itemsPerPage + 1, totalRecords)}</strong> to <strong>{Math.min(currentPage * itemsPerPage, totalRecords)}</strong> of <strong>{totalRecords}</strong> records
+          </div>
+
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              style={{
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+                background: currentPage === 1 ? "#f1f5f9" : "#fff",
+                color: currentPage === 1 ? "#94a3b8" : "#334155",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: "12.5px"
+              }}
+            >
+              Previous
+            </button>
+            <span style={{ fontWeight: 600, padding: "0 6px" }}>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              style={{
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+                background: currentPage >= totalPages ? "#f1f5f9" : "#fff",
+                color: currentPage >= totalPages ? "#94a3b8" : "#334155",
+                cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
+                fontSize: "12.5px"
+              }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Work Modal */}
+      {(isAddModalOpen || isEditModalOpen) && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} style={{ zIndex: 9999 }}>
+          <div
+            className="modal-card dp-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "680px", width: "92vw", padding: "24px", borderRadius: "12px" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#0f172a" }}>
+                {isAddModalOpen ? "Add Telecom Works" : "Edit Telecom Works"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }}
+                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", padding: "4px" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Field 1: Name of Work */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                  Name of Work <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter full name / description of work"
+                  value={formData.nameOfWork}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nameOfWork: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: `1px solid ${formErrors.nameOfWork ? "#ef4444" : "#cbd5e1"}`,
+                    fontSize: "14px",
+                    boxSizing: "border-box"
+                  }}
+                />
+                {formErrors.nameOfWork && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.nameOfWork}</span>}
+              </div>
+
+              {/* 2-column layout */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Field 2: Plan Head */}
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                    Plan Head <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PH-33 (Telecom)"
+                    value={formData.planHead}
+                    onChange={(e) => setFormData(prev => ({ ...prev, planHead: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: `1px solid ${formErrors.planHead ? "#ef4444" : "#cbd5e1"}`,
+                      fontSize: "14px",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  {formErrors.planHead && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.planHead}</span>}
+                </div>
+
+                {/* Field 3: LOA */}
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                    LOA <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter LOA reference number"
+                    value={formData.loa}
+                    onChange={(e) => setFormData(prev => ({ ...prev, loa: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: `1px solid ${formErrors.loa ? "#ef4444" : "#cbd5e1"}`,
+                      fontSize: "14px",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  {formErrors.loa && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.loa}</span>}
+                </div>
+
+                {/* Field 4: Agency Name */}
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                    Agency Name <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter agency name"
+                    value={formData.agencyName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, agencyName: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: `1px solid ${formErrors.agencyName ? "#ef4444" : "#cbd5e1"}`,
+                      fontSize: "14px",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  {formErrors.agencyName && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.agencyName}</span>}
+                </div>
+
+                {/* Field 5: Fund / Estimate Amount */}
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                    Fund / Estimate Amount (₹) <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount in ₹"
+                    value={formData.fundEstimateAmount}
+                    onChange={(e) => setFormData(prev => ({ ...prev, fundEstimateAmount: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: `1px solid ${formErrors.fundEstimateAmount ? "#ef4444" : "#cbd5e1"}`,
+                      fontSize: "14px",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  {formErrors.fundEstimateAmount && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.fundEstimateAmount}</span>}
+                </div>
+              </div>
+
+              {/* Field 6: Overall TDC */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "5px" }}>
+                  Overall TDC <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.overallTdc}
+                  onChange={(e) => setFormData(prev => ({ ...prev, overallTdc: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: `1px solid ${formErrors.overallTdc ? "#ef4444" : "#cbd5e1"}`,
+                    fontSize: "14px",
+                    boxSizing: "border-box"
+                  }}
+                />
+                {formErrors.overallTdc && <span style={{ fontSize: "12px", color: "#ef4444", marginTop: "3px", display: "block" }}>{formErrors.overallTdc}</span>}
+              </div>
+            </div>
+
+            {/* Modal Footer: Cancel button on left, Save button on right (where Cancel was) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }}
+                style={{
+                  padding: "9px 18px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#475569",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={isAddModalOpen ? handleSaveAdd : handleSaveEdit}
+                style={{
+                  padding: "9px 24px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(37, 99, 235, 0.2)"
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Detail Modal */}
+      {isViewModalOpen && selectedRecord && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setIsViewModalOpen(false)} style={{ zIndex: 9999 }}>
+          <div
+            className="modal-card dp-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "620px", width: "92vw", padding: "24px", borderRadius: "12px" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#0f172a" }}>
+                Telecom Works Details
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsViewModalOpen(false)}
+                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", padding: "4px" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>Name of Work</span>
+                <p style={{ margin: "4px 0 0", fontSize: "15px", fontWeight: "650", color: "#0f172a" }}>{selectedRecord.nameOfWork}</p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>Plan Head</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "14px", fontWeight: "600", color: "#2563eb" }}>{selectedRecord.planHead}</p>
+                </div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>LOA</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "14px", fontWeight: "600", color: "#334155" }}>{selectedRecord.loa}</p>
+                </div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>Agency Name</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "14px", fontWeight: "600", color: "#1e293b" }}>{selectedRecord.agencyName}</p>
+                </div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>Fund / Estimate Amount</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "14px", fontWeight: "700", color: "#047857" }}>{formatAmount(selectedRecord.fundEstimateAmount)}</p>
+                </div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>Overall TDC</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "14px", fontWeight: "600", color: "#2563eb" }}>{formatDateDisplay(selectedRecord.overallTdc)}</p>
+                </div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ fontSize: "11.5px", textTransform: "uppercase", color: "#64748b", fontWeight: "700" }}>Created Date</span>
+                  <p style={{ margin: "4px 0 0", fontSize: "13.5px", color: "#475569" }}>{selectedRecord.createdAt || "-"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                onClick={() => setIsViewModalOpen(false)}
+                style={{ padding: "8px 20px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontWeight: "600", fontSize: "13.5px", cursor: "pointer" }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTargetId && (
+        <div className="modal-backdrop dp-modal-backdrop" onClick={() => setDeleteTargetId(null)} style={{ zIndex: 9999 }}>
+          <div
+            className="modal-card dp-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "440px", width: "90vw", padding: "24px", borderRadius: "12px" }}
+          >
+            <h3 style={{ margin: "0 0 10px", fontSize: "17px", fontWeight: "700", color: "#991b1b" }}>
+              Confirm Deletion
+            </h3>
+            <p style={{ margin: "0 0 20px", fontSize: "14px", color: "#475569", lineHeight: "1.5" }}>
+              Are you sure you want to delete this Telecom Works record? This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#ffffff", color: "#475569", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteTargetId)}
+                style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#dc2626", color: "#ffffff", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 import type {
   ActivityItem,
   AlertItem,
@@ -476,7 +1235,8 @@ type NavKey =
   | "Walkie-Talkie"
   | "Walkie Talkie Inventory"
   | "Walkie Talkie Testing"
-  | "Screener";
+  | "Screener"
+  | "Telecom Works";
 
 const navToHash: Record<NavKey, string> = {
   "Asset Dashboard": "#/dashboard/asset-management",
@@ -498,7 +1258,8 @@ const navToHash: Record<NavKey, string> = {
   "Walkie-Talkie": "#/walkie-talkie",
   "Walkie Talkie Inventory": "#/walkie-talkie-inventory",
   "Walkie Talkie Testing": "#/walkie-talkie-testing",
-  "Screener": "#/screener"
+  "Screener": "#/screener",
+  "Telecom Works": "#/telecom-works"
 };
 
 const IndianStates = []; // placeholder, not needed
@@ -523,7 +1284,8 @@ const hashToNav: Record<string, NavKey> = {
   "#/walkie-talkie": "Walkie-Talkie",
   "#/walkie-talkie-inventory": "Walkie Talkie Inventory",
   "#/walkie-talkie-testing": "Walkie Talkie Testing",
-  "#/screener": "Screener"
+  "#/screener": "Screener",
+  "#/telecom-works": "Telecom Works"
 };
 
 
@@ -652,6 +1414,7 @@ const navItems: Array<{
 
     { label: "Feedback", icon: MessageSquare, roles: ["TESTROOM", "SUPER_ADMIN", "STAFF"] },
     { label: "Latest Updates", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
+    { label: "Telecom Works", icon: Wrench, roles: ["SUPER_ADMIN"] },
     { label: "Walkie-Talkie", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"], expandable: true },
     { label: "Walkie Talkie Inventory", icon: RadioTower, roles: ["SUPER_ADMIN", "DIVISIONAL_ADMIN", "STAFF", "TESTROOM", "VIEWER", "DIVISIONAL_VIEWER", "ALL_DIVISION_VIEWER"], hidden: true },
     { label: "Walkie Talkie Testing", icon: RadioTower, roles: ["DIVISIONAL_ADMIN", "STAFF", "TESTROOM"], hidden: true }
@@ -1557,6 +2320,8 @@ function App() {
             <AnnouncementsManager showToast={showToast} />
           ) : activeNav === "Screener" ? (
             <ScreenerView showToast={showToast} />
+          ) : activeNav === "Telecom Works" ? (
+            <TelecomWorkView showToast={showToast} />
           ) : (
             <ModuleView activeNav={activeNav} openPanel={openPanel} queries={queries} showToast={showToast} />
           )}
