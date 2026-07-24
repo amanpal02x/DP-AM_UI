@@ -3900,10 +3900,10 @@ function CategoryFaultsPageView({
                         </td>
                         <td>{formatDateTime(record.failureTime)}</td>
                         <td>
-                          {isRecordAllOk(record) ? (
-                            "-"
-                          ) : record.rectificationTime ? (
+                          {record.rectificationTime ? (
                             formatDateTime(record.rectificationTime)
+                          ) : isRecordAllOk(record) ? (
+                            "-"
                           ) : (
                             <button
                               type="button"
@@ -3937,7 +3937,7 @@ function CategoryFaultsPageView({
                           </td>
                         )}
                         <td style={{ fontWeight: 600, color: record.rectificationTime ? "#475569" : "#ef4444" }}>
-                          {isRecordAllOk(record) ? "-" : getDurationText(record.failureTime, record.rectificationTime)}
+                          {record.rectificationTime ? getDurationText(record.failureTime, record.rectificationTime) : isRecordAllOk(record) ? "-" : getDurationText(record.failureTime, record.rectificationTime)}
                         </td>
                         <td style={{ maxWidth: "400px", wordBreak: "break-word" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
