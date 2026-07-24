@@ -111,6 +111,48 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
     return null;
   };
 
+  const parseSafeDateStr = (rawStr?: string) => {
+    if (!rawStr) return null;
+    const d = new Date(rawStr);
+    if (isNaN(d.getTime())) return null;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const isFaultForSelectedDate = (e: any, targetDate: string) => {
+    const s = (e.status || "").toUpperCase();
+    const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK") || s === "ALL OK";
+    if (isAllOk) return false;
+
+    const failTime = e.failureTime || e.formData?.dateTime || e.createdAt || e.date;
+    const failDateStr = parseSafeDateStr(failTime);
+
+    if (failDateStr) {
+      return failDateStr === targetDate;
+    }
+
+    return true;
+  };
+
+  const isWifiActiveFault = (e: any, targetDate: string) => {
+    const s = (e.status || "").toUpperCase();
+    const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK") || s === "ALL OK";
+    if (isAllOk) return false;
+
+    const rectTime = e.rectificationTime || e.formData?.rectifiedDateTime;
+    if (s === "RECTIFIED" || rectTime) {
+      if (!rectTime) return false;
+      const d = new Date(rectTime);
+      if (isNaN(d.getTime())) return false;
+      const rectDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return rectDateStr === targetDate;
+    }
+
+    return true;
+  };
+
   const displayedForms = useMemo(() => {
     const base = DAILY_POSITION_FORMS.filter(
       (form) => form.category !== "Daily Log" && form.name !== "Daily Position Log"
@@ -571,7 +613,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               SOUTH EAST CENTRAL RAILWAY
             </h1>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "16px", fontWeight: "bold" }}>
-              PCSTE/SECR MORNING POSITION
+              {positionType === "CURRENT" ? "PCSTE/SECR CURRENT POSITION" : "PCSTE/SECR MORNING POSITION"}
             </h2>
             <div style={{ marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
               DATE: {getNextDayFormatted(selectedDate)}
@@ -596,7 +638,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
             const mainForms = shouldSeparateWt ? displayedForms.filter(f => !isWtForm(f)) : displayedForms;
             const wtForms = shouldSeparateWt ? displayedForms.filter(f => isWtForm(f)) : [];
 
-            const groupedCircuitNames = [
+            const targetGroupNames = [
               "Control & ICMS Position",
               "FOIS",
               "Hotline",
@@ -609,35 +651,44 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
               "Rail Madad"
             ];
 
-            const isPrintAllDivisions = !filterDivision && DIVISIONS.length === 3;
+            const faultyTargetNames: string[] = [];
+            const allOkTargetNames: string[] = [];
 
-            const areAllGroupedCircuitsOk = isPrintAllDivisions && groupedCircuitNames.every((name) => {
+            for (const name of targetGroupNames) {
               const targetForm = mainForms.find(f => f.name === name);
-              if (!targetForm) return true;
-              return DIVISIONS.every((div) => {
+              if (!targetForm) continue;
+
+              const hasFaultInAnyDiv = DIVISIONS.some((div) => {
                 const map = divisionMaps[div] || {};
                 const formEntries = map[targetForm.name] || map[targetForm.systemCode] || [];
                 const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
-                
-                const faultEntries = activeEntries.filter((e: any) => {
-                  const s = (e.status || "").toUpperCase();
-                  const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                  return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
-                });
-                return faultEntries.length === 0;
+                const faultEntries = activeEntries.filter((e: any) => isFaultForSelectedDate(e, selectedDate));
+                return faultEntries.length > 0;
               });
-            });
+
+              if (hasFaultInAnyDiv) {
+                faultyTargetNames.push(name);
+              } else {
+                allOkTargetNames.push(name);
+              }
+            }
+
+            const isPrintAllDivisions = !filterDivision && DIVISIONS.length === 3;
 
             const renderForms = (() => {
-              if (!areAllGroupedCircuitsOk) return mainForms;
-              const items = [];
+              if (!isPrintAllDivisions || allOkTargetNames.length === 0) return mainForms;
+
+              const items: any[] = [];
               let groupedInserted = false;
+
               for (const form of mainForms) {
-                if (groupedCircuitNames.includes(form.name)) {
-                  if (!groupedInserted) {
+                if (targetGroupNames.includes(form.name)) {
+                  if (faultyTargetNames.includes(form.name)) {
+                    items.push(form);
+                  } else if (!groupedInserted) {
                     items.push({
                       isGroupedCircuits: true,
-                      name: groupedCircuitNames.join(", "),
+                      name: allOkTargetNames.join(", "),
                       systemCode: "GROUPED_CIRCUITS_OK",
                     });
                     groupedInserted = true;
@@ -697,11 +748,10 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           const formEntries = map[form.name] || map[form.systemCode] || [];
                           const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
 
-                          const faultEntries = activeEntries.filter((e: any) => {
-                            const s = (e.status || "").toUpperCase();
-                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
-                          });
+                          const isWifi = form.name === "Wi-Fi" || form.systemCode === "SECR/TEL/WIFI-09";
+                          const faultEntries = activeEntries.filter((e: any) =>
+                            isWifi ? isWifiActiveFault(e, selectedDate) : isFaultForSelectedDate(e, selectedDate)
+                          );
 
                           let entries: any[] = [];
                           if (isWtTest || isWtRepair) {
@@ -762,11 +812,7 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                           const map = divisionMaps[div] || {};
                           const formEntries = map[form.name] || map[form.systemCode] || [];
                           const activeEntries = formEntries.filter((e: any) => e.status !== "DRAFT");
-                          const faultEntries = activeEntries.filter((e: any) => {
-                            const s = (e.status || "").toUpperCase();
-                            const isAllOk = e.reason === "All OK" || (e.formData && e.formData.actionType === "OK");
-                            return s !== "All Ok" && s !== "RECTIFIED" && !isAllOk;
-                          });
+                          const faultEntries = activeEntries.filter((e: any) => isWifiActiveFault(e, selectedDate));
 
                           return {
                             div,
@@ -806,13 +852,13 @@ export default function DailyPositionPrintView({ selectedDate, onClose, filterDi
                               let faultySec = "-";
                               let actionRemarks = "-";
 
+                              const isEntryAllOk = entry.reason === "All OK" ||
+                                (entry.formData && entry.formData.actionType === "OK") ||
+                                (entry.status || "").toUpperCase() === "ALL OK";
+
                               const hasFault = !entry.isPlaceholder &&
                                 !entry.isWifiSummary &&
-                                !entry.rectificationTime &&
-                                entry.status !== "All Ok" &&
-                                entry.status !== "RECTIFIED" &&
-                                entry.reason !== "All OK" &&
-                                !(entry.formData && entry.formData.actionType === "OK");
+                                !isEntryAllOk;
 
                               if (entry.isWifiSummary) {
                                 failTimeStr = "";
